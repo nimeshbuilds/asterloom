@@ -7,3 +7,5 @@
 .player-shell .game-instructions,.player-shell .player-save-note,.player-shell .player-sidebar>p,.player-shell .mission-path>li,.player-shell .mission-path>li>span,.player-shell .written-answer small,.player-shell .completion-stats span,.player-shell .session-complete>p{color:#65715d}.player-shell .challenge-meta .eyebrow,.player-shell .concept-chip,.player-shell .option-letter{color:#63715a}.player-shell .mission-path>li.current>span,.player-shell .mission-path>li.complete>span,.player-shell .answer-option.selected .option-letter,.player-shell .answer-option.correct .option-letter,.player-shell .answer-option.incorrect .option-letter{color:#fff}
 
 .player-shell .btn.ghost,.player-shell .player-note p{color:#56634e}
+
+.player-figures{margin:0 0 18px}.player-figures .learning-figures{margin-top:14px}.player-figures>.muted{color:#56634e;margin:5px 0 10px}

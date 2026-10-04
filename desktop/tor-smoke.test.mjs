@@ -38,7 +38,9 @@ test('native IPC configures onion-only SOCKS and the sandboxed renderer joins a 
     assert.equal(health?.status,200,'The renderer could not reach the onion service.');
     const joined=await request('/api/rooms/join',{inviteCode:owner.inviteCode,playerName:'Native learner',packHash:'native-tor-revision'});assert.equal(joined.status,201);
     const scored=await request(`/api/rooms/${owner.roomId}/results`,{eventId:'native-onion-score',missionId:'one',score:750,maxScore:1000},joined.body.playerToken);assert.equal(scored.status,201);assert.equal(scored.body.standings.find(player=>player.playerName==='Native learner').score,750);
-    const blocked=await request('/api/import-file',{name:'blocked.txt',text:'must not import'});assert.equal(blocked.status,403);assert.equal(blocked.body.code,'ROOM_RELAY_ONLY');
+    // The gateway rejects this preflight without CORS authorization. The
+    // renderer must therefore see a network failure, not the private API.
+    await assert.rejects(()=>request('/api/import-file',{name:'blocked.txt',text:'must not import'}),/Failed to fetch/);
     const disabled=await page.evaluate(()=>window.asterloomDesktop.setTorEnabled(false));assert.equal(disabled.status,'disabled');assert.equal(disabled.proxyConfigured,false);
     assert.equal(await application.evaluate(({session},url)=>session.defaultSession.resolveProxy(url),onionExample),'PROXY 127.0.0.1:9');
     console.log('Verified native Tor IPC, onion-only proxy, renderer CORS/CSP, invitation join, score update and authoring isolation.');

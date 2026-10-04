@@ -35,7 +35,7 @@ test('host and browser-origin checks reject rebinding and foreign pages',async()
 });
 test('onion gateway blocks authoring and room creation even with a forged localhost Host header',async()=>{
   const relay=`http://127.0.0.1:${service.onionGatewayPort}`;
-  for(const route of ['/','/api/import-url','/api/import-file','/api/generate','/api/rooms','/api/tor/status']){
+  for(const route of ['/','/api/import-url','/api/import-file','/api/generate','/api/generate-image','/api/rooms','/api/tor/status']){
     const reply=await fetch(relay+route,{method:'POST',headers:{Host:'127.0.0.1','Content-Type':'application/json'},body:'{}'});
     assert.equal(reply.status,403);assert.equal((await reply.json()).code,'ROOM_RELAY_ONLY');
   }
@@ -191,4 +191,25 @@ test('compatible provider proxy performs an actual HTTP request without persisti
     assert.equal(result.status,200,JSON.stringify(result.data));assert.match(result.data.text,/DNS/);assert.equal(received.authorization,'Bearer ephemeral-secret');assert.equal(received.url,'/v1/chat/completions');assert.equal(received.body.response_format.type,'json_object');assert.equal(result.data.usage.total_tokens,30);
     const saved=await fs.readFile(path.join(directory,'rooms.json'),'utf8');assert.ok(!saved.includes('ephemeral-secret'));
   } finally {if(previous===undefined)delete process.env.LEARN_AI_ORIGINS;else process.env.LEARN_AI_ORIGINS=previous;model.closeAllConnections();await new Promise(resolve=>model.close(resolve));}
+});
+test('optional image proxy returns exactly one bounded PNG and never follows image URLs or credential redirects',async()=>{
+  const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
+  let received,mode='valid',calls=0;
+  const model=http.createServer(async(request,response)=>{
+    calls++;const chunks=[];for await(const chunk of request)chunks.push(chunk);received={url:request.url,authorization:request.headers.authorization,body:JSON.parse(Buffer.concat(chunks).toString())};
+    if(mode==='redirect'){response.writeHead(302,{Location:'/must-not-follow'});response.end();return;}
+    response.writeHead(200,{'Content-Type':'application/json'});response.end(JSON.stringify(mode==='valid'?{data:[{b64_json:png}],usage:{total_tokens:8,private:'never return this'}}:mode==='url'?{data:[{url:'http://169.254.169.254/private'}]}:mode==='oversize'?{data:[{b64_json:'A'.repeat(14*1024*1024)}]}:{data:[{b64_json:Buffer.from('<svg onload="bad()"/>').toString('base64')}]}));
+  });
+  await new Promise(resolve=>model.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${model.address().port}`,previous=process.env.LEARN_AI_ORIGINS;process.env.LEARN_AI_ORIGINS=origin;
+  const input={provider:'compatible',baseUrl:origin+'/v1',apiKey:'image-key-memory-only',model:'test-image',prompt:'A small educational diagram',n:10};
+  try{
+    const result=await post('/api/generate-image',input);assert.equal(result.status,200,JSON.stringify(result.data));assert.equal(result.data.dataUrl,`data:image/png;base64,${png}`);assert.equal(result.data.width,1);assert.equal(result.data.height,1);assert.equal(result.data.needsReview,true);assert.deepEqual(result.data.usage,{total_tokens:8});
+    assert.equal(received.url,'/v1/images/generations');assert.equal(received.authorization,'Bearer image-key-memory-only');assert.equal(received.body.n,1);assert.equal(received.body.output_format,'png');assert.equal(received.body.quality,'low');assert.equal(received.body.response_format,undefined);
+    mode='url';const missing=await post('/api/generate-image',input);assert.equal(missing.status,502);assert.equal(missing.data.code,'IMAGE_DATA_REQUIRED');
+    mode='svg';const invalid=await post('/api/generate-image',input);assert.equal(invalid.status,502);assert.equal(invalid.data.code,'INVALID_IMAGE');
+    mode='oversize';assert.equal((await post('/api/generate-image',input)).status,502);
+    mode='redirect';const before=calls;const redirected=await post('/api/generate-image',input);assert.equal(redirected.status,502);assert.equal(calls,before+1);
+    const untouched=calls;assert.equal((await post('/api/generate-image',{...input,provider:'anthropic'})).status,400);assert.equal((await post('/api/generate-image',{...input,baseUrl:'http://169.254.169.254/v1'})).status,400);assert.equal((await post('/api/generate-image',{...input,baseUrl:'https://127.0.0.1/v1'})).status,400);assert.equal(calls,untouched);
+    assert.ok(!(await fs.readFile(path.join(directory,'rooms.json'),'utf8')).includes('image-key-memory-only'));
+  }finally{if(previous===undefined)delete process.env.LEARN_AI_ORIGINS;else process.env.LEARN_AI_ORIGINS=previous;model.closeAllConnections();await new Promise(resolve=>model.close(resolve));}
 });

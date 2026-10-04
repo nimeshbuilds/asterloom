@@ -6,6 +6,7 @@ import { AGE_GROUPS } from '../data/scaffolds';
 import { recordAttempt, selectDueCards } from '../lib/storage';
 import { normalizeText, seededShuffle, stableHash } from '../lib/utils';
 import WorldArt from './WorldArt';
+import LearningFigures from './LearningFigures';
 import {musicFeedback,duckMusic} from '../lib/music';
 import '../player.css';
 
@@ -16,10 +17,10 @@ interface Props {
 }
 interface PlayState {
   input: string; selection: string; pairs: Record<string, string>; order: string[];
-  submitted: boolean; correct: boolean; assisted: boolean; hint: boolean; evidence: boolean; reflectionRevealed: boolean;
+  submitted: boolean; correct: boolean; assisted: boolean; figures: boolean; hint: boolean; evidence: boolean; reflectionRevealed: boolean;
   correctCount: number; independentCount: number; answeredCount: number; confidence: 'guessing' | 'unsure' | 'confident';
 }
-const initialState = (score = 0, answered = 0, independent = 0): PlayState => ({ input: '', selection: '', pairs: {}, order: [], submitted: false, correct: false, assisted: false, hint: false, evidence: false, reflectionRevealed: false, correctCount: score, independentCount: independent, answeredCount: answered, confidence: 'unsure' });
+const initialState = (score = 0, answered = 0, independent = 0): PlayState => ({ input: '', selection: '', pairs: {}, order: [], submitted: false, correct: false, assisted: false, figures: false, hint: false, evidence: false, reflectionRevealed: false, correctCount: score, independentCount: independent, answeredCount: answered, confidence: 'unsure' });
 function restoreState(raw: Record<string, unknown> | undefined): PlayState {
   const value = raw ?? {}; const empty = initialState();
   return { ...empty,
@@ -27,7 +28,8 @@ function restoreState(raw: Record<string, unknown> | undefined): PlayState {
     selection: typeof value.selection === 'string' ? value.selection : '',
     pairs: value.pairs && typeof value.pairs === 'object' && !Array.isArray(value.pairs) ? Object.fromEntries(Object.entries(value.pairs).filter(([, answer]) => typeof answer === 'string')) : {},
     order: Array.isArray(value.order) && value.order.every(item => typeof item === 'string' && /^\d+$/.test(item)) ? value.order : [],
-    assisted: value.assisted === true || value.hint === true || value.evidence === true || value.reflectionRevealed === true,
+    assisted: value.assisted === true || value.figures === true || value.hint === true || value.evidence === true || value.reflectionRevealed === true,
+    figures: value.figures === true,
     submitted: value.submitted === true, correct: value.correct === true, hint: value.hint === true, evidence: value.evidence === true, reflectionRevealed: value.reflectionRevealed === true,
     correctCount: typeof value.correctCount === 'number' && Number.isInteger(value.correctCount) ? Math.max(0, Math.min(2000, value.correctCount)) : 0,
     independentCount: typeof value.independentCount === 'number' && Number.isInteger(value.independentCount) ? Math.max(0, Math.min(2000, value.independentCount)) : 0,
@@ -81,7 +83,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     const updated = { ...base, activeSession: { ...session, index: nextIndex, state: next as unknown as Record<string, unknown> }, updatedAt: new Date().toISOString() };
     latestProgress.current = updated; onProgress(updated);
   }
-  function change(patch: Partial<PlayState>) { const next = { ...state, ...patch, assisted: state.assisted || patch.hint === true || patch.evidence === true || patch.reflectionRevealed === true }; setState(next); persist(next); }
+  function change(patch: Partial<PlayState>) { const next = { ...state, ...patch, assisted: state.assisted || patch.figures === true || patch.hint === true || patch.evidence === true || patch.reflectionRevealed === true }; setState(next); persist(next); }
 
   useEffect(() => { persist(state, index, { ...latestProgress.current, sessions: latestProgress.current.sessions + (session.state ? 0 : 1) }); }, []);
   useEffect(() => {
@@ -124,6 +126,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><div className="session-complete"><div className="completion-art"><WorldArt theme={notebook.theme}/></div><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{progress.xp}</strong><span>Total practice XP</span></div><div><strong>{progress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div></div>;
 
   const source = notebook.sources.find(item => item.id === card.sourceId);
+  const sourceVisuals = (notebook.artwork ?? []).filter(art => art.sourceId === card.sourceId && art.reviewStatus === 'reviewed' && source?.text.includes(art.evidence));
   const conceptLabel = normalizeText(card.concept).includes(normalizeText(card.answer)) ? 'Source recall' : card.concept;
   const pool = [card, ...seededShuffle(notebook.cards.filter(item => item.id !== card.id && normalizeText(item.answer) !== normalizeText(card.answer)), session.seed + index)].filter((item, at, all) => all.findIndex(other => normalizeText(other.answer) === normalizeText(item.answer)) === at).slice(0, young ? 2 : 3);
   const pairAnswers = seededShuffle(pool.map(item => item.answer), session.seed + index + 31);
@@ -165,6 +168,8 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
         <section className="challenge-card">
           <h1 ref={heading} tabIndex={-1}>{pairMode ? (scaffold.family === 'sort' ? 'Give every idea a home.' : scaffold.family === 'connect' ? 'Make the connections.' : 'Find the matching pairs.') : scaffold.family === 'sequence' ? (ordering.isProcedure ? 'What happens first? And next?' : 'Put the passage back together.') : scaffold.family === 'explain' ? `How would you explain ${card.concept}?` : card.prompt.split('\n\n')[0]}</h1>
           {!pairMode && !['sequence', 'explain'].includes(scaffold.family) && card.prompt.includes('\n\n') && <p className="question-passage">{card.prompt.split('\n\n').slice(1).join('\n\n')}</p>}
+
+          {sourceVisuals.length > 0 && <div className="player-figures"><button className="btn ghost" aria-expanded={state.figures} onClick={() => change({ figures: !state.figures })}><BookOpen size={17}/>{state.figures ? 'Hide learning figures' : 'View learning figures'}</button>{state.figures && <><p className="muted small">Use the author's reviewed visuals for supported practice. Viewing them before answering does not earn independent-recall credit.</p><LearningFigures notebook={{ sources: notebook.sources, artwork: sourceVisuals }}/></>}</div>}
 
           {pairMode ? <div className={`pair-board ${scaffold.family}`}>
             {pool.map((item, at) => <div className="pair-row" key={item.id}><div className="pair-prompt"><span className="pair-number">{at + 1}</span><p>{passageLabel(item)}</p></div><label><span className="sr-only">Match description {at + 1} to a concept</span><select aria-label={`Match description ${at + 1} to a concept`} disabled={state.submitted} value={state.pairs[item.id] ?? ''} onChange={event => change({ pairs: { ...state.pairs, [item.id]: event.target.value } })}><option value="">Choose a concept…</option>{pairAnswers.map(answer => <option key={answer} value={answer}>{answer}</option>)}</select></label>{state.submitted && <span className={state.pairs[item.id] === item.answer ? 'pair-correct' : 'pair-incorrect'}>{state.pairs[item.id] === item.answer ? <Check size={18}/> : <X size={18}/>}</span>}</div>)}

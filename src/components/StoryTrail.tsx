@@ -1,0 +1,9 @@
+import {useMemo} from 'react';
+import {BookOpen,CheckCircle2,Link2} from 'lucide-react';
+import type {Notebook} from '../types';
+import {buildStoryBrief} from '../lib/story';
+
+export default function StoryTrail({notebook}:{notebook:Notebook}){
+ const story=useMemo(()=>buildStoryBrief(notebook),[notebook]);
+ return <section className="story-trail form-card"><div className="section-heading"><div><span className="eyebrow">YOUR SOURCE-BACKED JOURNEY</span><h2>A story built around what’s true to your material.</h2></div><BookOpen size={26}/></div><p>Each chapter uses prepared tasks and exact evidence. The scenery is a fictional setting for the journey; the source passages supply its learning claims.</p><div className="story-setting"><strong>{story.setting.label}</strong><span>Fictional setting</span><p>{story.setting.description}</p></div>{!story.chapters.length?<p className="small">Add source-backed activities to give your journey its first chapter.</p>:<ol>{story.chapters.map((chapter,index)=><li key={chapter.id}><span className="story-step">{index+1}</span><div><span className="eyebrow">{chapter.kind==='review'?'SOURCE REVIEW':'HANDS-ON CHAPTER'}</span><h3>{chapter.title}</h3><p>{chapter.instruction}</p><span className="story-review">{chapter.authorReview==='reviewed'?<><CheckCircle2 size={13}/>Author-reviewed task</>:<>Task wording needs author review</>}</span><details><summary><Link2 size={14}/>{chapter.learningClaims.length} source-backed {chapter.learningClaims.length===1?'passage':'passages'}</summary>{chapter.learningClaims.map(claim=><blockquote key={claim.id}>{claim.text}<cite>{notebook.sources.find(s=>s.id===claim.sourceId)?.title}</cite></blockquote>)}</details></div></li>)}</ol>}{story.warnings.length>0&&<details className="story-warnings"><summary>{story.warnings.length} items to review</summary><ul>{story.warnings.map((warning,i)=><li key={i}>{warning}</li>)}</ul></details>}</section>;
+}

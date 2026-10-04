@@ -4,6 +4,7 @@ import { exportOfflineHtml, parsePackage, parseProgress, serializePackage, seria
 import { emptyProgress, recordAttempt, selectDueCards, sourceFingerprint } from '../src/lib/storage';
 import { createNotebook, createSource } from '../src/lib/utils';
 import { refineCards, createRefinementPrompt, applyRefinementResponse } from '../src/lib/provider';
+import type { Notebook, NotebookArtwork } from '../src/types';
 import { ACTIVITY_EXAMPLES, EXAMPLE_ACTIVITY_SOURCE } from '../src/lib/structuredEngine';
 
 function fixture() {
@@ -98,6 +99,46 @@ describe('portable learning packages', () => {
     const embedded = output.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/);
     expect(JSON.parse(embedded![1]).description).toBe(notebook.description);
     expect(output.match(/<head>/g)).toHaveLength(1);
+  });
+});
+
+describe('source-bound presentation artwork', () => {
+  const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT5sAAAAASUVORK5CYII=';
+  function artwork(notebook: Notebook): NotebookArtwork {
+    return { id: 'art-one', title: 'A memory garden', dataUrl: pixel, sourceId: notebook.sources[0].id, evidence: notebook.sources[0].text.split('\n')[0], purpose: 'decorative', reviewStatus: 'draft', createdAt: '2026-10-03T00:00:00.000Z' };
+  }
+  it('preserves art and review state through portable export and remix without turning art into evidence', () => {
+    const notebook = fixture(); notebook.artwork = [artwork(notebook)];
+    const imported = parsePackage(serializePackage({ ...notebook, artwork: [{ ...notebook.artwork[0], apiKey: 'never-export' } as NotebookArtwork] }));
+    expect(imported.artwork).toEqual(notebook.artwork); expect(serializePackage(imported)).not.toContain('never-export');
+    const remix = createNotebook({ ...imported, id: 'new-owner-remix', title: 'My remix' });
+    expect(parsePackage(serializePackage(remix)).artwork).toEqual(notebook.artwork);
+    expect(compileNotebook(imported.sources).cards).toEqual(notebook.cards);
+    const html = exportOfflineHtml(remix, '<html><head><script>app()</script></head><body><div id="root"></div></body></html>');
+    const embedded = JSON.parse(html.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/)![1]);
+    expect(embedded.artwork).toEqual(notebook.artwork);
+  });
+  it('rejects broken provenance, duplicate art, executable formats, malformed data and invalid review states', () => {
+    const notebook = fixture(); const asset = artwork(notebook);
+    const check = (change: Record<string, unknown>) => () => validateNotebook({ ...notebook, artwork: [{ ...asset, ...change }] });
+    expect(check({ sourceId: 'missing-source' })).toThrow('missing source');
+    expect(check({ evidence: 'Unsupported generated claim.' })).toThrow('absent');
+    expect(check({ evidence: '' })).toThrow('missing');
+    expect(check({ dataUrl: 'data:image/svg+xml;base64,PHN2Zz4=' })).toThrow('executable');
+    expect(check({ dataUrl: 'https://example.com/tracking.png' })).toThrow('embedded');
+    expect(check({ dataUrl: 'data:image/png;base64,AAAAA' })).toThrow('base64');
+    expect(check({ reviewStatus: 'automatically-approved' })).toThrow('review status');
+    expect(() => validateNotebook({ ...notebook, artwork: [asset, asset] })).toThrow('duplicate');
+    expect(() => validateNotebook({ ...notebook, artwork: Array.from({ length: 21 }, (_, index) => ({ ...asset, id: `art-${index}` })) })).toThrow('at most 20');
+  });
+  it('enforces one combined embedded-media budget for sources and generated artwork', () => {
+    const notebook = fixture(); const asset = artwork(notebook);
+    const encoded = 'A'.repeat(Math.ceil(16 * 1024 * 1024 / 3) * 4);
+    const large = { ...asset, dataUrl: `data:image/png;base64,${encoded}` };
+    // Each image is under 20 MB, but these three assets jointly exceed 48 MB.
+    const source = { ...notebook.sources[0], dataUrl: `data:audio/mpeg;base64,${encoded}`, mime: 'audio/mpeg' };
+    expect(() => validateNotebook({ ...notebook, sources: [source], artwork: [large, { ...large, id: 'art-two' }] })).toThrow('48 MB');
+    expect(() => validateNotebook({ ...notebook, artwork: [{ ...asset, dataUrl: `data:image/png;base64,${'A'.repeat(28 * 1024 * 1024)}` }] })).toThrow('size limit');
   });
 });
 

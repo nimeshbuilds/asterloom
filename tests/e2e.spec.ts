@@ -175,6 +175,58 @@ test('a full HTML export plays and creates a new remixed game entirely offline',
   await second.close(); await context.close();
 });
 
+test('optional artwork remains a reviewed source-bound presentation asset through offline remix', async ({ page, browser }, testInfo) => {
+  test.setTimeout(120_000);
+  const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT5sAAAAASUVORK5CYII=';
+  let imageCalls = 0; let sent: any;
+  await page.route('**/api/generate-image', route => { imageCalls++; sent = route.request().postDataJSON(); return route.fulfill({ json: { dataUrl: pixel } }); });
+  await openLibrary(page); await createNotebook(page, 'Visual learning world');
+  await page.getByRole('tab', { name: /Game design/ }).click();
+  await page.getByRole('textbox', { name: 'Visual title', exact: true }).fill('A packet illustration');
+  await page.getByRole('textbox', { name: 'Exact source passage', exact: true }).fill(notes.split('\n')[0]);
+  await page.getByRole('combobox', { name: 'Role in the game', exact: true }).selectOption('instructional');
+  await page.getByText('Optional AI illustration', { exact: true }).click();
+  await page.getByRole('combobox', { name: 'Image provider', exact: true }).selectOption('compatible');
+  await page.getByRole('textbox', { name: 'Image model ID', exact: true }).fill('test-image-model');
+  await page.getByLabel('API key', { exact: true }).fill('private-image-key');
+  await page.getByRole('textbox', { name: 'Endpoint base URL', exact: true }).fill('https://image-provider.example/v1');
+  await page.getByRole('button', { name: /Generate one draft/ }).click();
+  await expect(page.locator('.visual-gallery')).toContainText('Draft · review required');
+  expect(sent.prompt).toContain(notes.split('\n')[0]); expect(sent.prompt).not.toContain(notes.split('\n')[1]);
+  const draftDownload = await exportDownload(page, 'pack'); const draftPath = testInfo.outputPath('draft-visual.learnpack'); await draftDownload.saveAs(draftPath);
+  const draftText = await readFile(draftPath, 'utf8'); const draft = JSON.parse(draftText).notebook;
+  expect(draft.artwork).toHaveLength(1); expect(draft.artwork[0].reviewStatus).toBe('draft'); expect(draft.sources).toHaveLength(1);
+  expect(draftText).not.toContain('private-image-key'); expect(draftText).not.toContain('image-provider.example');
+  await closeDialog(page);
+  await page.getByRole('button', { name: 'I checked this visual against the source', exact: false }).click();
+  await expect(page.locator('.visual-gallery')).toContainText('Reviewed visual');
+  await page.getByRole('button', { name: 'Your worlds', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Open Visual learning world', exact: true }).click();
+  await expect(page.locator('.learning-figures img')).toHaveCount(1);
+  await page.locator('.mission-card').filter({ has: page.getByRole('heading', { name: 'Recall escape mission', exact: true }) }).click();
+  await page.getByRole('button', { name: 'View learning figures', exact: true }).click();
+  await expect(page.locator('.learning-figures img')).toBeVisible();
+  await page.getByRole('button', { name: 'Hide learning figures', exact: true }).click();
+  await page.locator('.answer-option').filter({ hasText: /Packet$/ }).click();
+  await page.getByRole('button', { name: 'Check my answer', exact: false }).click();
+  await expect(page.locator('.answer-feedback.success')).toBeVisible(); await expect(page.locator('.xp-pill')).toHaveText('0 XP');
+  await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
+  const htmlDownload = await exportDownload(page, 'html'); const htmlPath = testInfo.outputPath('visual.html'); await htmlDownload.saveAs(htmlPath);
+  const context = await browser.newContext({ offline: true }); const learner = await context.newPage();
+  await learner.goto(pathToFileURL(htmlPath).href);
+  await expect(learner.locator('.learning-figures img')).toHaveCount(1);
+  await learner.getByRole('button', { name: 'Make a remix', exact: false }).click();
+  await learner.getByRole('tab', { name: /Game design/ }).click();
+  await expect(learner.locator('.visual-gallery')).toContainText('Reviewed visual');
+  await learner.getByRole('textbox', { name: 'Exact source passage', exact: true }).fill(notes.split('\n')[0]);
+  await learner.getByLabel('Upload source-grounded visual', { exact: true }).setInputFiles({ name: 'my-visual.png', mimeType: '', buffer: Buffer.from(pixel.split(',')[1], 'base64') });
+  await expect(learner.locator('.visual-gallery article')).toHaveCount(2);
+  const remixed = await exportDownload(learner, 'pack'); const remixPath = testInfo.outputPath('visual-remix.learnpack'); await remixed.saveAs(remixPath);
+  const remix = JSON.parse(await readFile(remixPath, 'utf8')).notebook;
+  expect(remix.artwork.map((asset: any) => asset.reviewStatus)).toEqual(['reviewed', 'draft']); expect(remix.sources).toHaveLength(1);
+  expect(imageCalls).toBe(1); await context.close();
+});
+
 test('the catalog exposes all 75 recipes and source requirements with working filters', async ({ page }) => {
   await openLibrary(page);
   await page.getByRole('button', { name: 'Game library', exact: true }).click();

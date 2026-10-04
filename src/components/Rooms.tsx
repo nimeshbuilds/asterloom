@@ -66,7 +66,7 @@ async function roomRequest<T>(route:string,relay:string,body?:unknown,token?:str
 export default function Rooms({notebook,onError,result}:{notebook:Notebook;onError:(message:string)=>void;result?:RoomResult}){
   const key=roomStorageKey(notebook);
   const [session,setSession]=useState<RoomSession|null>(null),[room,setRoom]=useState<Room|null>(null),[playerName,setPlayerName]=useState(''),[invite,setInvite]=useState(''),[relay,setRelay]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[connected,setConnected]=useState(false),[status,setStatus]=useState(''),[pending,setPending]=useState(0),[copied,setCopied]=useState(false),[lastSync,setLastSync]=useState(''),[showNetwork,setShowNetwork]=useState(false),[tor,setTor]=useState<TorState|null>(null);
-  const queue=useRef<QueuedResult[]>([]),flushing=useRef(false),mounted=useRef(true),latestSession=useRef<RoomSession|null>(null),onErrorRef=useRef(onError);
+  const queue=useRef<QueuedResult[]>([]),flushing=useRef(false),refreshing=useRef(false),mounted=useRef(true),latestSession=useRef<RoomSession|null>(null),onErrorRef=useRef(onError);
   onErrorRef.current=onError;latestSession.current=session;
   const packHash=fingerprint(notebook);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
@@ -97,6 +97,7 @@ export default function Rooms({notebook,onError,result}:{notebook:Notebook;onErr
     }finally{flushing.current=false;}
   },[saveQueue,key]);
   const refresh=useCallback(async(current:RoomSession,manual=false)=>{
+    if(refreshing.current)return;refreshing.current=true;
     if(manual)setBusy(true);
     try{
       await flush(current);
@@ -105,7 +106,7 @@ export default function Rooms({notebook,onError,result}:{notebook:Notebook;onErr
       setRoom(updated);setConnected(true);setLastSync(new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}));
       if(manual)setStatus('Standings refreshed.');
     }catch(error){if(mounted.current){setConnected(false);setStatus(messageOf(error));}}
-    finally{if(manual&&mounted.current)setBusy(false);}
+    finally{refreshing.current=false;if(manual&&mounted.current)setBusy(false);}
   },[flush]);
   useEffect(()=>{
     if(!session)return;

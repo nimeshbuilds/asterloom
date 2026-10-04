@@ -2,13 +2,15 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowRight, BookOpen, Check, CheckCircle2, CircleHelp, GripVertical, Lightbulb, Link2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { evaluateActivity, validateActivity } from '../lib/structuredEngine';
 import type { ActivityResponse, Evaluation, StructuredActivity } from '../lib/structuredEngine';
-import type { Source } from '../types';
+import type { NotebookArtwork, Source } from '../types';
+import LearningFigures from './LearningFigures';
 import './structured.css';
 
 export type ActivityEvaluation = Evaluation;
 export interface StructuredBoardProps {
   activity: StructuredActivity;
   sources: Source[];
+  artwork?: NotebookArtwork[];
   savedResponse?: unknown;
   onSave: (response: unknown) => void;
   onComplete: (evaluation: ActivityEvaluation) => void;
@@ -34,7 +36,7 @@ function restoredResponse(activity: StructuredActivity, saved?: unknown): Activi
   }
 }
 
-export default function StructuredBoard({ activity, sources, savedResponse, onSave, onComplete }: StructuredBoardProps) {
+export default function StructuredBoard({ activity, sources, artwork, savedResponse, onSave, onComplete }: StructuredBoardProps) {
   const [response, setResponse] = useState<ActivityResponse>(() => restoredResponse(activity, savedResponse));
   const initialDraft = object(object(savedResponse)._draft);
   const [result, setResult] = useState<Evaluation | null>(() => initialDraft.checked === true ? evaluateActivity(activity, restoredResponse(activity, savedResponse)) : null);
@@ -90,7 +92,7 @@ export default function StructuredBoard({ activity, sources, savedResponse, onSa
 
     <div className="structured-tools"><button type="button" className="structured-text-button" aria-expanded={showHint} onClick={() => { const open = !showHint; setShowHint(open); if (open) setHintUsed(true); persist(response, { showHint: open, hintUsed: hintUsed || open }); }}><Lightbulb size={16}/>{showHint ? 'Hide hint' : 'A little help'}</button><button type="button" className="structured-text-button" onClick={restart}><RotateCcw size={15}/>Start over</button></div>
     {showHint && <div className="structured-hint"><Lightbulb size={18}/><p>{activity.hint}</p></div>}
-    <details className="structured-evidence" open={evidenceOpen} onToggle={event => { const open = event.currentTarget.open; setEvidenceOpen(open); if (open) setHintUsed(true); persist(response, { evidenceOpen: open, hintUsed: hintUsed || open }); }}><summary><BookOpen size={16}/>Explore the source material</summary>{activity.sourceRefs.map((reference, index) => <div key={index}><strong>{sources.find(source => source.id === reference.sourceId)?.title ?? reference.sourceId}{reference.locator ? ` · ${reference.locator}` : ''}</strong><blockquote>{reference.evidence}</blockquote>{referencedFigure?.id === reference.sourceId && activity.kind !== 'diagram' && <figure className="structured-reference-figure"><img src={referencedFigure.dataUrl} alt={`Source figure: ${referencedFigure.title}`}/><figcaption>{referencedFigure.title}</figcaption></figure>}</div>)}</details>
+    <details className="structured-evidence" open={evidenceOpen} onToggle={event => { const open = event.currentTarget.open; setEvidenceOpen(open); if (open) setHintUsed(true); persist(response, { evidenceOpen: open, hintUsed: hintUsed || open }); }}><summary><BookOpen size={16}/>Explore the source material</summary>{activity.sourceRefs.map((reference, index) => <div key={index}><strong>{sources.find(source => source.id === reference.sourceId)?.title ?? reference.sourceId}{reference.locator ? ` · ${reference.locator}` : ''}</strong><blockquote>{reference.evidence}</blockquote>{referencedFigure?.id === reference.sourceId && activity.kind !== 'diagram' && <figure className="structured-reference-figure"><img src={referencedFigure.dataUrl} alt={`Source figure: ${referencedFigure.title}`}/><figcaption>{referencedFigure.title}</figcaption></figure>}</div>)}<LearningFigures notebook={{sources,artwork}} activity={activity}/></details>
     {result && <div className={`structured-feedback ${result.outcome}`} role="status"><div>{result.correct ? <CheckCircle2 size={23}/> : <CircleHelp size={23}/>}<strong>{result.outcome === 'correct' ? 'Your work holds together.' : result.outcome === 'self-reviewed' ? 'A useful reflection.' : result.outcome === 'invalid' ? 'A little more to complete.' : 'You have something to build on.'}</strong></div><p>{result.feedback}</p>{result.details.length > 0 && <ul>{result.details.map(detail => <li key={detail.id} className={detail.correct === true ? 'passed' : detail.correct === false ? 'revisit' : ''}>{detail.correct === true ? <Check size={15}/> : <span className="structured-feedback-dot"/>}<span>{detail.message}</span></li>)}</ul>}</div>}
     <footer className="structured-board-footer"><span>{result?.valid && result.correct !== null ? `${result.score} of ${result.maxScore} checks satisfied` : 'Saved as you explore'}</span><button type="button" className="structured-primary" onClick={check} disabled={result?.correct === true}><CheckCircle2 size={18}/>{result?.correct ? 'Challenge complete' : activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Save my reflection' : 'Check my work'}</button></footer>
   </section>;

@@ -312,6 +312,43 @@ async function generate(input) {
   return {text,usage:result.usage || null,provider,model};
 }
 
+async function generateImage(input){
+  const provider=bounded(input.provider,30),apiKey=bounded(input.apiKey,2000),model=bounded(input.model,200);
+  assert(['openai','compatible'].includes(provider),'Choose OpenAI or an OpenAI-compatible image provider.');
+  assert(model,'Choose an image model identifier.');
+  assert(provider==='compatible'||apiKey,'Enter an image API key. A subscription is not an API key.');
+  assert(typeof input.prompt==='string'&&input.prompt.trim().length>0&&input.prompt.length<=10000,'Describe the image in 1–10,000 characters.');
+  const quality=input.quality||'low',size=input.size||'1024x1024';
+  assert(['low','medium','high','auto'].includes(quality),'Choose low, medium, high or auto image quality.');
+  assert(['1024x1024','1536x1024','1024x1536'].includes(size),'Choose a supported image size.');
+  const base=provider==='openai'?'https://api.openai.com/v1':bounded(input.baseUrl,2000);
+  assert(base,'Enter an OpenAI-compatible image API base URL.');
+  let url;try{url=new URL(base.replace(/\/$/,'')+'/images/generations');}catch{throw new ApiError(400,'The image provider base URL is invalid.');}
+  assert(['http:','https:'].includes(url.protocol)&&!url.username&&!url.password&&!url.search&&!url.hash,'Use an http or https image API URL without embedded credentials, a query or a fragment.');
+  // GPT image models return base64 by default; the legacy response_format
+  // parameter is not supported. One PNG is the entire billable request.
+  const options={method:'POST',headers:{'Content-Type':'application/json',...(apiKey?{Authorization:`Bearer ${apiKey}`}:{})},body:JSON.stringify({model,prompt:input.prompt,n:1,size,quality,output_format:'png'}),maxBytes:15*1024*1024,timeout:180000,followRedirects:false};
+  let response;
+  try{
+    if(provider==='compatible'){
+      const permitted=(process.env.LEARN_AI_ORIGINS||'http://127.0.0.1:11434,http://localhost:11434,http://127.0.0.1:1234,http://localhost:1234').split(',');
+      if(permitted.includes(url.origin))response=await requestBytes(url,options);
+      else{assert(url.protocol==='https:','Remote image endpoints require HTTPS; local endpoints must be configured in LEARN_AI_ORIGINS.');response=await fetchPublic(url.href,options);}
+    }else response=await requestBytes(url,options);
+  }catch(error){if(error instanceof ApiError)throw error;throw new ApiError(502,'The image endpoint could not be reached. Check its address and API access.','PROVIDER_UNAVAILABLE');}
+  assert(response.status>=200&&response.status<300,`The image provider returned HTTP ${response.status}. Check model access, billing and quota.`,502,'PROVIDER_ERROR');
+  let result;try{result=JSON.parse(response.body.toString());}catch{throw new ApiError(502,'The image provider returned an unreadable response.');}
+  const encoded=result?.data?.[0]?.b64_json;
+  assert(typeof encoded==='string'&&encoded.length>0,'The image provider must return base64 PNG data. Image URLs are not fetched automatically.',502,'IMAGE_DATA_REQUIRED');
+  assert(encoded.length<=Math.ceil(10*1024*1024/3)*4&&/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)&&encoded.length%4===0,'The returned image is invalid or larger than 10 MiB.',502,'INVALID_IMAGE');
+  const bytes=Buffer.from(encoded,'base64');
+  assert(bytes.length>=45&&bytes.length<=10*1024*1024&&bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex'))&&bytes.readUInt32BE(8)===13&&bytes.toString('ascii',12,16)==='IHDR','The image provider did not return a PNG image.',502,'INVALID_IMAGE');
+  const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
+  assert(width>0&&height>0&&width<=4096&&height<=4096,'The returned image dimensions exceed the supported limit.',502,'INVALID_IMAGE');
+  const usage=result.usage&&typeof result.usage==='object'?Object.fromEntries(['input_tokens','output_tokens','total_tokens'].filter(key=>Number.isFinite(result.usage[key])&&result.usage[key]>=0).map(key=>[key,result.usage[key]])):null;
+  return {dataUrl:`data:image/png;base64,${bytes.toString('base64')}`,mimeType:'image/png',width,height,provider,model,usage,needsReview:true};
+}
+
 function publicRoom(room, playerId) {
   const standings=room.players.map(player => {
     const best=new Map();
@@ -346,7 +383,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
     optional('pdfjs-dist/legacy/build/pdf.mjs'),optional('mammoth'),optional('fflate'),optional('exceljs'),optional('linkedom'),
     findBinary('tesseract'),findBinary('ffmpeg'),findBinary('whisper-cli'),torBinary||findBinary(process.platform==='win32'?'tor.exe':'tor'),
   ]);
-  const capabilities={text:true,html:true,csv:true,json:true,captions:true,pdf:!!pdf,docx:!!word && !!office,pptx:!!office,xlsx:!!excel && !!office,imageOcr:!!tesseract,mediaUpload:true,automaticTranscription:false,ffmpegInstalled:!!ffmpeg,whisperInstalled:!!whisper,notebooklm:'assisted-import',youtube:'user-supplied-transcript',apiProviders:['openai','anthropic','xai','compatible'],tor:{installed:!!tor,status:enableTor ? 'starting' : 'disabled',hostname:null,reachabilityVerified:false},formats:{text:'extract',html:'extract',csv:'extract',json:'extract',srt:'extract',vtt:'extract',pdf:pdf?'extract-text':'unavailable',docx:word&&office?'extract-text':'unavailable',pptx:office?'extract-text':'unavailable',xlsx:excel&&office?'extract-cells':'unavailable',images:tesseract?'local-ocr':'attachment-needs-description',mp3:'attachment-needs-transcript',mp4:'attachment-needs-transcript'}};
+  const capabilities={text:true,html:true,csv:true,json:true,captions:true,pdf:!!pdf,docx:!!word && !!office,pptx:!!office,xlsx:!!excel && !!office,imageOcr:!!tesseract,mediaUpload:true,automaticTranscription:false,ffmpegInstalled:!!ffmpeg,whisperInstalled:!!whisper,notebooklm:'assisted-import',youtube:'user-supplied-transcript',apiProviders:['openai','anthropic','xai','compatible'],imageProviders:['openai','compatible'],tor:{installed:!!tor,status:enableTor ? 'starting' : 'disabled',hostname:null,reachabilityVerified:false},formats:{text:'extract',html:'extract',csv:'extract',json:'extract',srt:'extract',vtt:'extract',pdf:pdf?'extract-text':'unavailable',docx:word&&office?'extract-text':'unavailable',pptx:office?'extract-text':'unavailable',xlsx:excel&&office?'extract-cells':'unavailable',images:tesseract?'local-ocr':'attachment-needs-description',mp3:'attachment-needs-transcript',mp4:'attachment-needs-transcript'}};
   const limits={fileBytes:MAX_FILE,sourceCharacters:MAX_TEXT,roomPlayers:32,roomResults:10000};
   capabilities.epub=!!office&&!!dom;capabilities.formats.epub=office&&dom?'extract-chapters':'unavailable';
   const events=new Map(); const rates=new Map();
@@ -384,6 +421,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       if(request.method === 'POST' && url.pathname === '/api/import-file') return send(200,await importFile(await readBody(request),{tesseract}));
       if(request.method === 'POST' && url.pathname === '/api/import-url') return send(200,await importUrl(await readBody(request)));
       if(request.method === 'POST' && url.pathname === '/api/generate') return send(200,await generate(await readBody(request)));
+      if(request.method === 'POST' && url.pathname === '/api/generate-image') return send(200,await generateImage(await readBody(request)));
       if(request.method === 'POST' && url.pathname === '/api/rooms') {
         const input=await readBody(request);const name=bounded(input.playerName,48);
         assert(name,'Enter your player name.');assert(bounded(input.notebookId),'Choose a notebook for this room.');

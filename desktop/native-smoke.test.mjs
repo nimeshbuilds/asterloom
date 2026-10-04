@@ -31,7 +31,10 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const health=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(health.ok,true);assert.equal(health.capabilities.pdf,true);
     await page.getByRole('button',{name:'Create a world',exact:true}).last().click();
     await page.getByLabel('Notebook title').fill('Native continuity test');
-    await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor();
+    // Small Windows runner displays trigger the compact layout, which hides
+    // this status label visually. Its saved state must still be reached; the
+    // following full application restart independently proves persistence.
+    await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor({state:'attached'});
     await application.close();application=await launch();page=await application.firstWindow();
     await page.getByRole('button',{name:'Native continuity test',exact:true}).waitFor({timeout:20000});
     await fs.mkdir(path.join(ROOT,'.qa'),{recursive:true});await page.screenshot({path:path.join(ROOT,'.qa','native-studio.png'),animations:'disabled'});
@@ -58,7 +61,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.match(await page.locator('.world-statbar').innerText(),/20/);
     await page.getByRole('button',{name:'Open studio',exact:true}).click();
     await page.getByLabel('Notebook title').fill('A remixed native game');
-    await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor();
+    await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor({state:'attached'});
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:path.join(ROOT,'.qa','native-exported-game.png'),animations:'disabled'});
     await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},output);
@@ -71,5 +74,9 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:'A remixed native game',exact:true}).waitFor({timeout:20000});
     assert.deepEqual(errors,[]);
+  }catch(error){
+    await fs.mkdir(path.join(ROOT,'.qa'),{recursive:true});
+    await application?.windows()[0]?.screenshot({path:path.join(ROOT,'.qa',`native-failure-${process.platform}.png`),animations:'disabled',timeout:5000}).catch(()=>{});
+    throw error;
   }finally{if(application)await application.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}
 });

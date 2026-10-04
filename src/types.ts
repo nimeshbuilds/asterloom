@@ -31,6 +31,18 @@ export interface LearningCard {
   reviewStatus?: 'extractive' | 'needs-review' | 'reviewed';
 }
 
+/** Presentation assets stay separate from source evidence and never feed the compiler. */
+export interface NotebookArtwork {
+  id: string;
+  title: string;
+  dataUrl: string;
+  sourceId: string;
+  evidence: string;
+  purpose: 'decorative' | 'instructional';
+  reviewStatus: 'draft' | 'reviewed';
+  createdAt: string;
+}
+
 export interface Notebook {
   id: string;
   title: string;
@@ -44,6 +56,7 @@ export interface Notebook {
   sources: Source[];
   cards: LearningCard[];
   activities?: StructuredActivity[];
+  artwork?: NotebookArtwork[];
   revision: number;
 }
 

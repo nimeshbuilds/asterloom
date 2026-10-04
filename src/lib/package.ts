@@ -1,4 +1,4 @@
-import type { CardProgress, LearnPackage, LearningCard, Notebook, Progress, Source, SourceKind } from '../types';
+import type { CardProgress, LearnPackage, LearningCard, Notebook, NotebookArtwork, Progress, Source, SourceKind } from '../types';
 import { validateActivity } from './structuredEngine';
 
 const MAX_PACKAGE_BYTES = 64 * 1024 * 1024;
@@ -62,6 +62,28 @@ function validateSource(input: unknown): Source {
   return source;
 }
 
+function mediaBytes(dataUrl: string): number {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  return Math.floor(base64.length * 3 / 4) - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0);
+}
+
+/** Whitelists presentation-only assets with an exact reference to the author's source. */
+export function validateArtwork(input: unknown, sources: Source[]): NotebookArtwork {
+  const value = object(input, 'Artwork');
+  const sourceId = identifier(value.sourceId, 'Artwork source');
+  const source = sources.find(item => item.id === sourceId);
+  if (!source) throw new Error('Artwork references a missing source.');
+  const evidence = string(value.evidence, 'Artwork evidence', 6000);
+  if (!source.text.includes(evidence)) throw new Error('Artwork evidence is absent from its source. Review changed sources before exporting.');
+  const dataUrl = string(value.dataUrl, 'Artwork image', Math.ceil(20 * 1024 * 1024 * 4 / 3) + 100);
+  if (!/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(dataUrl)) throw new Error('Artwork must be an embedded PNG, JPEG, WebP, or GIF image; executable formats are excluded.');
+  const encoded = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  if (encoded.length % 4 !== 0 || mediaBytes(dataUrl) > 20 * 1024 * 1024) throw new Error('Artwork contains invalid base64 or exceeds the 20 MB image limit.');
+  if (value.purpose !== 'decorative' && value.purpose !== 'instructional') throw new Error('Artwork purpose must be decorative or instructional.');
+  if (value.reviewStatus !== 'draft' && value.reviewStatus !== 'reviewed') throw new Error('Artwork review status must be draft or reviewed.');
+  return { id: identifier(value.id, 'Artwork ID'), title: string(value.title, 'Artwork title', 500), dataUrl, sourceId, evidence, purpose: value.purpose, reviewStatus: value.reviewStatus, createdAt: date(value.createdAt, 'Artwork date') };
+}
+
 export function validateLearningCard(input: unknown, sources: Source[]): LearningCard {
   const value = object(input, 'Challenge');
   const options = array(value.options, 'Answer options', 8).map(option => string(option, 'Answer option', 1000));
@@ -88,8 +110,10 @@ export function validateNotebook(input: unknown): Notebook {
   const value = object(input, 'Notebook');
   const sources = array(value.sources, 'Sources', 300).map(validateSource);
   unique(sources.map(source => source.id), 'Sources');
-  const mediaLength = sources.reduce((sum, source) => sum + (source.dataUrl?.length ?? 0), 0);
-  if (mediaLength > 48 * 1024 * 1024 * 4 / 3) throw new Error('Embedded media exceeds the 48 MB portable notebook limit. Split this notebook into smaller parts.');
+  const artwork = value.artwork === undefined ? undefined : array(value.artwork, 'Artwork', 20).map(item => validateArtwork(item, sources));
+  if (artwork) unique(artwork.map(item => item.id), 'Artwork');
+  const mediaLength = sources.reduce((sum, source) => sum + (source.dataUrl ? mediaBytes(source.dataUrl) : 0), 0) + (artwork ?? []).reduce((sum, item) => sum + mediaBytes(item.dataUrl), 0);
+  if (mediaLength > 48 * 1024 * 1024) throw new Error('Embedded media exceeds the 48 MB portable notebook limit. Split this notebook into smaller parts.');
   const cards = array(value.cards, 'Challenges', 2000).map(card => validateLearningCard(card, sources));
   unique(cards.map(card => card.id), 'Challenges');
   const activities = value.activities === undefined ? undefined : array(value.activities, 'Structured activities', 300).map((activity, index) => {
@@ -98,7 +122,7 @@ export function validateNotebook(input: unknown): Notebook {
     return checked.value;
   });
   if (activities) unique(activities.map(activity => activity.id), 'Structured activities');
-  return { id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
+  return { id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
 }
 
 function parseJson(text: string, maximum = MAX_PACKAGE_BYTES): unknown {
