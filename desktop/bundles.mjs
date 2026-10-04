@@ -1,4 +1,5 @@
-import {promises as fs,constants as fsConstants} from 'node:fs';
+import {promises as fs} from 'node:fs';
+import {copyNativeTree,copyNativeFile} from './copy-native-tree.mjs';
 import path from 'node:path';
 import os from 'node:os';
 import {createHash} from 'node:crypto';
@@ -62,9 +63,9 @@ export async function createGameBundle({packageText,target,template,destination,
   let publication;
   try{
     const previousAssets=path.join(resourcesDirectory(source,target),'media-assets');
-    await fs.cp(source,stagedOutput,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true,mode:fsConstants.COPYFILE_FICLONE,filter:entry=>entry!==previousAssets&&!entry.startsWith(previousAssets+path.sep)});
+    await copyNativeTree(source,stagedOutput,{exclude:[previousAssets]});
     const resources=resourcesDirectory(stagedOutput,target);await fs.mkdir(resources,{recursive:true});
-    if(media.length){const assetDir=path.join(resources,'media-assets');await fs.mkdir(assetDir);for(const item of media){const targetFile=path.join(assetDir,item.asset.id);await fs.copyFile(item.path,targetFile,fsConstants.COPYFILE_FICLONE);if(await sha256File(targetFile)!==item.asset.sha256)throw new Error('A recording changed during export. Retry with the original recording.');await atomicJson(targetFile+'.json',item.asset);}}
+    if(media.length){const assetDir=path.join(resources,'media-assets');await fs.mkdir(assetDir);for(const item of media){const targetFile=path.join(assetDir,item.asset.id);await copyNativeFile(item.path,targetFile);if(await sha256File(targetFile)!==item.asset.sha256)throw new Error('A recording changed during export. Retry with the original recording.');await atomicJson(targetFile+'.json',item.asset);}}
     const license=path.join(resources,'app','LICENSE');
     if(await existing(license))await fs.copyFile(license,path.join(resources,'ASTERLOOM-LICENSE.txt'));
     await fs.writeFile(path.join(resources,'game.learnpack'),game.packageText,'utf8');
@@ -83,7 +84,7 @@ export async function createGameBundle({packageText,target,template,destination,
     if(needsMacSigning){
       publication=await fs.mkdtemp(path.join(destinationRoot,'.asterloom-export-'));
       const publishingOutput=path.join(publication,path.basename(output));
-      await fs.cp(stagedOutput,publishingOutput,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true,mode:fsConstants.COPYFILE_FICLONE});
+      await copyNativeTree(stagedOutput,publishingOutput);
       await fs.rename(publishingOutput,output);
     }else await fs.rename(stagedOutput,output);
     return {path:output,identity:game.identity,notebookId:game.notebook.id,platform:target,signing,notarized:false,warning:target==='mac'?'This new game has changed content. It is not publisher-signed or notarized; trusted distribution requires a separate signing step.':'Keep the complete Windows folder together. This export is not signed for trusted distribution.'};

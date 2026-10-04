@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "fallbacks": {
+    "@pixi/colord@2.9.6": {
+      "path": "scripts/licenses/pixi-colord-2.9.6-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/omgovich/colord/5344fbf77b736f81cd33c21050021bc09bc9dd1d/LICENSE.md",
+      "packageIntegrity": "sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA==",
+      "sha256": "7613d4594ee8b6163926af3435dae61c9e3d5a27cd137bd76a543ba40002d8fc",
+      "reason": "The exact npm release omits LICENSE; the release registry gitHead resolves this upstream license."
+    }
+  },
+  "cc0": {
+    "path": "scripts/licenses/CC0-1.0.txt",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
+    "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+  }
+}

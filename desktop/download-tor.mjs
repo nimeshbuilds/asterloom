@@ -5,6 +5,8 @@ import {createHash} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import * as openpgp from 'openpgp';
+import {downloadReleaseBytes} from './verified-download.mjs';
+import {loadTorVerificationKey} from './tor-verification-keys.mjs';
 import {prepareTorRuntime} from './prepare-tor.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
@@ -20,9 +22,8 @@ const targets=sourcesOnly?[]:selected==='mac'?allTargets.filter(([platform])=>pl
 if(!targets.length&&!sourcesOnly)throw new Error('No bundled Tor runtime is supported for this platform.');
 const root=path.join(ROOT,'vendor','tor');const downloads=path.join(root,'downloads');await fs.mkdir(downloads,{recursive:true});
 const run=promisify(execFile);
-async function download(url){const response=await fetch(url);if(!response.ok)throw new Error(`Download failed: ${response.status} ${url}`);const bytes=new Uint8Array(await response.arrayBuffer());if(bytes.length>80*1024*1024)throw new Error('Tor download exceeds the expected size.');return bytes;}
-const keyBytes=await download(`https://keys.openpgp.org/vks/v1/by-fingerprint/${fingerprint}`);
-const key=await openpgp.readKey({armoredKey:new TextDecoder().decode(keyBytes)});
+const download=url=>downloadReleaseBytes(url,{onRetry:({attempt,hostname})=>console.log(`Retrying interrupted release download from ${hostname} (attempt ${attempt+1} of 3)…`)});
+const key=await loadTorVerificationKey('torbrowser');
 if(key.getFingerprint().toUpperCase()!==fingerprint)throw new Error('Tor signing-key fingerprint does not match the published Tor Browser key.');
 const checksumsBytes=await download(base+'sha256sums-signed-build.txt');
 const checksumsSignature=await download(base+'sha256sums-signed-build.txt.asc');
@@ -52,7 +53,7 @@ for(const [platform,target] of targets){
 const sourceFingerprint='B74417EDDF22AC9F9E90F49142E86A2A11F48D36';
 const sourceName='tor-0.4.9.13.tar.gz',sourceUrl=`https://dist.torproject.org/${sourceName}`;
 console.log(`Downloading and verifying source ${sourceName}…`);
-const sourceKey=await openpgp.readKey({armoredKey:new TextDecoder().decode(await download(`https://keys.openpgp.org/vks/v1/by-fingerprint/${sourceFingerprint}`))});
+const sourceKey=await loadTorVerificationKey('dgoulet');
 if(sourceKey.getFingerprint().toUpperCase()!==sourceFingerprint)throw new Error('The Tor source signing-key fingerprint does not match the official release key.');
 const [sourceArchive,sourceSum,sourceSignature]=await Promise.all([download(sourceUrl),download(sourceUrl+'.sha256sum'),download(sourceUrl+'.sha256sum.asc')]);
 await verify(sourceSum,sourceSignature,sourceKey);

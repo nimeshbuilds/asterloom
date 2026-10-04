@@ -94,6 +94,7 @@ jobs:
         run: node --test server/media.integration.test.mjs
         env:
           ASTERLOOM_MEDIA_INTEGRATION: '1'
+          ASTERLOOM_EXPECT_CPU_BACKEND: 'haswell'
       - name: Keep reproducible Windows speech runtime
         uses: actions/upload-artifact@v6
         with:
@@ -131,7 +132,10 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: windows-native-verification
-          path: .qa/native-*.png
+          path: |
+            .qa/native-*.png
+            .qa/native-features-*.json
+            .qa/media-build/REAL-ASR-RESULTS.json
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
@@ -155,7 +159,7 @@ jobs:
         env:
           ASTERLOOM_MEDIA_INTEGRATION: '1'
       - name: Verify signing boundaries without accessing private keys
-        run: node --test desktop/signing.test.mjs desktop/architectures.test.mjs desktop/credential-store.test.mjs
+        run: node --test desktop/signing.test.mjs desktop/architectures.test.mjs desktop/credential-store.test.mjs desktop/copy-native-tree.test.mjs
       - name: Verify source extraction and room services on this operating system
         run: npm run test:server
       - run: npm run assets
@@ -190,7 +194,10 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: macos-native-verification
-          path: .qa/native-*.png
+          path: |
+            .qa/native-*.png
+            .qa/native-features-*.json
+            .qa/media-build/REAL-ASR-RESULTS.json
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7

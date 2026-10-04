@@ -1,29 +1,57 @@
 # Native Asterloom and exported learning games
 
-`main.mjs` runs the same complete studio in a sandboxed Electron window, alongside the local import/multiplayer service. The renderer uses the stable `asterloom://app` origin, so changing the internal HTTP port does not lose IndexedDB progress. Node integration is disabled; the context-isolated preload exposes only immutable bootstrap data and the export action and narrowly scoped Tor controls.
+`main.mjs` runs the same complete studio in a sandboxed Electron window, alongside the local import/multiplayer service. The renderer uses the stable `asterloom://app` origin, so changing the internal HTTP port does not lose IndexedDB progress. Node integration is disabled; the context-isolated preload exposes only immutable bootstrap data and narrowly scoped game export, recording archive and Tor controls.
 
 ## Build and run
 
+Use Node.js 24 or newer. Build a platform on its native operating system unless you already have its verified media-runtime directory and receipts from a native build.
+
+For macOS, install Xcode Command Line Tools so `clang` and `make` are available. CMake is used from `PATH` or fetched as a pinned local developer tool when absent. This creates one Universal application for Apple Silicon and Intel:
+
 ```sh
+npm ci
 npm run build
-node desktop/download-tor.mjs
-node scripts/package-desktop.mjs
+npm run prepare:media -- --platform=mac
+node desktop/download-tor.mjs --platform=mac
+npm run package:desktop -- --platform=mac
 ```
 
-The default build produces two portable development bundles:
+For Windows x64, install CMake and Visual Studio C++ Build Tools with the Windows SDK, plus MSYS2 at `C:\msys64` (or set `MSYS2_ROOT` to its installation directory). In an MSYS2 UCRT64 shell, install the compiler and Make:
 
-- `release/desktop/Asterloom-darwin-universal/Asterloom.app` — one Mac application containing both supported processor architectures.
+```sh
+pacman -S --needed make mingw-w64-ucrt-x86_64-gcc
+```
+
+Then run these commands in a Windows terminal where Node.js and CMake are available:
+
+```sh
+npm ci
+npm run build
+npm run prepare:media -- --platform=windows
+node desktop/download-tor.mjs --platform=windows
+npm run package:desktop -- --platform=windows
+```
+
+The explicit preparation commands are useful for diagnosing setup failures. The packager also resolves/verifies the required Tor and media runtimes automatically; there is no optional “include transcription” flag. The first build downloads pinned sources, dependencies and the retrieval model. Keep their verified caches to reuse them offline.
+
+Outputs for the selected platform:
+
+- `release/desktop/Asterloom-darwin-universal/Asterloom.app` — Mac application containing both supported processor architectures; macOS 13 or newer.
 - `release/desktop/Asterloom-win32-x64/Asterloom.exe` — Windows executable inside its required portable folder.
 
-Double-click the `.app` or `.exe`. Windows users must retain the sibling resources and runtime files. `--platform=mac` builds the universal Mac application; `--platform=windows` builds Windows. Historical `mac-arm64` and `mac-intel` build arguments are accepted as aliases for the universal Mac build. Mac assembly requires macOS; no processor choice appears in the product's export menu. The current Electron runtime requires macOS 13 or newer.
+Extract a downloaded archive before launching. Double-click the `.app` or `.exe`; Windows users must retain the sibling resources and runtime files. Recipients do not install developer tools. These are development builds, so operating-system trust prompts or blocks may apply; see [Distribution status](#distribution-status).
+
+Always pass `--platform=mac` or `--platform=windows` for a single-platform build. With no platform argument, the packager attempts both targets. A fresh macOS checkout cannot compile the Windows media runtime, and Mac application assembly requires macOS. Cross-packaging Windows from a Mac requires the complete `desktop/vendor/media` directory from a verified Windows build, including `win32-x64/BUILD.json`, binaries and corresponding sources. Historical `mac-arm64` and `mac-intel` build arguments are aliases for the Universal Mac build; no processor choice appears in the export menu.
 
 The Mac pipeline builds disposable architecture-specific inputs, combines the locked Skia canvas bindings into `skia.darwin-universal.node`, and uses `@electron/universal` to combine Electron, Tor and its native libraries. Every resulting Mach-O file must contain both architectures. Shared code, documents, graphics and music remain shared. The merged development app is ad-hoc sealed and strictly verified without publisher credentials; Developer ID release signing remains separate. Disposable inputs are removed before publication. An old single-architecture Mac app is rejected as a universal export template.
 
-Packaging automatically resolves missing Tor runtime archives through the signature-verified downloader and locked native canvas archives through the checksum-verified dependency resolver. Node, Electron, PDF/Office/EPUB extraction and Tor ship with the application; recipients do not install a Node runtime or developer tools. Tesseract OCR and speech transcription are not bundled: images can use author descriptions, and audio/video can use uploaded transcripts. These optional capabilities must never be advertised as installed automatically.
+Packaging automatically resolves missing Tor runtime archives through the signature-verified downloader and locked native canvas archives through the checksum-verified dependency resolver. Each app includes Node, Electron, PDF/Office/EPUB extraction, Tor, FFmpeg 9.0.2, whisper.cpp 1.9.4, local Tesseract 7/WASM with English/Spanish/French/German data, and the local semantic-retrieval model. The exact corresponding FFmpeg/whisper.cpp sources and runtime/license receipts are copied into the release.
+
+Speech model weights are the separate first-use download: Small is the default, with Base and Tiny alternatives. An explicit transcription request downloads the selected pinned model, verifies its size and SHA-256, and reuses it offline. These model caches are not copied into recipient game exports. Playing a prepared game requires neither OCR nor a speech model. Captions, checked image text and supplied transcripts can also be authored manually. See [Local recordings and speech recognition](../docs/LOCAL-MEDIA.md) for limits and model sizes.
 
 The packager downloads the exact target platform canvas N-API binding from the npm URL in `package-lock.json`, verifies its locked SHA-512 integrity, and installs it after pruning. Wrong-platform bindings are removed; any additional unconfigured production native module makes the build fail. This keeps PDF extraction available in cross-built Windows and Intel Mac bundles. Actual native smoke tests also extract a real PDF through the bundled service.
 
-For developer launch after a frontend build and validator generation, use `electron .` with root package main set to `desktop/main.mjs`. The packaging command regenerates `desktop/generated/package-validation.mjs` from the same TypeScript package validator used by the browser. Keep it synchronized after validator changes.
+For a developer launch without packaging, run `npm run build`, `npm run test:desktop`, then `npm run desktop`. The desktop test command generates `desktop/generated/package-validation.mjs` and tests the export boundary; packaging also regenerates that validator. Keep it synchronized after validator changes. Prepare the host speech runtime with `npm run prepare:media` and Tor with `node desktop/download-tor.mjs --host` before testing those features from the checkout.
 
 ## Export a game
 
@@ -35,9 +63,9 @@ The current universal Mac application or Windows application can be copied as th
 2. `release/desktop` in a development checkout or the sibling release directory.
 3. `desktop-templates` inside the application resources directory.
 
-Missing templates produce an actionable error; the app does not claim a cross-platform bundle was created. The preload reports `availableExports` to the UI. The export result is `{path,identity,notebookId,platform,signing,notarized:false,warning}`, `{canceled:true}`, or `{error}`. The warning explains that newly embedded content cannot retain publisher trust. The manifest records the actual ad-hoc or unsigned state before resource sealing.
+To make both targets discoverable from extracted CI builds, keep `Asterloom-darwin-universal` and `Asterloom-win32-x64` as sibling folders under the same parent. That layout also preserves Windows runtime files. The currently running app supplies its own platform template. Missing templates produce an actionable error; the app does not claim a cross-platform bundle was created. The preload reports `availableExports` to the UI. The export result is `{path,identity,notebookId,platform,signing,notarized:false,warning}`, `{canceled:true}`, or `{error}`. The warning explains that newly embedded content cannot retain publisher trust. The manifest records the actual ad-hoc or unsigned state before resource sealing.
 
-A CLI export is also available:
+A CLI export is also available for a self-contained `.learnpack`. It does not resolve a creator’s external recording library; use the desktop export dialog for notebooks with native recording assets, or import their `.learnzip` archive into the studio first:
 
 ```sh
 node scripts/export-desktop.mjs notebook.learnpack mac ./release/games

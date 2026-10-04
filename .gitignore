@@ -10,6 +10,7 @@ playwright-report/
 .env*
 
 release/
+deliverables/
 *.tsbuildinfo
 desktop/generated/
 desktop/dev-resources/

@@ -1,0 +1,25 @@
+{
+  "purpose": "Pinned public verification keys for the exact Tor Browser 15.0.24 and Tor core 0.4.9.13 release inputs. Update deliberately with the pinned release after checking official fingerprints and signatures. Runtime builds never trust a downloaded replacement key.",
+  "records": [
+    {
+      "id": "torbrowser",
+      "file": "torbrowser.asc",
+      "fingerprint": "EF6E286DDA85EA2A4BA7DE684E2C6E8793298290",
+      "sha256": "8c2d63cac51ea4a0245b29d87a9bc84128944d1881cacfb05b48a07663e9d595",
+      "source": "https://openpgpkey.torproject.org/.well-known/openpgpkey/torproject.org/hu/kounek7zrdx745qydx6p59t9mqjpuhdf?l=torbrowser",
+      "documentation": "https://support.torproject.org/tor-browser/getting-started/verifying-tor-browser/",
+      "retrievedAt": "2026-10-04",
+      "serialization": "OpenPGP.js 6 public-key ASCII armor; no secret keys"
+    },
+    {
+      "id": "dgoulet",
+      "file": "dgoulet.asc",
+      "fingerprint": "B74417EDDF22AC9F9E90F49142E86A2A11F48D36",
+      "sha256": "0f92ce8833666e5a71b8b938d5dfaf8a58885a5f9024e68be65476b7f12fd0b5",
+      "source": "https://keys.openpgp.org/vks/v1/by-keyid/42E86A2A11F48D36",
+      "documentation": "https://support.torproject.org/little-t-tor/getting-started/verifying/",
+      "retrievedAt": "2026-10-04",
+      "serialization": "OpenPGP.js 6 public-key ASCII armor; no secret keys"
+    }
+  ]
+}

@@ -16,20 +16,32 @@ npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:4319**. For development use `npm run dev` (Vite on port 5173). The self-contained `release/Asterloom-Studio.html` can be double-clicked without Node, an account, an API key, or an internet connection. The local companion adds document parsing, URL imports and shared challenge rooms.
+Open **http://127.0.0.1:4319**. For development use `npm run dev` (Vite on port 5173). The first build downloads the pinned retrieval model; OCR and its four language packs are copied from installed dependencies. Subsequent builds reuse verified local assets.
+
+The self-contained `release/Asterloom-Studio.html` can be double-clicked without Node, an account, an API key, or an internet connection. It plays, edits and remixes prepared games. Standalone HTML has no bundled companion service or separate OCR/semantic-model assets: PDF/Office/EPUB extraction, URL fetching, new OCR, native speech recognition and native Tor transport require the studio/companion environment. Readable text, supplied transcripts and deterministic creation remain available offline.
+
+For local speech recognition while running this checkout on macOS or Windows, prepare the host decoder/recognizer once with `npm run prepare:media`, then restart `npm start`. This step requires the developer tools described in [the native build guide](desktop/README.md#build-and-run). The selected speech model downloads when transcription is first requested; existing games need no speech model to play. The current preparation script does not build a Linux speech runtime.
 
 ## Desktop applications
 
+For a Universal Mac application, use macOS with Node.js 24+ and Xcode Command Line Tools (Clang and Make):
+
 ```sh
+npm ci
 npm run build
+npm run prepare:media -- --platform=mac
 node desktop/download-tor.mjs --platform=mac
 npm run package:desktop -- --platform=mac
 ```
 
-Built applications are placed under `release/desktop/`:
+For Windows x64, build on Windows with CMake, Visual Studio C++ Build Tools and MSYS2 UCRT64 GCC/Make. Follow the [Windows prerequisites and commands](desktop/README.md#build-and-run); a fresh Mac checkout cannot build the Windows speech runtime. The explicit media-preparation step makes setup failures visible early; `package:desktop` also prepares or verifies the required runtime automatically.
+
+Built applications are placed under `release/desktop/` for the selected platform:
 
 - `Asterloom-darwin-universal/Asterloom.app` — one Mac app for Apple Silicon and Intel, macOS 13+.
 - `Asterloom-win32-x64/Asterloom.exe` — Windows x64; keep its entire folder together.
+
+Recipients need no Node.js, compilers, FFmpeg or Tesseract installation. The app includes the decoder/recognizer executables, four OCR languages and the local retrieval model; speech weights are a verified first-use download and are then reused offline. Extract a downloaded archive before launching it.
 
 The default packager creates development applications. A publisher can sign a prepared macOS bundle with `node scripts/sign-desktop.mjs --identity "Developer ID Application: …" --app source.app --output signed.app`; notarization remains a separate distribution step. CI artifacts are unsigned. Modified game exports require their own publisher signature/notarization for trusted distribution; they cannot inherit the original publisher seal. Normal OS trust protections remain in effect.
 

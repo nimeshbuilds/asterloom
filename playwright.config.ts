@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['e2e.spec.ts','retrieval.e2e.spec.ts','playerCommit.e2e.spec.ts','recordingStudio.e2e.spec.ts','mediaFlow.e2e.spec.ts','visualCapture.e2e.spec.ts'],
+  testMatch: ['e2e.spec.ts','retrieval.e2e.spec.ts','playerCommit.e2e.spec.ts','recordingStudio.e2e.spec.ts','mediaFlow.e2e.spec.ts','visualCapture.e2e.spec.ts','thirdPartyNotices.e2e.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
