@@ -19,7 +19,11 @@ const scope=embedded?path.join('games',embedded.identity):'studio';
 // A stable custom browser origin plus a per-package userData directory preserves
 // IndexedDB/localStorage across launches while keeping separate game exports isolated.
 app.setPath('userData',path.join(process.env.ASTERLOOM_DATA_DIR?path.resolve(process.env.ASTERLOOM_DATA_DIR):path.join(app.getPath('appData'),'Asterloom'),scope));
-app.setName(embedded?`${embedded.notebook.title} · Asterloom`:'Asterloom');
+// Electron incorporates app.name into User-Agent when building protocol
+// Requests. Non-ASCII notebook titles (or a decorative middle dot) can produce
+// invalid ByteString headers and break every fetch in an exported game.
+// Keep the process identity stable; BrowserWindow still displays the title.
+app.setName('Asterloom');
 if(!app.requestSingleInstanceLock()){app.exit(0);}
 app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.focus();}});
 

@@ -119,6 +119,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Verify signing boundaries without accessing private keys
+        run: node --test desktop/signing.test.mjs
       - name: Verify source extraction and room services on this operating system
         run: npm run test:server
       - run: npm run assets

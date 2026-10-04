@@ -53,10 +53,11 @@ The ordinary packaging command produces **development builds**. Developer ID sig
 To prepare a separate Mac signing candidate using an existing Developer ID identity in the operator's Keychain:
 
 ```sh
+mkdir -p release/signing-candidates/mac-arm64
 node scripts/sign-desktop.mjs --identity "Developer ID Application: YOUR NAME (TEAM)" --app "release/desktop/Asterloom-darwin-arm64/Asterloom.app" --output "release/signing-candidates/mac-arm64/Asterloom.app"
 ```
 
-The command does not rebuild or modify the original app. It uses `@electron/osx-sign` to sign nested Mach-O files and bundles from the inside out, with secure timestamps and hardened runtime. Electron processes receive only the `allow-jit` entitlement; Tor and native libraries receive no exception entitlements. Camera, microphone, unsigned-memory, debugger and library-validation exceptions are not granted. It checks every native signature and performs strict deep verification before creating the candidate and its `.signing.json` report. Only new-copy Finder presentation metadata is removed; quarantine and provenance remain intact.
+The command requires an existing output directory and does not rebuild or modify the original app. It uses `@electron/osx-sign` to sign nested Mach-O files and bundles from the inside out, with secure timestamps and hardened runtime. The signing process reports each code object and has a 180-second bound; a blocked Keychain request or timestamp connection ends the signing worker and its child processes. Electron processes receive only the `allow-jit` entitlement; Tor and native libraries receive no exception entitlements. Camera, microphone, unsigned-memory, debugger and library-validation exceptions are not granted. It checks every native signature and performs strict deep verification before creating the candidate and its `.signing.json` report. Only new-copy Finder presentation metadata is removed; quarantine and provenance remain intact.
 
 A signing candidate is **not yet a validated or notarized release**. Run the actual native smoke (including bundled PDF extraction), retained-game launch and real Tor smoke against the candidate before publishing it. The report starts with `runtimeValidation: "pending"`; successful signing alone does not change that status. Repeat for each architecture; running an Intel build under Rosetta verifies execution on that machine, not compatibility with every Intel Mac.
 
