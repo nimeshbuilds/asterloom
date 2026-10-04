@@ -1,0 +1,11 @@
+# Reproducible source checkouts on macOS, Linux and Windows. Binary detection
+# remains enabled; text files use LF even when core.autocrlf is true.
+* text=auto eol=lf
+
+# These upstream payloads are hashed or signed as raw bytes. Do not normalize
+# them on either add or checkout: the committed blob is the verified artifact.
+scripts/ocr-data-LICENSE.txt -text
+scripts/licenses/*.txt -text
+public/assets/licenses/* -text
+desktop/verification-keys/*.asc -text
+desktop/fixtures/tor/* -text
