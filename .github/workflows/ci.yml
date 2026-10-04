@@ -70,7 +70,6 @@ jobs:
 
   windows:
     name: Windows x64 native export and replay
-    needs: web
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -142,7 +141,6 @@ jobs:
 
   macos:
     name: macOS native export and replay
-    needs: web
     runs-on: macos-14
     timeout-minutes: 45
     steps:

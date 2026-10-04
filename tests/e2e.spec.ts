@@ -791,6 +791,10 @@ test('TXT, Markdown and subtitle files import locally and searchable evidence bu
     { name: 'ocean-notes.md', mimeType: 'text/markdown', buffer: Buffer.from('# Ocean notes\nCurrent: water moving in a consistent direction through the ocean.\nTide: a periodic change in sea level caused largely by gravitational forces.') },
     { name: 'short-lecture.vtt', mimeType: 'text/vtt', buffer: Buffer.from('WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nRepeated practice gives learners more opportunities to recall information from memory.') },
   ]);
+  // The visible chooser is disabled while a batch imports. setInputFiles bypasses
+  // that button, so wait for the same readiness a person sees before reusing it.
+  await expect(page.locator('.source-row')).toHaveCount(3);
+  await expect(page.getByRole('button', { name: 'Upload files', exact: true })).toBeEnabled();
   // Files may arrive without MIME metadata on desktop operating systems.
   await page.getByLabel('Upload source files', { exact: true }).setInputFiles({ name: 'tiny-diagram.png', mimeType: '', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT5sAAAAASUVORK5CYII=', 'base64') });
   await expect(page.locator('.source-row')).toHaveCount(4);
