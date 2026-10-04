@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.qa/
+server/.data/
+.data/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+.env*
+
+release/
+*.tsbuildinfo
+desktop/generated/
+desktop/dev-resources/
+desktop/vendor/

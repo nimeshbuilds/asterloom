@@ -1,0 +1,570 @@
+{
+  "brand": "Asterloom",
+  "version": 1,
+  "worlds": [
+    {
+      "id": "islands",
+      "name": "The floating isles",
+      "file": "worlds/islands.svg"
+    },
+    {
+      "id": "observatory",
+      "name": "The observatory",
+      "file": "worlds/observatory.svg"
+    },
+    {
+      "id": "forest",
+      "name": "The wild garden",
+      "file": "worlds/forest.svg"
+    },
+    {
+      "id": "workshop",
+      "name": "The invention lab",
+      "file": "worlds/workshop.svg"
+    },
+    {
+      "id": "ocean",
+      "name": "The coral archive",
+      "file": "worlds/ocean.svg"
+    },
+    {
+      "id": "library",
+      "name": "The secret library",
+      "file": "worlds/library.svg"
+    }
+  ],
+  "scaffolds": [
+    {
+      "id": "concept-map-repair",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "concept-map-repair",
+      "file": "scaffolds/concept-map-repair.svg"
+    },
+    {
+      "id": "classification-workshop",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "classification-workshop",
+      "file": "scaffolds/classification-workshop.svg"
+    },
+    {
+      "id": "comparison-puzzle",
+      "family": "match",
+      "scene": "forest",
+      "motif": "comparison-puzzle",
+      "file": "scaffolds/comparison-puzzle.svg"
+    },
+    {
+      "id": "analogy-construction",
+      "family": "match",
+      "scene": "forest",
+      "motif": "analogy-construction",
+      "file": "scaffolds/analogy-construction.svg"
+    },
+    {
+      "id": "definition-building",
+      "family": "cloze",
+      "scene": "library",
+      "motif": "definition-building",
+      "file": "scaffolds/definition-building.svg"
+    },
+    {
+      "id": "process-reconstruction",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "process-reconstruction",
+      "file": "scaffolds/process-reconstruction.svg"
+    },
+    {
+      "id": "missing-step-completion",
+      "family": "cloze",
+      "scene": "library",
+      "motif": "missing-step-completion",
+      "file": "scaffolds/missing-step-completion.svg"
+    },
+    {
+      "id": "fault-diagnosis",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "fault-diagnosis",
+      "file": "scaffolds/fault-diagnosis.svg"
+    },
+    {
+      "id": "repair-challenge",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "repair-challenge",
+      "file": "scaffolds/repair-challenge.svg"
+    },
+    {
+      "id": "constrained-action-planning",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "constrained-action-planning",
+      "file": "scaffolds/constrained-action-planning.svg"
+    },
+    {
+      "id": "evidence-investigation",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "evidence-investigation",
+      "file": "scaffolds/evidence-investigation.svg"
+    },
+    {
+      "id": "claim-verification",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "claim-verification",
+      "file": "scaffolds/claim-verification.svg"
+    },
+    {
+      "id": "argument-construction",
+      "family": "explain",
+      "scene": "library",
+      "motif": "argument-construction",
+      "file": "scaffolds/argument-construction.svg"
+    },
+    {
+      "id": "competing-explanations",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "competing-explanations",
+      "file": "scaffolds/competing-explanations.svg"
+    },
+    {
+      "id": "timeline-investigation",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "timeline-investigation",
+      "file": "scaffolds/timeline-investigation.svg"
+    },
+    {
+      "id": "branching-decisions",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "branching-decisions",
+      "file": "scaffolds/branching-decisions.svg"
+    },
+    {
+      "id": "role-missions",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "role-missions",
+      "file": "scaffolds/role-missions.svg"
+    },
+    {
+      "id": "resource-allocation",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "resource-allocation",
+      "file": "scaffolds/resource-allocation.svg"
+    },
+    {
+      "id": "prediction-and-experiment",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "prediction-and-experiment",
+      "file": "scaffolds/prediction-and-experiment.svg"
+    },
+    {
+      "id": "build-to-specification",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "build-to-specification",
+      "file": "scaffolds/build-to-specification.svg"
+    },
+    {
+      "id": "diagram-reconstruction",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "diagram-reconstruction",
+      "file": "scaffolds/diagram-reconstruction.svg"
+    },
+    {
+      "id": "chart-and-data-investigation",
+      "family": "recall",
+      "scene": "islands",
+      "motif": "chart-and-data-investigation",
+      "file": "scaffolds/chart-and-data-investigation.svg"
+    },
+    {
+      "id": "media-checkpoints",
+      "family": "timed",
+      "scene": "ocean",
+      "motif": "media-checkpoints",
+      "file": "scaffolds/media-checkpoints.svg"
+    },
+    {
+      "id": "recall-escape-mission",
+      "family": "recall",
+      "scene": "islands",
+      "motif": "recall-escape-mission",
+      "file": "scaffolds/recall-escape-mission.svg"
+    },
+    {
+      "id": "structured-teach-back",
+      "family": "explain",
+      "scene": "library",
+      "motif": "structured-teach-back",
+      "file": "scaffolds/structured-teach-back.svg"
+    },
+    {
+      "id": "discovery-scenes",
+      "family": "match",
+      "scene": "forest",
+      "motif": "discovery-scenes",
+      "file": "scaffolds/discovery-scenes.svg"
+    },
+    {
+      "id": "puppet-stories",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "puppet-stories",
+      "file": "scaffolds/puppet-stories.svg"
+    },
+    {
+      "id": "pretend-play-stations",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "pretend-play-stations",
+      "file": "scaffolds/pretend-play-stations.svg"
+    },
+    {
+      "id": "pattern-parade",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "pattern-parade",
+      "file": "scaffolds/pattern-parade.svg"
+    },
+    {
+      "id": "build-and-tell",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "build-and-tell",
+      "file": "scaffolds/build-and-tell.svg"
+    },
+    {
+      "id": "word-and-picture-workshop",
+      "family": "match",
+      "scene": "forest",
+      "motif": "word-and-picture-workshop",
+      "file": "scaffolds/word-and-picture-workshop.svg"
+    },
+    {
+      "id": "step-train",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "step-train",
+      "file": "scaffolds/step-train.svg"
+    },
+    {
+      "id": "changing-rule-sorter",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "changing-rule-sorter",
+      "file": "scaffolds/changing-rule-sorter.svg"
+    },
+    {
+      "id": "clue-map",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "clue-map",
+      "file": "scaffolds/clue-map.svg"
+    },
+    {
+      "id": "partner-helper",
+      "family": "explain",
+      "scene": "library",
+      "motif": "partner-helper",
+      "file": "scaffolds/partner-helper.svg"
+    },
+    {
+      "id": "evidence-detective",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "evidence-detective",
+      "file": "scaffolds/evidence-detective.svg"
+    },
+    {
+      "id": "experiment-predictor",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "experiment-predictor",
+      "file": "scaffolds/experiment-predictor.svg"
+    },
+    {
+      "id": "systems-repair-workshop",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "systems-repair-workshop",
+      "file": "scaffolds/systems-repair-workshop.svg"
+    },
+    {
+      "id": "plan-and-budget-expedition",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "plan-and-budget-expedition",
+      "file": "scaffolds/plan-and-budget-expedition.svg"
+    },
+    {
+      "id": "teach-a-character",
+      "family": "explain",
+      "scene": "library",
+      "motif": "teach-a-character",
+      "file": "scaffolds/teach-a-character.svg"
+    },
+    {
+      "id": "hypothesis-casebook",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "hypothesis-casebook",
+      "file": "scaffolds/hypothesis-casebook.svg"
+    },
+    {
+      "id": "claim-and-evidence-arena",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "claim-and-evidence-arena",
+      "file": "scaffolds/claim-and-evidence-arena.svg"
+    },
+    {
+      "id": "constraint-design-workshop",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "constraint-design-workshop",
+      "file": "scaffolds/constraint-design-workshop.svg"
+    },
+    {
+      "id": "perspective-switching-drama",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "perspective-switching-drama",
+      "file": "scaffolds/perspective-switching-drama.svg"
+    },
+    {
+      "id": "strategy-campaign",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "strategy-campaign",
+      "file": "scaffolds/strategy-campaign.svg"
+    },
+    {
+      "id": "scenario-internship",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "scenario-internship",
+      "file": "scaffolds/scenario-internship.svg"
+    },
+    {
+      "id": "research-dossier",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "research-dossier",
+      "file": "scaffolds/research-dossier.svg"
+    },
+    {
+      "id": "prototype-studio",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "prototype-studio",
+      "file": "scaffolds/prototype-studio.svg"
+    },
+    {
+      "id": "review-studio",
+      "family": "explain",
+      "scene": "library",
+      "motif": "review-studio",
+      "file": "scaffolds/review-studio.svg"
+    },
+    {
+      "id": "capstone-campaign",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "capstone-campaign",
+      "file": "scaffolds/capstone-campaign.svg"
+    },
+    {
+      "id": "zero-trust-access-lab",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "zero-trust-access-lab",
+      "file": "scaffolds/zero-trust-access-lab.svg"
+    },
+    {
+      "id": "incident-response-command",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "incident-response-command",
+      "file": "scaffolds/incident-response-command.svg"
+    },
+    {
+      "id": "threat-model-canvas",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "threat-model-canvas",
+      "file": "scaffolds/threat-model-canvas.svg"
+    },
+    {
+      "id": "secure-code-review",
+      "family": "explain",
+      "scene": "library",
+      "motif": "secure-code-review",
+      "file": "scaffolds/secure-code-review.svg"
+    },
+    {
+      "id": "packet-path-inspector",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "packet-path-inspector",
+      "file": "scaffolds/packet-path-inspector.svg"
+    },
+    {
+      "id": "prompt-experiment-bench",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "prompt-experiment-bench",
+      "file": "scaffolds/prompt-experiment-bench.svg"
+    },
+    {
+      "id": "agent-workflow-studio",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "agent-workflow-studio",
+      "file": "scaffolds/agent-workflow-studio.svg"
+    },
+    {
+      "id": "retrieval-quality-lab",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "retrieval-quality-lab",
+      "file": "scaffolds/retrieval-quality-lab.svg"
+    },
+    {
+      "id": "model-evaluation-arena",
+      "family": "match",
+      "scene": "forest",
+      "motif": "model-evaluation-arena",
+      "file": "scaffolds/model-evaluation-arena.svg"
+    },
+    {
+      "id": "ai-safety-response-lab",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "ai-safety-response-lab",
+      "file": "scaffolds/ai-safety-response-lab.svg"
+    },
+    {
+      "id": "cloud-architecture-builder",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "cloud-architecture-builder",
+      "file": "scaffolds/cloud-architecture-builder.svg"
+    },
+    {
+      "id": "cloud-cost-control",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "cloud-cost-control",
+      "file": "scaffolds/cloud-cost-control.svg"
+    },
+    {
+      "id": "kubernetes-recovery-room",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "kubernetes-recovery-room",
+      "file": "scaffolds/kubernetes-recovery-room.svg"
+    },
+    {
+      "id": "infrastructure-change-planner",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "infrastructure-change-planner",
+      "file": "scaffolds/infrastructure-change-planner.svg"
+    },
+    {
+      "id": "distributed-systems-trace",
+      "family": "connect",
+      "scene": "observatory",
+      "motif": "distributed-systems-trace",
+      "file": "scaffolds/distributed-systems-trace.svg"
+    },
+    {
+      "id": "debugger-detective",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "debugger-detective",
+      "file": "scaffolds/debugger-detective.svg"
+    },
+    {
+      "id": "api-contract-workshop",
+      "family": "match",
+      "scene": "forest",
+      "motif": "api-contract-workshop",
+      "file": "scaffolds/api-contract-workshop.svg"
+    },
+    {
+      "id": "database-query-lab",
+      "family": "cloze",
+      "scene": "library",
+      "motif": "database-query-lab",
+      "file": "scaffolds/database-query-lab.svg"
+    },
+    {
+      "id": "version-control-recovery",
+      "family": "sequence",
+      "scene": "ocean",
+      "motif": "version-control-recovery",
+      "file": "scaffolds/version-control-recovery.svg"
+    },
+    {
+      "id": "test-design-studio",
+      "family": "sort",
+      "scene": "workshop",
+      "motif": "test-design-studio",
+      "file": "scaffolds/test-design-studio.svg"
+    },
+    {
+      "id": "data-pipeline-repair",
+      "family": "diagram",
+      "scene": "observatory",
+      "motif": "data-pipeline-repair",
+      "file": "scaffolds/data-pipeline-repair.svg"
+    },
+    {
+      "id": "statistics-evidence-lab",
+      "family": "recall",
+      "scene": "islands",
+      "motif": "statistics-evidence-lab",
+      "file": "scaffolds/statistics-evidence-lab.svg"
+    },
+    {
+      "id": "product-tradeoff-council",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "product-tradeoff-council",
+      "file": "scaffolds/product-tradeoff-council.svg"
+    },
+    {
+      "id": "language-dialogue-trail",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "language-dialogue-trail",
+      "file": "scaffolds/language-dialogue-trail.svg"
+    },
+    {
+      "id": "clinical-reasoning-casebook",
+      "family": "scenario",
+      "scene": "islands",
+      "motif": "clinical-reasoning-casebook",
+      "file": "scaffolds/clinical-reasoning-casebook.svg"
+    }
+  ],
+  "music": {
+    "type": "CC0 recordings with deterministic synthesized fallbacks",
+    "count": 10,
+    "source": "src/lib/musicRecordings.ts",
+    "credits": "licenses/MUSIC-CREDITS.md",
+    "manifest": "src/assets/music/manifest.json"
+  }
+}

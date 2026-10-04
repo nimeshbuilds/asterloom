@@ -1,0 +1,439 @@
+[
+  {
+    "version": 1,
+    "id": "example-sequence",
+    "title": "A reproducible investigation",
+    "instruction": "Put the investigation steps in a valid order.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "Define the question before collecting observations. Collect observations before analyzing them. Analyze observations before reporting the conclusion."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "Define the question before collecting observations. Collect observations before analyzing them. Analyze observations before reporting the conclusion.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "process-reconstruction"
+    ],
+    "kind": "sequence",
+    "items": [
+      {
+        "id": "question",
+        "label": "Define the question"
+      },
+      {
+        "id": "collect",
+        "label": "Collect observations"
+      },
+      {
+        "id": "analyze",
+        "label": "Analyze observations"
+      },
+      {
+        "id": "report",
+        "label": "Report the conclusion"
+      }
+    ],
+    "constraints": [
+      {
+        "before": "question",
+        "after": "collect"
+      },
+      {
+        "before": "collect",
+        "after": "analyze"
+      },
+      {
+        "before": "analyze",
+        "after": "report"
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "id": "example-classification",
+    "title": "Observation or interpretation?",
+    "instruction": "Classify each statement using the supplied distinction.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "An observation records what was measured or directly noticed. An interpretation proposes what an observation means. “The display reads 12” is an observation. “The battery may be weak” is an interpretation."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "An observation records what was measured or directly noticed. An interpretation proposes what an observation means. “The display reads 12” is an observation. “The battery may be weak” is an interpretation.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "classification-workshop"
+    ],
+    "kind": "classification",
+    "categories": [
+      {
+        "id": "observation",
+        "label": "Observation"
+      },
+      {
+        "id": "interpretation",
+        "label": "Interpretation"
+      }
+    ],
+    "items": [
+      {
+        "id": "display",
+        "label": "The display reads 12."
+      },
+      {
+        "id": "battery",
+        "label": "The battery may be weak."
+      }
+    ],
+    "membership": [
+      {
+        "itemId": "display",
+        "categoryIds": [
+          "observation"
+        ]
+      },
+      {
+        "itemId": "battery",
+        "categoryIds": [
+          "interpretation"
+        ]
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "id": "example-cloud-iam",
+    "title": "An explicit access policy",
+    "instruction": "Apply this fictional policy to the displayed request.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "This training policy permits an analyst to read a report only with MFA. Every other request is denied. The current request has role analyst, resource report and MFA enabled."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "This training policy permits an analyst to read a report only with MFA. Every other request is denied. The current request has role analyst, resource report and MFA enabled.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "zero-trust-access-lab"
+    ],
+    "kind": "decision",
+    "context": {
+      "role": "analyst",
+      "resource": "report",
+      "mfa": true
+    },
+    "choices": [
+      {
+        "id": "allow",
+        "label": "Allow the request"
+      },
+      {
+        "id": "deny",
+        "label": "Deny the request"
+      }
+    ],
+    "rules": [
+      {
+        "id": "allow-analyst",
+        "when": {
+          "op": "and",
+          "rules": [
+            {
+              "op": "eq",
+              "field": "role",
+              "value": "analyst"
+            },
+            {
+              "op": "eq",
+              "field": "resource",
+              "value": "report"
+            },
+            {
+              "op": "eq",
+              "field": "mfa",
+              "value": true
+            }
+          ]
+        },
+        "choiceId": "allow",
+        "reason": "All three explicitly required conditions are met."
+      }
+    ],
+    "defaultChoiceId": "deny",
+    "defaultReason": "The request does not satisfy every required condition."
+  },
+  {
+    "version": 1,
+    "id": "example-dependencies",
+    "title": "Follow a message",
+    "instruction": "Connect the events using the documented dependency relation.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "In this recorded trace, Build request precedes Send request, and Send request precedes Receive response. No other edge is recorded."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "In this recorded trace, Build request precedes Send request, and Send request precedes Receive response. No other edge is recorded.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "concept-map-repair"
+    ],
+    "kind": "dependency",
+    "nodes": [
+      {
+        "id": "build",
+        "label": "Build request"
+      },
+      {
+        "id": "send",
+        "label": "Send request"
+      },
+      {
+        "id": "receive",
+        "label": "Receive response"
+      }
+    ],
+    "edges": [
+      {
+        "from": "build",
+        "to": "send",
+        "relation": "precedes"
+      },
+      {
+        "from": "send",
+        "to": "receive",
+        "relation": "precedes"
+      }
+    ],
+    "acyclic": true
+  },
+  {
+    "version": 1,
+    "id": "example-budget",
+    "title": "Plan a small lab",
+    "instruction": "Meet both capacity needs without exceeding 12 training credits.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "A small workstation costs 3 credits and provides 1 seat and 2 storage units. A large workstation costs 5 credits and provides 2 seats and 2 storage units. The lab needs at least 4 seats and 6 storage units. Its budget is 12 credits."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "A small workstation costs 3 credits and provides 1 seat and 2 storage units. A large workstation costs 5 credits and provides 2 seats and 2 storage units. The lab needs at least 4 seats and 6 storage units. Its budget is 12 credits.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "resource-allocation"
+    ],
+    "kind": "budget",
+    "budget": 12,
+    "currency": "credits",
+    "items": [
+      {
+        "id": "small",
+        "label": "Small workstation",
+        "cost": 3,
+        "unit": "workstation",
+        "maxQuantity": 4
+      },
+      {
+        "id": "large",
+        "label": "Large workstation",
+        "cost": 5,
+        "unit": "workstation",
+        "maxQuantity": 3
+      }
+    ],
+    "requirements": [
+      {
+        "id": "seats",
+        "label": "Seats",
+        "minimum": 4,
+        "contributions": {
+          "small": 1,
+          "large": 2
+        }
+      },
+      {
+        "id": "storage",
+        "label": "Storage units",
+        "minimum": 6,
+        "contributions": {
+          "small": 2,
+          "large": 2
+        }
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "id": "example-rubric",
+    "title": "Review an explanation",
+    "instruction": "Apply the supplied rubric to this prepared example.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "The rubric awards level 1 when a claim names its specific evidence, and level 0 when no specific evidence is supplied. The sample names the observation “display reads 12”, so its reviewed evidence rating is 1."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "The rubric awards level 1 when a claim names its specific evidence, and level 0 when no specific evidence is supplied. The sample names the observation “display reads 12”, so its reviewed evidence rating is 1.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "review-studio"
+    ],
+    "kind": "rubric",
+    "mode": "sample-review",
+    "sample": "The value is above 10 because the display reads 12.",
+    "criteria": [
+      {
+        "id": "evidence",
+        "label": "Specific evidence",
+        "levels": [
+          "No specific evidence supplied",
+          "A specific observation supports the claim"
+        ],
+        "expectedLevel": 1
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "id": "example-diagram",
+    "title": "Label a transformation",
+    "instruction": "Place each label at the named position in this simple model.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "In this model, input is on the left, transformation is in the center, and output is on the right."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "In this model, input is on the left, transformation is in the center, and output is on the right.",
+    "hint": "Check the exact rule in the source material.",
+    "scaffoldIds": [
+      "diagram-reconstruction"
+    ],
+    "kind": "diagram",
+    "targets": [
+      {
+        "id": "left",
+        "label": "Left position",
+        "x": 15,
+        "y": 50
+      },
+      {
+        "id": "center",
+        "label": "Center position",
+        "x": 50,
+        "y": 50
+      },
+      {
+        "id": "right",
+        "label": "Right position",
+        "x": 85,
+        "y": 50
+      }
+    ],
+    "labels": [
+      {
+        "id": "input",
+        "label": "Input"
+      },
+      {
+        "id": "transform",
+        "label": "Transformation"
+      },
+      {
+        "id": "output",
+        "label": "Output"
+      }
+    ],
+    "mapping": [
+      {
+        "labelId": "input",
+        "targetId": "left"
+      },
+      {
+        "labelId": "transform",
+        "targetId": "center"
+      },
+      {
+        "labelId": "output",
+        "targetId": "right"
+      }
+    ]
+  },
+  {
+    "version": 1,
+    "id": "example-agent-policy",
+    "title": "An agent permission boundary",
+    "instruction": "Choose the action allowed by the supplied tool policy.",
+    "sourceRefs": [
+      {
+        "sourceId": "example-material",
+        "evidence": "In this training workflow, sending email requires explicit user approval. If approval is absent, ask for approval. If approval is present and the tool is listed, the action may proceed. Otherwise deny. The current email request has no approval."
+      }
+    ],
+    "reviewStatus": "reviewed",
+    "explanation": "In this training workflow, sending email requires explicit user approval. If approval is absent, ask for approval. If approval is present and the tool is listed, the action may proceed. Otherwise deny. The current email request has no approval.",
+    "hint": "Check the exact rule in the source material.",
+    "kind": "decision",
+    "context": {
+      "approved": false,
+      "toolListed": true
+    },
+    "choices": [
+      {
+        "id": "ask",
+        "label": "Ask for explicit approval"
+      },
+      {
+        "id": "proceed",
+        "label": "Proceed with the approved action"
+      },
+      {
+        "id": "deny",
+        "label": "Deny the unlisted action"
+      }
+    ],
+    "rules": [
+      {
+        "id": "approval",
+        "when": {
+          "op": "eq",
+          "field": "approved",
+          "value": false
+        },
+        "choiceId": "ask",
+        "reason": "The policy requires approval before this action."
+      },
+      {
+        "id": "permitted",
+        "when": {
+          "op": "and",
+          "rules": [
+            {
+              "op": "eq",
+              "field": "approved",
+              "value": true
+            },
+            {
+              "op": "eq",
+              "field": "toolListed",
+              "value": true
+            }
+          ]
+        },
+        "choiceId": "proceed",
+        "reason": "Approval and tool availability are both established."
+      }
+    ],
+    "defaultChoiceId": "deny",
+    "defaultReason": "The stated permission conditions are not met."
+  }
+]

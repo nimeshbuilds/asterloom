@@ -1,0 +1,66 @@
+{
+  "name": "asterloom",
+  "version": "0.1.0",
+  "description": "A local-first studio for turning your materials into portable learning adventures.",
+  "main": "desktop/main.mjs",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"node server/index.mjs\" \"vite\"",
+    "build": "tsc -b && vite build && node scripts/postbuild.mjs",
+    "start": "node server/index.mjs",
+    "test": "vitest run",
+    "test:server": "node --test server/server.test.mjs",
+    "test:e2e": "playwright test",
+    "preview": "vite preview --host 127.0.0.1",
+    "desktop": "electron .",
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "export:desktop": "node scripts/export-desktop.mjs",
+    "assets": "tsx scripts/build-assets.tsx",
+    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && node --test desktop/bundles.test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "exceljs": "^4.4.0",
+    "fflate": "^0.8.3",
+    "linkedom": "^0.18.13",
+    "lucide-react": "^1.51.0",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@electron/packager": "^20.3.0",
+    "@playwright/test": "^1.63.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/archiver": "^8.0.0",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "archiver": "^8.0.0",
+    "concurrently": "^10.0.5",
+    "electron": "^44.5.1",
+    "esbuild": "^0.28.2",
+    "openpgp": "^6.3.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  },
+  "private": true,
+  "type": "module",
+  "overrides": {
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+import wisdom from '../assets/music/a-brand-new-wisdom.ogg';
+import saying from '../assets/music/just-saying-tho.ogg';
+import winter from '../assets/music/winter-dust.ogg';
+import swinging from '../assets/music/swinging-sweet.ogg';
+import home from '../assets/music/Calm1 - A Place I Call Home.ogg';
+import friends from '../assets/music/Calm2 - Childhood Friends.ogg';
+import peaceful from '../assets/music/Calm3 - Peaceful Days.ogg';
+import castles from '../assets/music/Calm4 - Sand Castles.ogg';
+import summer from '../assets/music/Calm5 - Summer Memories.ogg';
+import innocence from '../assets/music/Calm6 - Innocence.ogg';
+export const RECORDINGS:Record<string,string>={'first-light':home,'paper-stars':friends,'moss-and-morning':peaceful,'tidepool':castles,'little-machines':swinging,'the-quiet-atlas':winter,'golden-hour':summer,'moon-library':wisdom,'pocket-adventure':saying,'homeward':innocence};
+export const MUSIC_CREDITS=[{artist:'Juhani Junkala / SubspaceAudio',title:'JRPG Music Pack #4 [Calm]',url:'https://opengameart.org/content/jrpg-pack-4-calm',license:'CC0 1.0',licenseUrl:'https://creativecommons.org/publicdomain/zero/1.0/'},{artist:'hernandack',title:'Short Loops Background Music Pack',url:'https://opengameart.org/content/short-loops-background-music-pack',license:'CC0 1.0',licenseUrl:'https://creativecommons.org/publicdomain/zero/1.0/'}];

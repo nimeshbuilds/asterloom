@@ -1,0 +1,208 @@
+import type { CardProgress, LearnPackage, LearningCard, Notebook, Progress, Source, SourceKind } from '../types';
+import { validateActivity } from './structuredEngine';
+
+const MAX_PACKAGE_BYTES = 64 * 1024 * 1024;
+const SOURCE_KINDS: SourceKind[] = ['text', 'document', 'website', 'youtube', 'notebooklm', 'audio', 'video', 'image', 'transcript'];
+const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor', 'apiKey', 'apikey', 'api_key', 'accessToken', 'refreshToken', 'token', 'authorization', 'password', 'secret', 'providerKey']);
+
+function object(value: unknown, name: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${name} must be an object.`);
+  return value as Record<string, unknown>;
+}
+function string(value: unknown, name: string, maximum: number, allowEmpty = false): string {
+  if (typeof value !== 'string' || value.length > maximum || (!allowEmpty && !value.trim())) throw new Error(`${name} is missing or exceeds its size limit.`);
+  return value;
+}
+function identifier(value: unknown, name: string): string {
+  const result = string(value, name, 200);
+  if (!/^[\w.:~-]+$/.test(result) || FORBIDDEN_KEYS.has(result)) throw new Error(`${name} contains unsupported characters.`);
+  return result;
+}
+function array(value: unknown, name: string, maximum: number): unknown[] {
+  if (!Array.isArray(value) || value.length > maximum) throw new Error(`${name} must be a list with at most ${maximum} entries.`);
+  return value;
+}
+function number(value: unknown, name: string, minimum: number, maximum: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > maximum) throw new Error(`${name} is out of range.`);
+  return value;
+}
+function integer(value: unknown, name: string, minimum: number, maximum: number): number {
+  const result = number(value, name, minimum, maximum);
+  if (!Number.isInteger(result)) throw new Error(`${name} must be a whole number.`);
+  return result;
+}
+function date(value: unknown, name: string): string {
+  const result = string(value, name, 40);
+  if (!Number.isFinite(Date.parse(result))) throw new Error(`${name} must be a valid date.`);
+  return new Date(result).toISOString();
+}
+function boolean(value: unknown, name: string): boolean { if (typeof value !== 'boolean') throw new Error(`${name} must be true or false.`); return value; }
+function unique(items: string[], name: string): void { if (new Set(items).size !== items.length) throw new Error(`${name} contains duplicate identifiers.`); }
+
+function validateSource(input: unknown): Source {
+  const value = object(input, 'Source');
+  const kind = string(value.kind, 'Source type', 30) as SourceKind;
+  if (!SOURCE_KINDS.includes(kind)) throw new Error(`Unsupported source type: ${kind}.`);
+  const status = value.status;
+  if (status !== 'ready' && status !== 'needs-transcript' && status !== 'error') throw new Error('Source status is invalid.');
+  const source: Source = { id: identifier(value.id, 'Source ID'), title: string(value.title, 'Source title', 500), kind, text: string(value.text, 'Source text', 2_000_000, true), status, addedAt: date(value.addedAt, 'Source date') };
+  if (value.url !== undefined) {
+    const url = string(value.url, 'Source URL', 4000);
+    let parsed: URL; try { parsed = new URL(url); } catch { throw new Error('A source URL is invalid.'); }
+    if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error('Source links must be HTTP(S) URLs without embedded credentials.');
+    source.url = url;
+  }
+  if (value.mime !== undefined) source.mime = string(value.mime, 'Media type', 100);
+  if (value.dataUrl !== undefined) {
+    const dataUrl = string(value.dataUrl, 'Embedded media', Math.ceil(20 * 1024 * 1024 * 4 / 3) + 200);
+    if (!/^data:(?:image\/(?:png|jpeg|webp|gif)|audio\/(?:mpeg|mp3|wav|x-wav|ogg|webm|mp4|x-m4a|m4a)|video\/(?:mp4|webm|ogg|quicktime));base64,[A-Za-z0-9+/]*={0,2}$/.test(dataUrl)) throw new Error('Embedded media must be a supported image, audio, or video file; executable formats are excluded.');
+    source.dataUrl = dataUrl;
+  }
+  if (value.error !== undefined) source.error = string(value.error, 'Source error', 2000, true);
+  return source;
+}
+
+export function validateLearningCard(input: unknown, sources: Source[]): LearningCard {
+  const value = object(input, 'Challenge');
+  const options = array(value.options, 'Answer options', 8).map(option => string(option, 'Answer option', 1000));
+  if (options.length < 2 || new Set(options.map(option => option.trim().toLocaleLowerCase())).size !== options.length) throw new Error('Each challenge needs 2–8 distinct answer options.');
+  const answer = string(value.answer, 'Correct answer', 1000);
+  const correctIndex = integer(value.correctIndex, 'Correct answer index', 0, options.length - 1);
+  if (options[correctIndex] !== answer) throw new Error('A challenge’s correct answer and answer index disagree.');
+  const sourceId = value.sourceId === '' ? '' : identifier(value.sourceId, 'Challenge source');
+  const source = sources.find(item => item.id === sourceId);
+  if (!source && sourceId) throw new Error('A challenge references a missing source.');
+  const evidence = string(value.evidence, 'Evidence', 6000, true);
+  const questionType = value.questionType;
+  if (questionType !== undefined && !['definition', 'cloze', 'sequence', 'manual'].includes(String(questionType))) throw new Error('Unknown challenge type.');
+  if (!sourceId && questionType !== 'manual') throw new Error('Automatically created challenges must reference a source.');
+  if (source && evidence && !source.text.includes(evidence)) throw new Error('A challenge’s evidence is absent from its source. Review changed sources before exporting.');
+  if (source && questionType !== 'manual' && (!evidence || !evidence.toLocaleLowerCase().includes(answer.toLocaleLowerCase()))) throw new Error('A source-recall challenge needs a verbatim evidence span containing its answer.');
+  const reviewStatus = value.reviewStatus;
+  if (reviewStatus !== undefined && !['extractive', 'needs-review', 'reviewed'].includes(String(reviewStatus))) throw new Error('Unknown review status.');
+  return { id: identifier(value.id, 'Challenge ID'), prompt: string(value.prompt, 'Question', 6000), answer, options, correctIndex, explanation: string(value.explanation, 'Explanation', 8000, true), sourceId, evidence, concept: string(value.concept, 'Concept', 500), tags: array(value.tags ?? [], 'Tags', 30).map(tag => string(tag, 'Tag', 100)), ...(questionType ? { questionType: questionType as LearningCard['questionType'] } : {}), ...(reviewStatus ? { reviewStatus: reviewStatus as LearningCard['reviewStatus'] } : {}) };
+}
+
+/** Explicit field allowlists prevent settings, credentials and arbitrary scripts traveling in notebooks. */
+export function validateNotebook(input: unknown): Notebook {
+  const value = object(input, 'Notebook');
+  const sources = array(value.sources, 'Sources', 300).map(validateSource);
+  unique(sources.map(source => source.id), 'Sources');
+  const mediaLength = sources.reduce((sum, source) => sum + (source.dataUrl?.length ?? 0), 0);
+  if (mediaLength > 48 * 1024 * 1024 * 4 / 3) throw new Error('Embedded media exceeds the 48 MB portable notebook limit. Split this notebook into smaller parts.');
+  const cards = array(value.cards, 'Challenges', 2000).map(card => validateLearningCard(card, sources));
+  unique(cards.map(card => card.id), 'Challenges');
+  const activities = value.activities === undefined ? undefined : array(value.activities, 'Structured activities', 300).map((activity, index) => {
+    const checked = validateActivity(activity, sources);
+    if (!checked.success) throw new Error(`Structured activity ${index + 1} is invalid: ${checked.errors.slice(0, 5).join('; ')}`);
+    return checked.value;
+  });
+  if (activities) unique(activities.map(activity => activity.id), 'Structured activities');
+  return { id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
+}
+
+function parseJson(text: string, maximum = MAX_PACKAGE_BYTES): unknown {
+  if (text.length > maximum || new TextEncoder().encode(text).byteLength > maximum) throw new Error('This file exceeds the supported import size.');
+  try { return JSON.parse(text); } catch { throw new Error('This file is not valid JSON. Choose an Asterloom .learnpack or progress backup.'); }
+}
+
+export function serializePackage(notebook: Notebook): string {
+  const pack: LearnPackage = { format: 'learnpack', version: 1, exportedAt: new Date().toISOString(), notebook: validateNotebook(notebook) };
+  const output = JSON.stringify(pack, null, 2);
+  if (new TextEncoder().encode(output).byteLength > MAX_PACKAGE_BYTES) throw new Error('This notebook exceeds the 64 MB package limit. Remove embedded media or split it into smaller notebooks.');
+  return output;
+}
+
+export function parsePackage(text: string): Notebook {
+  const value = object(parseJson(text), 'Learning package');
+  if (value.format !== 'learnpack' || value.version !== 1) throw new Error('This is not a supported Asterloom learning package (version 1).');
+  return validateNotebook(value.notebook);
+}
+
+function cleanSessionState(input: unknown, depth = 0): unknown {
+  if (depth > 10) throw new Error('Saved session state is nested too deeply.');
+  if (input === null || typeof input === 'boolean' || typeof input === 'number') return input;
+  if (typeof input === 'string') return string(input, 'Session value', 10_000, true);
+  if (Array.isArray(input)) return array(input, 'Session state', 2000).map(value => cleanSessionState(value, depth + 1));
+  const value = object(input, 'Session state');
+  return Object.fromEntries(Object.entries(value).filter(([key]) => !FORBIDDEN_KEYS.has(key)).slice(0, 2000).map(([key, child]) => [key, cleanSessionState(child, depth + 1)]));
+}
+
+function validateStructuredResponse(input: unknown): unknown {
+  let count = 0;
+  function visit(value: unknown, depth: number): unknown {
+    if (++count > 500 || depth > 10) throw new Error('A structured activity response exceeds its complexity limit.');
+    if (value === null || typeof value === 'boolean') return value;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') return string(value, 'Activity response value', 10_240, true);
+    if (Array.isArray(value)) return value.map(child => visit(child, depth + 1));
+    if (!value || typeof value !== 'object') throw new Error('Activity responses must contain only JSON data.');
+    if (![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new Error('Activity responses must contain plain objects.');
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+      if (['__proto__', 'prototype', 'constructor'].includes(key)) throw new Error('An activity response contains an unsafe object key.');
+      string(key, 'Activity response key', 200);
+      return [key, visit(child, depth + 1)];
+    }));
+  }
+  const response = visit(input, 0);
+  if (new TextEncoder().encode(JSON.stringify(response)).byteLength > 10_240) throw new Error('An activity response exceeds the 10 KB save limit.');
+  return response;
+}
+
+export function validateProgress(input: unknown): Progress {
+  const value = object(input, 'Progress');
+  const cards: Record<string, CardProgress> = {};
+  const rawCards = object(value.cards, 'Challenge progress');
+  if (Object.keys(rawCards).length > 2000) throw new Error('Too many challenge progress records.');
+  for (const [id, raw] of Object.entries(rawCards)) {
+    identifier(id, 'Progress challenge ID'); const item = object(raw, 'Challenge progress');
+    if (item.cardId !== id) throw new Error('A progress record has an inconsistent challenge ID.');
+    cards[id] = { cardId: id, attempts: integer(item.attempts, 'Attempt count', 0, 1_000_000), correct: integer(item.correct, 'Correct count', 0, 1_000_000), successfulReviews: integer(item.successfulReviews, 'Review count', 0, 1_000_000), intervalDays: number(item.intervalDays, 'Review interval', 0, 10_000), dueAt: date(item.dueAt, 'Review date'), lastAttemptAt: date(item.lastAttemptAt, 'Attempt date'), lastCorrect: boolean(item.lastCorrect, 'Last answer result') };
+    if (cards[id].correct > cards[id].attempts) throw new Error('Correct attempts cannot exceed all attempts.');
+  }
+  const progress: Progress = { cards, notebookId: identifier(value.notebookId, 'Progress notebook ID'), completedCardIds: array(value.completedCardIds, 'Completed challenges', 2000).map(id => identifier(id, 'Completed challenge ID')), attempts: array(value.attempts, 'Attempts', 10_000).map(raw => { const item = object(raw, 'Attempt'); const confidence = item.confidence; if (!['guessing', 'unsure', 'confident'].includes(String(confidence))) throw new Error('Invalid confidence level.'); return { id: identifier(item.id, 'Attempt ID'), cardId: identifier(item.cardId, 'Attempt challenge'), correct: boolean(item.correct, 'Attempt result'), at: date(item.at, 'Attempt time'), confidence: confidence as 'guessing' | 'unsure' | 'confident', xp: integer(item.xp, 'Attempt XP', 0, 1000) }; }), xp: integer(value.xp, 'XP', 0, 1_000_000_000), mastery: number(value.mastery, 'Recall progress', 0, 100), streak: integer(value.streak, 'Streak', 0, 1_000_000), bestStreak: integer(value.bestStreak, 'Best streak', 0, 1_000_000), sessions: integer(value.sessions, 'Session count', 0, 1_000_000), journal: array(value.journal, 'Journal entries', 2000).map(raw => { const item = object(raw, 'Journal entry'); return { id: identifier(item.id, 'Journal entry ID'), text: string(item.text, 'Journal entry', 10_000, true), at: date(item.at, 'Journal date'), ...(item.cardId ? { cardId: identifier(item.cardId, 'Journal challenge') } : {}) }; }), updatedAt: date(value.updatedAt, 'Progress date'), revision: integer(value.revision, 'Progress revision', 1, 1_000_000) };
+  if (value.activeSession) {
+    const session = object(value.activeSession, 'Current session');
+    const cardIds = array(session.cardIds, 'Session challenges', 2000).map(id => identifier(id, 'Session challenge ID'));
+    progress.activeSession = { scaffoldId: identifier(session.scaffoldId, 'Session scaffold'), cardIds, index: integer(session.index, 'Session position', 0, cardIds.length), seed: integer(session.seed, 'Session seed', 0, 4_294_967_295), startedAt: date(session.startedAt, 'Session start'), ...(session.state ? { state: cleanSessionState(session.state) as Record<string, unknown> } : {}) };
+  }
+  if (value.structured !== undefined) {
+    const raw = object(value.structured, 'Structured activity progress');
+    if (Object.keys(raw).length > 300) throw new Error('Too many structured activity progress records.');
+    progress.structured = Object.fromEntries(Object.entries(raw).map(([id, entry]) => {
+      identifier(id, 'Structured activity ID');
+      const item = object(entry, 'Structured activity progress');
+      const score = number(item.score, 'Activity score', 0, 1_000_000);
+      const maxScore = number(item.maxScore, 'Activity maximum score', 0, 1_000_000);
+      if (score > maxScore) throw new Error('An activity score exceeds its maximum.');
+      return [id, { response: validateStructuredResponse(item.response), completed: boolean(item.completed, 'Activity completion'), score, maxScore, attempts: integer(item.attempts, 'Activity attempts', 0, 1_000_000), updatedAt: date(item.updatedAt, 'Activity progress date') }];
+    }));
+  }
+  return progress;
+}
+
+export function serializeProgress(progress: Progress): string { return JSON.stringify({ format: 'asterloom-progress', version: 1, progress: validateProgress(progress) }, null, 2); }
+export function parseProgress(text: string): Progress {
+  const value = object(parseJson(text, 16 * 1024 * 1024), 'Progress backup');
+  if (value.format !== 'asterloom-progress' || value.version !== 1) throw new Error('This is not an Asterloom progress backup.');
+  return validateProgress(value.progress);
+}
+
+export function exportOfflineHtml(notebook: Notebook, runtimeHtml: string): string {
+  const validated = validateNotebook(notebook);
+  if (!runtimeHtml.includes('<html') || !runtimeHtml.includes('<script')) throw new Error('The complete offline app runtime is unavailable. Export a .learnpack backup or start the local Asterloom server to create a playable HTML export.');
+  let html = runtimeHtml;
+  if (typeof DOMParser !== 'undefined') {
+    const document = new DOMParser().parseFromString(runtimeHtml, 'text/html');
+    document.getElementById('asterloom-notebook')?.remove();
+    const root = document.getElementById('root'); if (root) root.replaceChildren();
+    document.title = `${validated.title} · Asterloom`;
+    html = '<!doctype html>\n' + document.documentElement.outerHTML;
+  } else {
+    html = html.replace(/<script\b[^>]*\bid=["']asterloom-notebook["'][^>]*>[\s\S]*?<\/script>/gi, '');
+  }
+  const payload = JSON.stringify(validated).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  const injection = `<script id="asterloom-notebook">window.__ASTERLOOM_NOTEBOOK__=${payload};window.__ASTERLOOM_EXPORT__=true;</script>`;
+  // A replacement callback keeps $&, $', and $` in user material literal.
+  return html.replace(/<head([^>]*)>/i, (_match, attributes: string) => `<head${attributes}>${injection}`);
+}
