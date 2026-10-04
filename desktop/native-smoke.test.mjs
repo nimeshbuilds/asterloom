@@ -10,7 +10,7 @@ import {_electron as electron} from 'playwright';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const enabled=process.env.ASTERLOOM_NATIVE_SMOKE==='1';
-const nativeTarget=process.platform==='win32'?'windows':process.arch==='x64'?'mac-intel':'mac';
+let nativeTarget=process.platform==='win32'?'windows':process.arch==='x64'?'mac-intel':'mac';
 const exportedExecutable=bundle=>nativeTarget==='windows'?path.join(bundle,'Asterloom.exe'):path.join(bundle,'Contents','MacOS','Asterloom');
 const exportedResources=bundle=>nativeTarget==='windows'?path.join(bundle,'resources'):path.join(bundle,'Contents','Resources');
 const fixtureNotebook={id:'native-smoke-notebook',title:'Native export · 知識 🧭',description:'An isolated native learning notebook.',createdAt:'2026-10-03T12:00:00.000Z',updatedAt:'2026-10-03T12:00:00.000Z',ageGroup:'adult',goal:'Remember networking facts',theme:'islands',scaffoldIds:['recall-escape-mission'],sources:[{id:'native-source',title:'Network notes',kind:'text',text:'DNS: Resolves domain names to addresses.',status:'ready',addedAt:'2026-10-03T12:00:00.000Z'}],cards:[{id:'native-card',prompt:'What resolves names?',answer:'DNS',options:['DNS','Router'],correctIndex:0,sourceId:'native-source',evidence:'DNS: Resolves domain names to addresses.',concept:'DNS',tags:[],explanation:'DNS resolves names.',questionType:'definition',reviewStatus:'reviewed'}],revision:1};
@@ -39,6 +39,10 @@ test('native studio saves across launches, exports a standalone game, and opens 
   };
   try{
     application=await launch();let page=await application.firstWindow();
+    // The executable may be an Intel app running under Rosetta while this
+    // test runner is arm64. Export for the application's actual architecture.
+    nativeTarget=await application.evaluate(()=>process.platform==='win32'?'windows':process.arch==='x64'?'mac-intel':'mac');
+    console.log(`Testing native application and export target: ${nativeTarget}`);
     await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
     const security=await page.evaluate(()=>({origin:location.origin,require:typeof window.require,bridge:typeof window.asterloomDesktop?.exportGame}));
     assert.equal(security.origin,'asterloom://app');assert.equal(security.require,'undefined');assert.equal(security.bridge,'function');
