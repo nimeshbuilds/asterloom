@@ -212,6 +212,60 @@ export function parseProgress(text: string): Progress {
   return validateProgress(value.progress);
 }
 
+/**
+ * Scan HTML markup while treating script/style contents as raw text. A regular
+ * expression over the whole document also matches tag strings inside the app
+ * bundle, which can remove most of the runtime during a Node-side export.
+ */
+function embedNotebookInRuntime(html: string, injection: string): string {
+  const edits: { start: number; end: number; replacement: string }[] = [];
+  let position = 0, headEnd = -1;
+  const rawText = new Set(['script', 'style', 'title', 'textarea', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript']);
+  function tagEnd(start: number): number {
+    let quote = '';
+    for (let index = start; index < html.length; index++) {
+      const character = html[index];
+      if (quote) { if (character === quote) quote = ''; }
+      else if (character === '"' || character === "'") quote = character;
+      else if (character === '>') return index + 1;
+    }
+    return html.length;
+  }
+  function isNotebookScript(attributes: string): boolean {
+    // Read attributes individually so an id-looking string inside another
+    // attribute's value cannot identify the script as our data envelope.
+    const attribute = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+    for (const match of attributes.matchAll(attribute)) {
+      if (match[1].toLowerCase() === 'id' && (match[2] ?? match[3] ?? match[4]) === 'asterloom-notebook') return true;
+    }
+    return false;
+  }
+  while (position < html.length) {
+    const start = html.indexOf('<', position);
+    if (start < 0) break;
+    if (html.startsWith('<!--', start)) {
+      const end = html.indexOf('-->', start + 4); position = end < 0 ? html.length : end + 3; continue;
+    }
+    const opening = /^<([a-zA-Z][a-zA-Z0-9:-]*)(?=[\s/>])/.exec(html.slice(start, start + 100));
+    if (!opening) { position = tagEnd(start + 1); continue; }
+    const name = opening[1].toLowerCase(), end = tagEnd(start + opening[0].length);
+    if (name === 'head' && headEnd < 0) headEnd = end;
+    position = end;
+    if (!rawText.has(name)) continue;
+    const closing = new RegExp(`</${name}(?=[\\s/>])`, 'gi'); closing.lastIndex = end;
+    const close = closing.exec(html);
+    if (!close) throw new Error('The offline runtime contains an unfinished HTML element. Rebuild the application before exporting.');
+    const closeEnd = tagEnd(close.index + close[0].length);
+    if (name === 'script' && isNotebookScript(html.slice(start + opening[0].length, end - 1))) edits.push({ start, end: closeEnd, replacement: '' });
+    position = closeEnd;
+  }
+  if (headEnd < 0) throw new Error('The complete offline runtime needs a document head before it can be exported.');
+  edits.push({ start: headEnd, end: headEnd, replacement: injection });
+  let result = html;
+  for (const edit of edits.sort((a, b) => b.start - a.start)) result = result.slice(0, edit.start) + edit.replacement + result.slice(edit.end);
+  return result;
+}
+
 export function exportOfflineHtml(notebook: Notebook, runtimeHtml: string): string {
   const validated = validateNotebook(notebook);
   if (!runtimeHtml.includes('<html') || !runtimeHtml.includes('<script')) throw new Error('The complete offline app runtime is unavailable. Export a .learnpack backup or start the local Asterloom server to create a playable HTML export.');
@@ -222,11 +276,8 @@ export function exportOfflineHtml(notebook: Notebook, runtimeHtml: string): stri
     const root = document.getElementById('root'); if (root) root.replaceChildren();
     document.title = `${validated.title} · Asterloom`;
     html = '<!doctype html>\n' + document.documentElement.outerHTML;
-  } else {
-    html = html.replace(/<script\b[^>]*\bid=["']asterloom-notebook["'][^>]*>[\s\S]*?<\/script>/gi, '');
   }
   const payload = JSON.stringify(validated).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   const injection = `<script id="asterloom-notebook">window.__ASTERLOOM_NOTEBOOK__=${payload};window.__ASTERLOOM_EXPORT__=true;</script>`;
-  // A replacement callback keeps $&, $', and $` in user material literal.
-  return html.replace(/<head([^>]*)>/i, (_match, attributes: string) => `<head${attributes}>${injection}`);
+  return embedNotebookInRuntime(html, injection);
 }

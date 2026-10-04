@@ -18,7 +18,9 @@ test('native IPC configures onion-only SOCKS and the sandboxed renderer joins a 
     const env={...process.env,ASTERLOOM_DATA_DIR:path.join(directory,'native')};delete env.ELECTRON_RUN_AS_NODE;
     const executable=process.env.ASTERLOOM_SMOKE_APP;
     application=await electron.launch({...executable?{executablePath:executable,args:[]}:{args:['desktop/main.mjs']},env,cwd:process.cwd(),timeout:30000});
-    const page=await application.firstWindow();await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
+    // The same transport contract applies to a studio and a standalone game.
+    // Wait for either app's rendered world, then exercise its actual bridge.
+    const page=await application.firstWindow();await page.getByRole('heading',{level:1}).first().waitFor({timeout:20000});
     const onionExample=`http://${'a'.repeat(56)}.onion/`;
     assert.equal(await application.evaluate(({session},url)=>session.defaultSession.resolveProxy(url),onionExample),'PROXY 127.0.0.1:9');
     const initial=await page.evaluate(()=>window.asterloomDesktop.setTorEnabled(true));assert.equal(initial.installed,true);assert.equal(initial.proxyConfigured,true);

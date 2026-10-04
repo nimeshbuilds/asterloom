@@ -29,10 +29,16 @@ test('native studio saves across launches, exports a standalone game, and opens 
   const args=executable?[]:[path.join(ROOT,'desktop','main.mjs')];
   const env={...process.env,ASTERLOOM_DATA_DIR:path.join(directory,'profiles')};delete env.ELECTRON_RUN_AS_NODE;
   let application;
-  const launch=async(binary=executable)=>electron.launch({...(binary?{executablePath:binary}:{}),args:binary?[]:args,cwd:ROOT,env,timeout:30000});
+  const errors=[];
+  const launch=async(binary=executable)=>{
+    const app=await electron.launch({...(binary?{executablePath:binary}:{}),args:binary?[]:args,cwd:ROOT,env,timeout:30000});
+    const watched=new WeakSet();
+    const watch=page=>{if(!watched.has(page)){watched.add(page);page.on('pageerror',error=>errors.push(error.message));}};
+    app.on('window',watch);for(const page of app.windows())watch(page);
+    return app;
+  };
   try{
     application=await launch();let page=await application.firstWindow();
-    const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
     const security=await page.evaluate(()=>({origin:location.origin,require:typeof window.require,bridge:typeof window.asterloomDesktop?.exportGame}));
     assert.equal(security.origin,'asterloom://app');assert.equal(security.require,'undefined');assert.equal(security.bridge,'function');
@@ -56,6 +62,8 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:fixtureNotebook.title,exact:true}).waitFor({timeout:20000});
     const bootstrap=await page.evaluate(()=>({id:window.__ASTERLOOM_NOTEBOOK__?.id,isGame:window.asterloomDesktop?.isExportedGame}));assert.equal(bootstrap.id,fixtureNotebook.id);assert.equal(bootstrap.isGame,true);
+    const exportedPdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'exported-native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
+    assert.equal(exportedPdf.status,200,JSON.stringify(exportedPdf.body));assert.match(exportedPdf.body.source.content,/DNS resolves names to addresses/);
     const profile=await application.evaluate(({app})=>app.getPath('userData'));assert.match(profile,/games[/\\][a-f0-9]{24}$/);
     assert.equal(await page.getByRole('button',{name:'Native continuity test',exact:true}).count(),0);
     await page.getByRole('button',{name:'Begin adventure',exact:true}).click();
@@ -80,8 +88,17 @@ test('native studio saves across launches, exports a standalone game, and opens 
     if(process.platform==='darwin')await promisify(execFile)('/usr/bin/xattr',['-wx','com.apple.FinderInfo','0000000000000000040000000000000000000000000000000000000000000000',exported.path]);
     await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},output);
     await page.getByRole('button',{name:'Export',exact:true}).click();
+    const remixStarted=Date.now();
     await page.getByRole('button',{name:nativeTarget==='windows'?/Windows application bundle/:nativeTarget==='mac-intel'?/macOS · Intel/:/macOS · Apple Silicon/}).click();
-    await page.getByText('Preparing your export…').waitFor({state:'hidden',timeout:30000});
+    // The Mac export stages and signs the complete Electron + Tor runtime,
+    // then publishes a second copy safely across filesystem volumes. CI disk
+    // throughput can exceed Playwright's default 30-second UI wait. This
+    // bounded operation must finish without an application error, and its
+    // newly created bundle is independently inspected and launched below.
+    try{await page.getByText('Preparing your export…').waitFor({state:'hidden',timeout:120000});}
+    catch(error){const alerts=await page.getByRole('alert').allTextContents();throw new Error(`Native remix export did not finish after ${Date.now()-remixStarted} ms. Application alerts: ${JSON.stringify(alerts)}`,{cause:error});}
+    assert.deepEqual(await page.getByRole('alert').allTextContents(),[],'Native export reported an application error');
+    console.log(`Native remix export completed in ${Date.now()-remixStarted} ms`);
     const remixedPath=path.join(output,nativeTarget==='windows'?'A remixed native game - Windows':'A remixed native game.app');
     const remixed=JSON.parse(await fs.readFile(path.join(exportedResources(remixedPath),'game.learnpack'),'utf8'));
     assert.equal(remixed.notebook.title,'A remixed native game');assert.equal(remixed.progress,undefined);
@@ -89,8 +106,13 @@ test('native studio saves across launches, exports a standalone game, and opens 
       const originalAttributes=await promisify(execFile)('/usr/bin/xattr',[exported.path]);assert.match(originalAttributes.stdout,/com.apple.FinderInfo/);
       const newAttributes=await promisify(execFile)('/usr/bin/xattr',[remixedPath]);assert.doesNotMatch(newAttributes.stdout,/com.apple.FinderInfo|com.apple.ResourceFork/);
     }
-    await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
+    await application.close();application=await launch(exportedExecutable(remixedPath));page=await application.firstWindow();
     await page.getByRole('heading',{name:'A remixed native game',exact:true}).waitFor({timeout:20000});
+    const remixedBootstrap=await page.evaluate(()=>({title:window.__ASTERLOOM_NOTEBOOK__?.title,isGame:window.asterloomDesktop?.isExportedGame}));
+    assert.equal(remixedBootstrap.title,'A remixed native game');assert.equal(remixedBootstrap.isGame,true);
+    const remixedProfile=await application.evaluate(({app})=>app.getPath('userData'));
+    assert.match(remixedProfile,/games[/\\][a-f0-9]{24}$/);assert.notEqual(remixedProfile,profile,'Remixed content must start in its own game profile');
+    assert.equal(await page.getByRole('button',{name:'Continue adventure',exact:true}).count(),0,'Original game progress must not travel in a remix');
     assert.deepEqual(errors,[]);
   }catch(error){
     await fs.mkdir(path.join(ROOT,'.qa'),{recursive:true});

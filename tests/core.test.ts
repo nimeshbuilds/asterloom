@@ -106,6 +106,23 @@ describe('portable learning packages', () => {
     expect(output).toContain('\\u003c/script>'); expect(output).toContain('\\u2028');
     expect(output.indexOf('__ASTERLOOM_NOTEBOOK__')).toBeLessThan(output.indexOf('app()'));
   });
+  it('replaces the notebook twice without matching tag-shaped strings inside bundled JavaScript', () => {
+    const notebook = fixture();
+    const script = `const template = '<script id="asterloom-notebook">'; const music = 'data:audio/ogg;base64,AAAA'; const head = '<head>'; window.boot = true;`;
+    const comment = '<!-- <head><script id="asterloom-notebook">This is a comment.</script> -->';
+    const stylesheet = `body::before { content: '<script id="asterloom-notebook">'; }`;
+    const runtime = `<!doctype html>${comment}<html><head><style>${stylesheet}</style><script data-note="id='asterloom-notebook'" type="module">${script}</script></head><body><div id="root"></div></body></html>`;
+    const first = exportOfflineHtml(notebook, runtime);
+    const second = exportOfflineHtml({ ...notebook, title: 'Second notebook revision' }, first);
+    expect(first).toContain(`<script data-note="id='asterloom-notebook'" type="module">${script}</script>`);
+    expect(second).toContain(`<script data-note="id='asterloom-notebook'" type="module">${script}</script>`);
+    expect(second).toContain(`<style>${stylesheet}</style>`); expect(second).toContain(comment);
+    expect(second.match(/window\.__ASTERLOOM_NOTEBOOK__=/g)).toHaveLength(1);
+    expect(second).toContain('<html><head><script id="asterloom-notebook">window.__ASTERLOOM_NOTEBOOK__=');
+    const embedded = JSON.parse(second.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/)![1]);
+    expect(embedded.title).toBe('Second notebook revision');
+    expect(second.length).toBeGreaterThan(runtime.length);
+  });
   it('preserves JavaScript replacement markers inside user material literally', () => {
     const notebook = fixture(); notebook.description = ['$&', '$$', "$'", '$' + String.fromCharCode(96)].join(' ');
     const output = exportOfflineHtml(notebook, '<!doctype html><html><head><script type="module">app()</script></head><body><div id="root"></div></body></html>');

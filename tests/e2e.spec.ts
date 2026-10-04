@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Download } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { exportOfflineHtml as exportFromNode, parsePackage as parsePortableNotebook } from '../src/lib/package';
 import AxeBuilder from '@axe-core/playwright';
 
 const notes = 'Packet: a small unit of information carried across a computer network.\nRouter: a device that forwards packets between different computer networks.\nSwitch: a device that connects devices inside a local area network.\nLatency: the time it takes data to travel from one point to another.\n1. Check the physical network cable.\n2. Inspect the device network settings.\n3. Test the connection to a known host.\n4. Record the result of the connectivity test.';
@@ -280,6 +281,39 @@ test('a full HTML export plays and creates a new remixed game entirely offline',
   await expect(recipient.locator('.source-main').filter({ hasText: 'New offline ideas' })).toBeVisible();
   expect(external).toEqual([]); expect(errors).toEqual([]);
   await second.close(); await context.close();
+});
+
+test('Node-generated HTML exports preserve the complete app and music through a second export', async ({ page, browser }, testInfo) => {
+  test.setTimeout(120_000);
+  await openLibrary(page);
+  await page.getByRole('button', { name: 'Open A small guide to the cosmos', exact: true }).click();
+  const downloaded = await exportDownload(page, 'pack'); const packPath = testInfo.outputPath('node-source.learnpack'); await downloaded.saveAs(packPath);
+  const notebook = parsePortableNotebook(await readFile(packPath, 'utf8'));
+  const runtime = await readFile('dist/runtime.html', 'utf8');
+  const first = exportFromNode(notebook, runtime);
+  const second = exportFromNode({ ...notebook, title: 'The second Node export' }, first);
+  const moduleText = (html: string) => html.match(/<script[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/)?.[1];
+  expect(moduleText(runtime)).toBeTruthy(); expect(moduleText(second)).toBe(moduleText(runtime));
+  const musicAssets = (html: string) => html.match(/data:audio\//g)?.length ?? 0;
+  expect(musicAssets(runtime)).toBeGreaterThanOrEqual(10); expect(musicAssets(second)).toBe(musicAssets(runtime));
+  expect(Buffer.byteLength(second)).toBeGreaterThan(Buffer.byteLength(runtime));
+  const target = testInfo.outputPath('node-export-twice.html'); await writeFile(target, second);
+  const context = await browser.newContext({ offline: true });
+  await context.addInitScript(() => {
+    const NativeAudio = window.Audio; (window as any).__testMusic = [];
+    window.Audio = class extends NativeAudio { constructor(src?: string) { super(src); if (src) (window as any).__testMusic.push(this); } } as typeof Audio;
+  });
+  const recipient = await context.newPage(); const errors: string[] = []; recipient.on('pageerror', error => errors.push(error.message));
+  await recipient.goto(pathToFileURL(target).href);
+  await expect(recipient.getByRole('heading', { name: 'The second Node export', exact: true })).toBeVisible();
+  await recipient.getByRole('button', { name: 'Begin adventure', exact: false }).click();
+  await recipient.locator('.answer-option').first().click(); await recipient.getByRole('button', { name: 'Check my answer', exact: false }).click();
+  await expect(recipient.locator('.answer-feedback')).toBeVisible();
+  await recipient.getByRole('button', { name: 'Save & exit', exact: false }).click();
+  await recipient.getByRole('button', { name: 'Studio settings', exact: true }).click();
+  await expect(recipient.locator('.track-button')).toHaveCount(10); await recipient.locator('.track-button').last().click();
+  await expect.poll(() => recipient.evaluate(() => { const audio = (window as any).__testMusic.at(-1) as HTMLAudioElement | undefined; return !!audio && audio.readyState >= 2 && audio.duration > 1 && !audio.error; })).toBe(true);
+  expect(errors).toEqual([]); await context.close();
 });
 
 test('optional artwork remains a reviewed source-bound presentation asset through offline remix', async ({ page, browser }, testInfo) => {

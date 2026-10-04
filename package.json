@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@electron/osx-sign": "2.7.1",
     "@electron/packager": "^20.3.0",
     "@playwright/test": "^1.63.0",
     "@resvg/resvg-js": "^2.6.2",

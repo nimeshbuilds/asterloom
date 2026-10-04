@@ -48,7 +48,21 @@ An exported game has a deterministic package identity based on its complete note
 
 ## Distribution status
 
-These are **development builds**. No Apple Developer ID certificate, notarization credentials, or Windows Authenticode certificate is configured. macOS game exports are signed in local temporary storage and published into the selected destination after embedding their notebook; this supports File Provider destinations that synthesize unsignable Finder metadata. They are re-signed ad hoc on a Mac, which supports local testing but is not trusted commercial signing. Operating systems may warn or block distribution builds; their normal trust protections are not bypassed.
+The ordinary packaging command produces **development builds**. Developer ID signing is an explicit, separate release step; no certificate is selected automatically or bundled with the application. No notarization credentials or Windows Authenticode certificate are configured by this repository. macOS game exports are signed in local temporary storage and published into the selected destination after embedding their notebook; this supports File Provider destinations that synthesize unsignable Finder metadata. They are re-signed ad hoc on a Mac, which supports local testing but is not trusted commercial signing. Operating systems may warn or block distribution builds; their normal trust protections are not bypassed.
+
+To prepare a separate Mac signing candidate using an existing Developer ID identity in the operator's Keychain:
+
+```sh
+node scripts/sign-desktop.mjs --identity "Developer ID Application: YOUR NAME (TEAM)" --app "release/desktop/Asterloom-darwin-arm64/Asterloom.app" --output "release/signing-candidates/mac-arm64/Asterloom.app"
+```
+
+The command does not rebuild or modify the original app. It uses `@electron/osx-sign` to sign nested Mach-O files and bundles from the inside out, with secure timestamps and hardened runtime. Electron processes receive only the `allow-jit` entitlement; Tor and native libraries receive no exception entitlements. Camera, microphone, unsigned-memory, debugger and library-validation exceptions are not granted. It checks every native signature and performs strict deep verification before creating the candidate and its `.signing.json` report. Only new-copy Finder presentation metadata is removed; quarantine and provenance remain intact.
+
+A signing candidate is **not yet a validated or notarized release**. Run the actual native smoke (including bundled PDF extraction), retained-game launch and real Tor smoke against the candidate before publishing it. The report starts with `runtimeValidation: "pending"`; successful signing alone does not change that status. Repeat for each architecture; running an Intel build under Rosetta verifies execution on that machine, not compatibility with every Intel Mac.
+
+Notarization requires an independently configured `notarytool` authentication profile, an Apple submission, an accepted result and stapling/validation. Developer ID signing alone does not establish Gatekeeper approval. The signing command does not search for credentials, submit to Apple or claim notarization. See [Electron's signing guidance](https://www.electronjs.org/docs/latest/tutorial/code-signing) and [Apple's notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow).
+
+Every recipient-created export changes the notebook inside the application's sealed resources. It cannot inherit the publisher's signature or notarization ticket. The current export flow creates an ad-hoc signed development app. Trusted distribution of each new game requires a separate authorized signing/notarization step; an alternative future design is an immutable signed player plus an external editable `.learnpack`. Publisher private keys must never be shipped to creators.
 
 This implementation does not supply an installer, automatic signed updates, verified Windows execution from macOS or real-user compatibility certification. Desktop bundle structure and notebook isolation have automated tests. A successful cross-build alone does not prove that the Windows binary has been executed on Windows.
 
