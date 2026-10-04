@@ -127,23 +127,19 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Verify signing boundaries without accessing private keys
-        run: node --test desktop/signing.test.mjs
+        run: node --test desktop/signing.test.mjs desktop/architectures.test.mjs desktop/credential-store.test.mjs
       - name: Verify source extraction and room services on this operating system
         run: npm run test:server
       - run: npm run assets
       - run: npm run build
       - name: Download verified Tor runtime
-        run: node desktop/download-tor.mjs --host
-      - name: Package for the runner's actual architecture
+        run: node desktop/download-tor.mjs --platform=mac
+      - name: Package one Universal Mac application
         shell: bash
         run: |
-          task_arch="$(node -p 'process.arch')"
-          if [ "$task_arch" = "arm64" ]; then
-            npm run package:desktop -- --platform=mac-arm64
-          else
-            npm run package:desktop -- --platform=mac-intel
-          fi
-          echo "ASTERLOOM_SMOKE_APP=$PWD/release/desktop/Asterloom-darwin-$task_arch/Asterloom.app/Contents/MacOS/Asterloom" >> "$GITHUB_ENV"
+          npm run package:desktop -- --platform=mac
+          echo "ASTERLOOM_SMOKE_APP=$PWD/release/desktop/Asterloom-darwin-universal/Asterloom.app/Contents/MacOS/Asterloom" >> "$GITHUB_ENV"
+          echo "ASTERLOOM_SMOKE_ARCH=$(node -p 'process.arch')" >> "$GITHUB_ENV"
       - name: Test actual macOS creation, restart, game export, play, and remix
         run: node --test desktop/native-smoke.test.mjs
         env:
@@ -151,8 +147,7 @@ jobs:
       - name: Archive the application with executable permissions intact
         shell: bash
         run: |
-          task_arch="$(node -p 'process.arch')"
-          tar -czf "release/Asterloom-macos-$task_arch.tar.gz" -C release/desktop "Asterloom-darwin-$task_arch"
+          tar -czf release/Asterloom-macos-universal.tar.gz -C release/desktop Asterloom-darwin-universal
       - name: Keep the unsigned macOS development bundle
         uses: actions/upload-artifact@v6
         with:

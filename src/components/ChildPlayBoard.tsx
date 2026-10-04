@@ -1,3 +1,4 @@
+import {getAgePresentation} from '../data/worlds';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Source } from '../types';
 import { advanceChildPlay, initialChildPlayResponse, replayChildPlay, validateChildPlaySources } from '../lib/childPlayEngine';
@@ -29,7 +30,7 @@ function PropPicture({ prop, sources }: { prop: ChildPlayProp; sources: Source[]
   };
   return <svg className="child-prop-picture" viewBox="0 0 84 84" aria-hidden="true" focusable="false">{shapes[prop.symbol]}</svg>;
 }
-export default function ChildPlayBoard({ activity, response, onChange, sources }: { activity: ChildPlayActivity; response: ChildPlayResponse; onChange: (response: ChildPlayResponse) => void; sources: Source[] }) {
+export default function ChildPlayBoard({ activity, response, onChange, sources, ageGroup = 'adult', caregiverOpen, onCaregiverToggle }: { activity: ChildPlayActivity; response: ChildPlayResponse; onChange: (response: ChildPlayResponse) => void; sources: Source[];ageGroup?:string;caregiverOpen?:boolean;onCaregiverToggle?:(open:boolean)=>void }) {
   const snapshot = useMemo(() => replayChildPlay(activity, response), [activity, response]);
   const sourceErrors = useMemo(() => validateChildPlaySources(activity, sources), [activity, sources]);
   const [notice, setNotice] = useState(''); const audio = useRef<HTMLAudioElement>(null);
@@ -46,7 +47,7 @@ export default function ChildPlayBoard({ activity, response, onChange, sources }
   }
   if (snapshot.phase === 'invalid' || sourceErrors.length) return <div className="child-play-notice" role="alert">This story needs its original source material before play can continue. {snapshot.error ?? sourceErrors[0]}</div>;
   const scene = snapshot.scene, speaker = activity.characters.find(c => c.id === scene.speakerId)!, choices = activity.actions.filter(action => action.fromSceneId === scene.id && action.actorId === response.selectedActorId), selectedProp = activity.props.find(prop => prop.id === response.selectedPropId), narration = sources.find(s => s.id === scene.narrationSourceId), active = snapshot.phase === 'active';
-  return <section className={`child-play-board ${activity.mode}`} aria-label={activity.mode === 'puppet-story' ? 'Interactive puppet story' : 'Pretend-play stations'}>
+  return <section className={`child-play-board ${activity.mode} presentation-${getAgePresentation(ageGroup).density}`} aria-label={activity.mode === 'puppet-story' ? 'Interactive puppet story' : 'Pretend-play stations'}>
     <div className="child-play-heading"><span>{activity.mode === 'puppet-story' ? 'Your paper puppet story' : 'Your pretend-play world'}</span><strong>{active ? 'Play at your own pace' : snapshot.phase === 'goal' ? 'Story goal reached' : 'A place to pause and reflect'}</strong></div>
     <div className="child-story-stage">
       <div className="child-stage-canopy" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span></div>
@@ -58,6 +59,6 @@ export default function ChildPlayBoard({ activity, response, onChange, sources }
     {!active && <div className="child-ending" role="status"><h3>{snapshot.phase === 'goal' ? 'You made the story happen.' : 'What happened in your story?'}</h3><p>{snapshot.phase === 'pause' ? 'You have reached this story’s turn limit. Take a break or begin a fresh path.' : scene.narrative}</p><p>Talk about your choices, then use “Check my work” below.</p><button type="button" onClick={() => { audio.current?.pause(); setNotice(''); change({ ...initialChildPlayResponse(activity), caregiverSupport: response.caregiverSupport }); }}>Explore another story path</button></div>}
     {(notice || response.notice) && <p role="status" className="child-play-notice">{notice || response.notice}</p>}
     <details className="child-story-journal"><summary>Our story so far · {snapshot.history.length} turn{snapshot.history.length === 1 ? '' : 's'}</summary><ol>{snapshot.history.map((step, i) => <li key={i}><strong>{activity.characters.find(c => c.id === step.action.actorId)?.name}: {step.action.label}</strong><p>{step.scene.narrative}</p></li>)}</ol>{!snapshot.history.length && <p>Your choices will make a story here. Every turn saves on this device.</p>}</details>
-    <details className="child-caregiver"><summary>For a grown-up</summary><p>{activity.caregiverNote}</p><p>The paper figures are fictional stage puppets unless the creator supplies source images. Read dialogue aloud or use the supplied recordings. If you guide the choices, mark this attempt as supported.</p><ul>{activity.objectives.map(goal => <li key={goal.id}>{goal.label}</li>)}</ul><button type="button" disabled={response.caregiverSupport} onClick={() => change({ ...response, caregiverSupport: true })}>{response.caregiverSupport ? 'Caregiver support recorded' : 'We made these choices together'}</button></details>
+    <details className="child-caregiver" open={caregiverOpen} onToggle={event=>{if(event.currentTarget.open!==caregiverOpen)onCaregiverToggle?.(event.currentTarget.open);}}><summary>For a grown-up</summary><p>{activity.caregiverNote}</p><p>The paper figures are fictional stage puppets unless the creator supplies source images. Read dialogue aloud or use the supplied recordings. If you guide the choices, mark this attempt as supported.</p><ul>{activity.objectives.map(goal => <li key={goal.id}>{goal.label}</li>)}</ul><button type="button" disabled={response.caregiverSupport} onClick={() => change({ ...response, caregiverSupport: true })}>{response.caregiverSupport ? 'Caregiver support recorded' : 'We made these choices together'}</button></details>
   </section>;
 }

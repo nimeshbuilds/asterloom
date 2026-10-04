@@ -2,7 +2,7 @@ import type { LearningCard, Notebook } from '../types';
 import { validateLearningCard } from './package';
 
 export interface ProviderConfig {
-  provider: 'openai' | 'anthropic' | 'xai' | 'compatible';
+  provider: 'openai' | 'anthropic' | 'xai' | 'compatible' | 'chatgpt';
   apiKey: string;
   model: string;
   baseUrl?: string;

@@ -2,6 +2,7 @@ import { SHAPE_PICTURE_BUILD } from '../src/lib/pictureBuildExamples';
 import { test, expect, type Page, type Download } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
 import { exportOfflineHtml as exportFromNode, parsePackage as parsePortableNotebook } from '../src/lib/package';
 import AxeBuilder from '@axe-core/playwright';
 import { PLANT_EXPLANATION } from '../src/lib/compositionExamples';
@@ -148,13 +149,18 @@ test('dialogue and prompt comparison preserve commitments through the complete o
     await recipient.getByRole('radio', { name: 'Different polite expressions can request the same tea and takeaway goal.', exact: true }).check();
     await recipient.getByRole('button', { name: 'Record conversation debrief', exact: true }).click();
     for (const name of ['Tea order recorded', 'Takeaway receipt']) await recipient.getByRole('checkbox', { name: new RegExp(name) }).check();
+    await recipient.evaluate(()=>{const original=IDBObjectStore.prototype.put;(window as any).__resultWrites=[];IDBObjectStore.prototype.put=function(value,key){if(typeof key==='string'&&key.startsWith('progress:'))(window as any).__resultWrites.push(structuredClone(value));return original.call(this,value,key);};});
     await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
     await expect(recipient.locator('.structured-feedback.correct')).toBeVisible();
+    const checkedWrites=await recipient.evaluate(()=>(window as any).__resultWrites.flatMap((p:any)=>Object.values(p.structured||{})).filter((entry:any)=>entry.response?._draft?.checked));
+    expect(checkedWrites).toHaveLength(1);expect(checkedWrites[0]).toMatchObject({completed:true,attempts:1});
+    await expect(recipient.locator('.save-state')).toContainText('Saved on this device');
     await recipient.reload();
     await recipient.locator('.system-mission').filter({ hasText: 'One tea, to take away' }).click();
     await expect(recipient.getByRole('list', { name: 'Saved conversation transcript' })).toContainText('Quisiera un té, por favor.');
     await expect(recipient.locator('.structured-game')).toHaveCSS('opacity', '1');
     await expect(recipient.locator('.structured-feedback')).toHaveCSS('opacity', '1');
+    await expect(recipient.locator('.xp-pill')).toContainText('50 discovery points');
     const violations = (await new AxeBuilder({ page: recipient }).analyze()).violations.filter(v => ['critical', 'serious'].includes(v.impact ?? '')); expect(violations).toEqual([]);
   } finally { await context.close(); }
 });
@@ -308,8 +314,8 @@ test('optional model drafting shares one excerpt, keeps keys ephemeral and requi
   const excerpt = notes.slice(notes.indexOf('1. Check'));
   await page.getByLabel('Exact passage to share', { exact: true }).fill(excerpt);
   await page.getByText('Or use an API / local model', { exact: true }).click();
-  await page.getByLabel('Draft model ID', { exact: true }).fill('test-model');
-  await page.getByLabel('Draft API key', { exact: true }).fill('never-export-this-key');
+  await page.getByLabel('Model ID', { exact: true }).fill('test-model');
+  await page.getByLabel('API key · this session only', { exact: true }).fill('never-export-this-key');
   let calls = 0;
   await page.route('**/api/generate', async route => {
     calls++; const body = route.request().postDataJSON(); expect(body.maxOutputTokens).toBe(3000);
@@ -527,7 +533,7 @@ test('delayed wording refinement preserves newer title edits and rejects newer s
   const start = async () => {
     release = undefined;
     await page.getByRole('button', { name: 'Refine with optional AI', exact: false }).click();
-    await page.getByRole('combobox', { name: 'Or connect an API provider', exact: true }).selectOption('compatible');
+    await page.getByRole('combobox', { name: 'AI provider', exact: true }).selectOption('compatible');
     await page.getByRole('textbox', { name: 'Model ID', exact: true }).fill('local-test-model');
     await page.getByRole('button', { name: 'Refine wording', exact: true }).click();
     await expect.poll(() => Boolean(release)).toBe(true); await closeDialog(page);
@@ -651,7 +657,7 @@ test('optional artwork remains a reviewed source-bound presentation asset throug
   await page.getByText('Optional AI illustration', { exact: true }).click();
   await page.getByRole('combobox', { name: 'Image provider', exact: true }).selectOption('compatible');
   await page.getByRole('textbox', { name: 'Image model ID', exact: true }).fill('test-image-model');
-  await page.getByLabel('API key', { exact: true }).fill('private-image-key');
+  await page.getByLabel('API key · this session only', { exact: true }).fill('private-image-key');
   await page.getByRole('textbox', { name: 'Endpoint base URL', exact: true }).fill('https://image-provider.example/v1');
   await page.getByRole('button', { name: /Generate one draft/ }).click();
   await expect(page.locator('.visual-gallery')).toContainText('Draft · review required');
@@ -743,9 +749,11 @@ test('TXT, Markdown and subtitle files import locally and searchable evidence bu
   await expect(page.locator('.source-row')).toHaveCount(4);
   await expect(page.locator('.source-row .status-pill.ready')).toHaveCount(3);
   await page.getByRole('textbox', { name: 'Search source materials' }).fill('Router');
-  await expect(page.locator('.search-hit').first()).toContainText('forwards packets');
+  await expect(page.locator('.evidence-passages article').first()).toContainText('forwards packets');
+  await page.getByRole('textbox', { name: 'Search source materials' }).fill('Repeated practice');
+  await expect(page.locator('.evidence-passages article').first()).toContainText('00:00:01.000');
   await page.locator('.source-main').filter({ hasText: 'short-lecture.vtt' }).click();
-  await expect(page.getByRole('textbox', { name: 'Readable source text', exact: true })).toHaveValue('Repeated practice gives learners more opportunities to recall information from memory.');
+  await expect(page.getByRole('textbox', { name: 'Readable source text', exact: true })).toHaveValue('WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nRepeated practice gives learners more opportunities to recall information from memory.');
   await page.getByRole('button', { name: 'Done', exact: false }).click();
   await page.getByRole('button', { name: 'Build learning game', exact: false }).click();
   expect(await page.locator('.challenge-review').count()).toBeGreaterThan(8);
@@ -1021,4 +1029,66 @@ test('unreviewed models stay unscored through save and offline export until the 
   await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(recipient.locator('.structured-review-banner')).toContainText('1 independent attempt');
   await context.close();
+});
+
+test('provider catalogs are dynamic, credentials are ephemeral, originals travel with exports', async ({page},testInfo)=>{
+ await page.route('**/api/models',async route=>{const body=route.request().postDataJSON();expect(body.provider).toBe('openai');expect(body.apiKey).toBe('private-discovery-key');await route.fulfill({json:{models:[{id:'account-model-a',name:'My available model'},{id:'new-model-b',name:'New model B'}]}});});
+ await openLibrary(page);
+ await page.getByRole('button',{name:'Studio settings',exact:true}).click();
+ await page.getByLabel('API key · this session only',{exact:true}).fill('private-discovery-key');
+ await page.getByRole('button',{name:'Refresh available models',exact:true}).click();
+ await page.getByRole('combobox',{name:'Available models',exact:true}).selectOption('new-model-b');
+ await expect(page.getByLabel('Model ID',{exact:true})).toHaveValue('new-model-b');
+ expect(await page.evaluate(()=>Object.values(localStorage).join('\n'))).not.toContain('private-discovery-key');
+ await page.getByText('Connect a subscription',{exact:true}).click();
+ await expect(page.getByRole('button',{name:'Continue with ChatGPT',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:/^Your worlds/}).first().click();
+ await createNotebook(page,'An archive for a friend');
+ await page.getByRole('tab',{name:/Materials/}).click();
+ const original=Buffer.from('# Original field notes\n\nA router forwards packets between networks.\n');
+ await page.getByLabel('Upload source files',{exact:true}).setInputFiles({name:'field-notes.md',mimeType:'text/markdown',buffer:original});
+ await expect(page.locator('.source-main').filter({hasText:'field-notes.md'})).toBeVisible();
+ const exported=await exportDownload(page,'pack');const filename=testInfo.outputPath('with-original.learnpack');await exported.saveAs(filename);
+ const text=await readFile(filename,'utf8'),notebook=parsePortableNotebook(text);const file=notebook.sources.find(s=>s.title==='field-notes.md')!.originalFile!;
+ expect(Buffer.from(file.dataUrl.split(',')[1],'base64')).toEqual(original);expect(text).not.toContain('private-discovery-key');
+ await closeDialog(page);await page.reload();await page.getByRole('button',{name:'Studio settings',exact:true}).click();await expect(page.getByLabel('API key · this session only',{exact:true})).toHaveValue('');
+});
+
+
+test('URL imports preserve source snapshots and partial-import warnings through portable export', async ({page},testInfo)=>{
+ const snapshot=Buffer.from('<html><script>window.untrustedImportedScript=true</script><main><h1>Networking field guide</h1><p>'+notes+'</p></main></html>');
+ const originalFile={name:'guide-snapshot.html',mime:'text/html',dataUrl:'data:text/html;base64,'+snapshot.toString('base64'),size:snapshot.length,sha256:createHash('sha256').update(snapshot).digest('hex')};
+ const warning='Only the public excerpt was returned. Review it before building.';
+ await page.route('**/api/import-url',async route=>{
+  const url=route.request().postDataJSON().url;
+  await route.fulfill({json:url.endsWith('/private')?{needsAssistance:true,kind:'website',url,instructions:'This page requires sign-in. Paste accessible learning material.'}:{source:{title:'Networking field guide',content:notes,originalFile,metadata:{url:'https://example.org/guide/final',requestedUrl:url,retrievedAt:'2026-10-04T12:00:00.000Z',extractor:'mozilla-readability',contentStatus:'partial'}},warnings:[warning]}});
+ });
+ await openLibrary(page);await page.getByRole('button',{name:'Create a world',exact:true}).last().click();
+ await page.getByLabel('Notebook title',{exact:true}).fill('A portable web lesson');
+ const add=async(url:string)=>{await page.getByRole('button',{name:'Add a link',exact:true}).click();await page.getByLabel('Source URL',{exact:true}).fill(url);await page.getByRole('button',{name:'Add source',exact:true}).click();};
+ await add('https://example.org/guide');await page.locator('.source-main').filter({hasText:'Networking field guide'}).click();
+ await expect(page.getByRole('link',{name:'Open original',exact:false})).toHaveAttribute('href','https://example.org/guide/final');
+ await expect(page.getByRole('region',{name:'Website import record'})).toContainText(warning);
+ const originalDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Download preserved original',exact:true}).click();const originalPath=testInfo.outputPath('preserved.html');await (await originalDownload).saveAs(originalPath);expect(await readFile(originalPath)).toEqual(snapshot);
+ expect(await page.evaluate(()=>Boolean((window as any).untrustedImportedScript))).toBe(false);
+ await page.getByRole('button',{name:'Done',exact:false}).click();await add('https://example.org/private');
+ await expect(page.getByLabel('Readable source text',{exact:true})).toHaveValue('');
+ await expect(page.getByRole('region',{name:'Website import record'})).toContainText('Manual material required');await page.getByRole('button',{name:'Done',exact:false}).click();
+ await page.getByRole('button',{name:'Build learning game',exact:false}).click();expect(await page.locator('.challenge-review').count()).toBeGreaterThan(0);
+ const downloaded=await exportDownload(page,'pack'),filename=testInfo.outputPath('portable-web.learnpack');await downloaded.saveAs(filename);const notebook=parsePortableNotebook(await readFile(filename,'utf8'));
+ expect(notebook.sources[0].webImport).toMatchObject({contentStatus:'partial',warnings:[warning],requestedUrl:'https://example.org/guide'});expect(notebook.sources[0].originalFile?.sha256).toBe(originalFile.sha256);
+ expect(notebook.sources[1]).toMatchObject({status:'needs-transcript',text:'',webImport:{contentStatus:'needs-assistance'}});
+ expect(notebook.cards.every(card=>card.sourceId===notebook.sources[0].id)).toBe(true);
+});
+
+
+test('a failed structured result stays in the game and retries without duplicate credit',async({page})=>{
+ await openLibrary(page);await page.getByRole('button',{name:'Open Inside the connected world',exact:true}).click();await page.locator('.system-mission').filter({hasText:'An explicit access policy'}).click();
+ await page.getByRole('radio',{name:/Allow the request/}).check();await expect(page.locator('.save-state')).toContainText('Saved on this device');
+ await page.evaluate(()=>{const original=IDBObjectStore.prototype.put;(window as any).__failResult=true;(window as any).__checkedAttempts=[];IDBObjectStore.prototype.put=function(value,key){const checked=Object.values(value.structured||{}).find((entry:any)=>entry.response?._draft?.checked) as any;if(typeof key==='string'&&key.startsWith('progress:')&&checked){(window as any).__checkedAttempts.push(checked.attempts);if((window as any).__failResult)throw new DOMException('Test storage failure','QuotaExceededError');}return original.call(this,value,key);};});
+ await page.getByRole('button',{name:'Check my work',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('Test storage failure');await page.getByRole('button',{name:'Got it',exact:true}).click();
+ await expect(page.locator('.structured-save-error')).toBeVisible();await expect(page.locator('.structured-feedback')).toHaveCount(0);await expect(page.locator('.structured-next')).toHaveCount(0);await expect(page.locator('.save-state')).toContainText('Save needs attention');
+ await page.getByRole('button',{name:'Save & return',exact:false}).click();await expect(page.getByRole('dialog')).toContainText('still needs a successful save');await page.getByRole('button',{name:'Got it',exact:true}).click();await expect(page.locator('.structured-board')).toBeVisible();
+ await page.evaluate(()=>{(window as any).__failResult=false;});await page.getByRole('button',{name:'Retry saving result',exact:true}).click();await expect(page.locator('.structured-feedback.correct')).toBeVisible();await expect(page.locator('.structured-next')).toBeVisible();expect(await page.evaluate(()=>(window as any).__checkedAttempts)).toEqual([1,1]);
+ await page.reload();await page.getByRole('button',{name:'Open Inside the connected world',exact:true}).click();await expect(page.locator('.world-statbar')).toContainText('50discovery points');
 });

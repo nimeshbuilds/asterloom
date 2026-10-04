@@ -7,15 +7,17 @@ import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {_electron as electron} from 'playwright';
+import {nativeTestExecutable} from './testing.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const enabled=process.env.ASTERLOOM_NATIVE_SMOKE==='1';
-let nativeTarget=process.platform==='win32'?'windows':process.arch==='x64'?'mac-intel':'mac';
+let nativeTarget=process.platform==='win32'?'windows':'mac';
 const exportedExecutable=bundle=>nativeTarget==='windows'?path.join(bundle,'Asterloom.exe'):path.join(bundle,'Contents','MacOS','Asterloom');
 const exportedResources=bundle=>nativeTarget==='windows'?path.join(bundle,'resources'):path.join(bundle,'Contents','Resources');
 const fixtureNotebook={id:'native-smoke-notebook',title:'Native export · 知識 🧭',description:'An isolated native learning notebook.',createdAt:'2026-10-03T12:00:00.000Z',updatedAt:'2026-10-03T12:00:00.000Z',ageGroup:'adult',goal:'Remember networking facts',theme:'islands',scaffoldIds:['recall-escape-mission'],sources:[{id:'native-source',title:'Network notes',kind:'text',text:'DNS: Resolves domain names to addresses.',status:'ready',addedAt:'2026-10-03T12:00:00.000Z'}],cards:[{id:'native-card',prompt:'What resolves names?',answer:'DNS',options:['DNS','Router'],correctIndex:0,sourceId:'native-source',evidence:'DNS: Resolves domain names to addresses.',concept:'DNS',tags:[],explanation:'DNS resolves names.',questionType:'definition',reviewStatus:'reviewed'}],revision:1};
 const dataEvidence='Prepared native test observations: Site A recorded 4 units and Site B recorded 8 units. The task is to total these two observations only.';
 fixtureNotebook.sources.push({id:'native-data-source',title:'Recorded observations',kind:'text',text:dataEvidence,status:'ready',addedAt:'2026-10-03T12:00:00.000Z'});
+fixtureNotebook.sources.push({id:'native-semantic-source',title:'Water and networks',kind:'text',text:'Evaporation: The process in which liquid water changes into vapor in the air.\nCondensation: The process in which water vapor changes into liquid droplets.\n\nTLS encrypts communication between a client and a server.',status:'ready',addedAt:'2026-10-03T12:00:00.000Z'});
 fixtureNotebook.activities=[{version:1,id:'native-data-lab',kind:'data',title:'Investigate the native observations',instruction:'Explore the two observations and calculate their total.',sourceRefs:[{sourceId:'native-data-source',evidence:dataEvidence}],reviewStatus:'reviewed',explanation:'The total describes only the two supplied observations.',hint:'Use both data rows.',datasetTitle:'Recorded observations',limitations:'Two prepared test records; no wider inference.',columns:[{id:'reading',label:'Reading',type:'number',unit:'units'}],rows:[{id:'site-a',label:'Site A',values:{reading:4},evidenceRefs:[0]},{id:'site-b',label:'Site B',values:{reading:8},evidenceRefs:[0]}],chartColumnId:'reading',questions:[{id:'total',prompt:'What is the total recorded value?',operation:'sum',columnId:'reading',filters:[],tolerance:0,requireEvidenceRows:true,reason:'Both observed records contribute to the total.',evidenceRefs:[0]}]}];
 fixtureNotebook.activities.push({...structuredClone(fixtureNotebook.activities[0]),id:'native-unreviewed-lab',title:'Preview an unreviewed native model',reviewStatus:'needs-review'});
 const fixturePackage=JSON.stringify({format:'learnpack',version:1,exportedAt:'2026-10-03T12:00:00.000Z',notebook:fixtureNotebook});
@@ -33,11 +35,12 @@ test('native studio saves across launches, exports a standalone game, and opens 
   const args=executable?[]:[path.join(ROOT,'desktop','main.mjs')];
   const env={...process.env,ASTERLOOM_DATA_DIR:path.join(directory,'profiles')};delete env.ELECTRON_RUN_AS_NODE;
   let application;
-  const errors=[];
+  const errors=[],remoteRequests=[];let features={};
   const launch=async(binary=executable)=>{
-    const app=await electron.launch({...(binary?{executablePath:binary}:{}),args:binary?[]:args,cwd:ROOT,env,timeout:30000});
+    const selected=await nativeTestExecutable(binary,directory);
+    const app=await electron.launch({...(selected?{executablePath:selected}:{}),args:binary?[]:args,cwd:ROOT,env,timeout:30000});
     const watched=new WeakSet();
-    const watch=page=>{if(!watched.has(page)){watched.add(page);page.on('pageerror',error=>errors.push(error.message));}};
+    const watch=page=>{if(!watched.has(page)){watched.add(page);page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(/^https?:/.test(request.url()))remoteRequests.push(request.url());});}};
     app.on('window',watch);for(const page of app.windows())watch(page);
     return app;
   };
@@ -45,11 +48,16 @@ test('native studio saves across launches, exports a standalone game, and opens 
     application=await launch();let page=await application.firstWindow();
     // The executable may be an Intel app running under Rosetta while this
     // test runner is arm64. Export for the application's actual architecture.
-    nativeTarget=await application.evaluate(()=>process.platform==='win32'?'windows':process.arch==='x64'?'mac-intel':'mac');
-    console.log(`Testing native application and export target: ${nativeTarget}`);
+    const actual=await application.evaluate(()=>({platform:process.platform,arch:process.arch}));
+    nativeTarget=actual.platform==='win32'?'windows':'mac';
+    if(process.env.ASTERLOOM_SMOKE_ARCH)assert.equal(actual.arch,process.env.ASTERLOOM_SMOKE_ARCH);
+    features={platform:actual.platform,architecture:actual.arch};
+    console.log(`Testing native application ${actual.platform}/${actual.arch}; public export target: ${nativeTarget}`);
     await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
     const security=await page.evaluate(()=>({origin:location.origin,require:typeof window.require,bridge:typeof window.asterloomDesktop?.exportGame}));
     assert.equal(security.origin,'asterloom://app');assert.equal(security.require,'undefined');assert.equal(security.bridge,'function');
+    const wasm=await page.evaluate(async()=>{try{await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0]));return true;}catch(error){return error.message;}});
+    assert.equal(wasm,true,'The native CSP must allow the local WebAssembly retrieval runtime');
     const health=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(health.ok,true);assert.equal(health.capabilities.pdf,true);
     const pdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
     assert.equal(pdf.status,200,JSON.stringify(pdf.body));assert.match(pdf.body.source.content,/DNS resolves names to addresses/);assert.equal(pdf.body.source.metadata.pages,1);
@@ -95,6 +103,12 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(unreviewedRecord.completed,false,'Unreviewed completion must remain blocked after restart');
     assert.equal(unreviewedRecord.score,0);assert.equal(unreviewedRecord.review?.independentSuccesses??0,0);
     await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click();
+    await page.waitForFunction(()=>{const scene=document.querySelector('.learning-scene');return scene&&['pixi-webgl','svg-dom'].includes(scene.getAttribute('data-renderer'));},{},{timeout:30000});
+    const sceneRenderer=await page.locator('.learning-scene').first().getAttribute('data-renderer');
+    if(process.env.ASTERLOOM_REQUIRE_PIXI==='1')assert.equal(sceneRenderer,'pixi-webgl','The native learning scene must initialize Pixi under its production CSP');
+    if(sceneRenderer==='pixi-webgl')assert.equal(await page.locator('.learning-scene canvas').first().evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
+    features.sceneRenderer=sceneRenderer;
+    console.log(`Native learning scene renderer: ${sceneRenderer}`);
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
     await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
@@ -117,6 +131,17 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:'Return to my notebook',exact:true}).click();
     assert.match(await page.locator('.world-statbar').innerText(),/70/);
     await page.getByRole('button',{name:'Open studio',exact:true}).click();
+    await page.getByRole('tab',{name:/Materials/}).click();
+    await page.locator('.evidence-status').filter({hasText:'Local meaning + exact word search ready.'}).waitFor({timeout:120000});
+    await page.getByLabel('Search source materials',{exact:true}).fill('Why does a puddle disappear on a sunny day?');
+    await page.locator('.evidence-passages article').first().getByText('Meaning match',{exact:true}).waitFor({timeout:30000});
+    assert.match(await page.locator('.evidence-passages article').first().innerText(),/Evaporation/,'The bundled model must retrieve relevant source evidence beyond exact words');
+    features.semanticStatus=await page.locator('.evidence-status').innerText();
+    assert.match(features.semanticStatus,/WASM CPU|WebGPU/);
+    assert.deepEqual(remoteRequests,[],'Local semantic authoring and game rendering must not request external network resources');
+    features.externalRequests=remoteRequests.length;
+    console.log(`Native semantic retrieval: ${features.semanticStatus}`);
+    await fs.writeFile(path.join(ROOT,'.qa',`native-features-${actual.platform}-${actual.arch}.json`),JSON.stringify(features,null,2));
     await page.getByRole('tab',{name:/Challenges/}).click();
     await page.locator('.activity-library article').filter({hasText:'Preview an unreviewed native model'}).getByRole('button',{name:'Mark reviewed',exact:true}).click();
     await page.getByRole('button',{name:'Play game',exact:true}).click();
@@ -144,7 +169,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},output);
     await page.getByRole('button',{name:'Export',exact:true}).click();
     const remixStarted=Date.now();
-    await page.getByRole('button',{name:nativeTarget==='windows'?/Windows application bundle/:nativeTarget==='mac-intel'?/macOS · Intel/:/macOS · Apple Silicon/}).click();
+    await page.getByRole('button',{name:nativeTarget==='windows'?/Windows (?:application bundle|app)/:/Mac app/}).click();
     // The Mac export stages and signs the complete Electron + Tor runtime,
     // then publishes a second copy safely across filesystem volumes. CI disk
     // throughput can exceed Playwright's default 30-second UI wait. This

@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import {promises as fs} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,safeTitle} from './bundles.mjs';
+import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,safeTitle,normalizeTarget,TARGETS} from './bundles.mjs';
 
 let root,mac,windows,out;
 const now='2026-10-03T12:00:00.000Z';
 const notebook={id:'notebook-test',title:'Networks / a learning adventure',description:'Explore networking',createdAt:now,updatedAt:now,ageGroup:'adult',goal:'Understand networking',theme:'aurora',scaffoldIds:['recall'],sources:[{id:'source-one',title:'Notes',kind:'text',text:'DNS: Resolves domain names to addresses.',status:'ready',addedAt:now}],cards:[{id:'card-one',prompt:'What resolves names?',answer:'DNS',options:['DNS','Router'],correctIndex:0,sourceId:'source-one',evidence:'DNS: Resolves domain names to addresses.',concept:'DNS',tags:[],explanation:'DNS resolves names.',questionType:'definition',reviewStatus:'reviewed'}],revision:1};
 const pack=(value=notebook)=>JSON.stringify({format:'learnpack',version:1,exportedAt:now,notebook:value});
 before(async()=>{
-  root=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-desktop-test-'));mac=path.join(root,'Asterloom-darwin-arm64','Asterloom.app');windows=path.join(root,'Asterloom-win32-x64');out=path.join(root,'exports');
-  await fs.mkdir(path.join(mac,'Contents','MacOS'),{recursive:true});await fs.mkdir(path.join(mac,'Contents','Resources','app','desktop'),{recursive:true});await fs.writeFile(path.join(mac,'Contents','MacOS','Asterloom'),'fixture',{mode:0o755});await fs.writeFile(path.join(mac,'Contents','Resources','app','desktop','main.mjs'),'// fixture');
+  root=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-desktop-test-'));mac=path.join(root,'Asterloom-darwin-universal','Asterloom.app');windows=path.join(root,'Asterloom-win32-x64');out=path.join(root,'exports');
+  const executable=Buffer.alloc(48);executable.writeUInt32BE(0xcafebabe,0);executable.writeUInt32BE(2,4);executable.writeUInt32BE(0x01000007,8);executable.writeUInt32BE(0x0100000c,28);
+  await fs.mkdir(path.join(mac,'Contents','MacOS'),{recursive:true});await fs.mkdir(path.join(mac,'Contents','Resources','app','desktop'),{recursive:true});await fs.writeFile(path.join(mac,'Contents','MacOS','Asterloom'),executable,{mode:0o755});await fs.writeFile(path.join(mac,'Contents','Resources','app','desktop','main.mjs'),'// fixture');
   await fs.mkdir(path.join(windows,'resources','app','desktop'),{recursive:true});await fs.writeFile(path.join(windows,'Asterloom.exe'),'fixture');await fs.writeFile(path.join(windows,'resources','app','desktop','main.mjs'),'// fixture');await fs.mkdir(out);
 });
 after(async()=>{await fs.rm(root,{recursive:true,force:true});});
@@ -30,6 +31,7 @@ test('unsafe or unsupported package content is rejected before file creation',()
 });
 test('template discovery only returns a bundle containing the expected executable',async()=>{
   assert.equal(await findTemplate('mac',[root]),mac);assert.equal(await findTemplate('windows',[root]),windows);assert.equal(await findTemplate('mac',[out]),null);
+  assert.equal(await findTemplate('mac-intel',[root]),mac);assert.deepEqual(Object.keys(TARGETS),['mac','windows']);assert.equal(normalizeTarget('mac-arm64'),'mac');
 });
 test('Mac export carries the single notebook and preserves original runtime files',async()=>{
   const result=await createGameBundle({packageText:pack(),target:'mac',template:mac,destination:out,sign:false});
@@ -37,6 +39,13 @@ test('Mac export carries the single notebook and preserves original runtime file
   const game=await loadEmbeddedGame(path.join(result.path,'Contents','Resources'));assert.equal(game.notebook.id,notebook.id);assert.equal(game.notebook.cards.length,1);assert.equal(game.identity,result.identity);
   assert.equal(await fs.readFile(path.join(result.path,'Contents','Resources','app','desktop','main.mjs'),'utf8'),'// fixture');assert.equal((await fs.stat(path.join(result.path,'Contents','MacOS','Asterloom'))).mode&0o777,0o755);
   assert.equal(await loadEmbeddedGame(path.join(mac,'Contents','Resources')),null);
+  const manifest=JSON.parse(await fs.readFile(path.join(result.path,'Contents','Resources','game-manifest.json'),'utf8'));assert.equal(manifest.arch,'universal');assert.equal(manifest.signing,'unsigned');assert.equal(manifest.notarized,false);assert.match(result.warning,/not publisher-signed/);
+});
+test('a thin Mac template cannot be advertised or exported as universal',async()=>{
+  const thin=path.join(root,'thin','Asterloom-darwin-universal','Asterloom.app');await fs.mkdir(path.join(thin,'Contents','MacOS'),{recursive:true});
+  const header=Buffer.alloc(32);header.writeUInt32LE(0xfeedfacf,0);header.writeUInt32LE(0x0100000c,4);await fs.writeFile(path.join(thin,'Contents','MacOS','Asterloom'),header);
+  assert.equal(await findTemplate('mac',[path.join(root,'thin')]),null);
+  await assert.rejects(()=>createGameBundle({packageText:pack(),target:'mac',template:thin,destination:out,sign:false}),/one processor type/);
 });
 test('Windows export carries a portable exe folder and repeats never overwrite prior games',async()=>{
   const first=await createGameBundle({packageText:pack(),target:'windows',template:windows,destination:out,sign:false});

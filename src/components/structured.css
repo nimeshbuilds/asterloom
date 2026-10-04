@@ -44,7 +44,7 @@
 .structured-case dt{font-size:10px;color:#809076;text-transform:capitalize;margin-bottom:6px}
 .structured-case dd{margin:0;font-size:16px;font-weight:650;color:#496441;overflow-wrap:anywhere}
 .structured-decisions{border:0;margin:22px 0 0;padding:0;display:grid;gap:10px}
-.structured-decisions legend{font-size:12px;color:#687b5c;font-weight:600;padding:0 0 12px}
+.structured-decisions legend{font-size:12px;color:#526344;font-weight:600;padding:0 0 12px}
 .structured-answer{border:1px solid #dce5d5;display:flex;align-items:center;gap:13px;padding:14px;background:white;border-radius:13px;cursor:pointer;font-size:14px;line-height:1.5}
 .structured-answer.selected{border-color:#7b9e6b;background:#f0f6e9;box-shadow:0 0 0 2px #e0ecd5}
 .structured-answer input{position:absolute;opacity:0;width:1px;height:1px}
@@ -115,3 +115,5 @@
 .structured-budget-meter strong small{color:#4f6340}
 
 .activity-author-tabs{flex-wrap:wrap}.activity-author-tabs button{color:#536746}.activity-preview-heading>.structured-kicker{color:#365b44}
+
+.structured-workspace[inert]{opacity:.75;cursor:progress}.structured-save-error{background:#fff0e9;border:1px solid #c39178;color:#733a28;border-radius:12px;padding:13px 16px;font-size:14px;line-height:1.6}

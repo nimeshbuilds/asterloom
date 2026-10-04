@@ -1,5 +1,7 @@
 import type { CardProgress, LearnPackage, LearningCard, Notebook, NotebookArtwork, Progress, Source, SourceKind } from '../types';
 import { validateActivity } from './structuredEngine';
+import {validateLearningObjectives} from './evidence';
+import {validateOriginalFile} from './originalFiles';
 
 const MAX_PACKAGE_BYTES = 64 * 1024 * 1024;
 const SOURCE_KINDS: SourceKind[] = ['text', 'document', 'website', 'youtube', 'notebooklm', 'audio', 'video', 'image', 'transcript'];
@@ -39,6 +41,16 @@ function date(value: unknown, name: string): string {
 function boolean(value: unknown, name: string): boolean { if (typeof value !== 'boolean') throw new Error(`${name} must be true or false.`); return value; }
 function unique(items: string[], name: string): void { if (new Set(items).size !== items.length) throw new Error(`${name} contains duplicate identifiers.`); }
 
+/** Portable web-import receipt. Unknown fields and provider credentials do not travel with it. */
+export function validateWebImport(input: unknown): NonNullable<Source['webImport']> {
+  const value = object(input, 'Web import provenance');
+  const requestedUrl = string(value.requestedUrl, 'Requested source URL', 4000);
+  let parsed: URL; try { parsed = new URL(requestedUrl); } catch { throw new Error('The requested source URL is invalid.'); }
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error('Requested source links must be HTTP(S) URLs without embedded credentials.');
+  if (!['extracted', 'partial', 'needs-assistance'].includes(String(value.contentStatus))) throw new Error('Web import content status is invalid.');
+  return { requestedUrl, retrievedAt: date(value.retrievedAt, 'Web retrieval date'), extractor: string(value.extractor, 'Web extractor', 200), contentStatus: value.contentStatus as NonNullable<Source['webImport']>['contentStatus'], warnings: array(value.warnings, 'Web import warnings', 20).map(warning => string(warning, 'Web import warning', 2000)) };
+}
+
 function validateSource(input: unknown): Source {
   const value = object(input, 'Source');
   const kind = string(value.kind, 'Source type', 30) as SourceKind;
@@ -58,6 +70,8 @@ function validateSource(input: unknown): Source {
     if (!/^data:(?:image\/(?:png|jpeg|webp|gif)|audio\/(?:mpeg|mp3|wav|x-wav|ogg|webm|mp4|x-m4a|m4a)|video\/(?:mp4|webm|ogg|quicktime));base64,[A-Za-z0-9+/]*={0,2}$/.test(dataUrl)) throw new Error('Embedded media must be a supported image, audio, or video file; executable formats are excluded.');
     source.dataUrl = dataUrl;
   }
+  if (value.originalFile !== undefined) source.originalFile=validateOriginalFile(value.originalFile);
+  if (value.webImport !== undefined) source.webImport=validateWebImport(value.webImport);
   if (value.error !== undefined) source.error = string(value.error, 'Source error', 2000, true);
   return source;
 }
@@ -122,7 +136,7 @@ export function validateNotebook(input: unknown): Notebook {
     return checked.value;
   });
   if (activities) unique(activities.map(activity => activity.id), 'Structured activities');
-  return { id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
+  return { id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), ...(value.learningObjectives!==undefined?{learningObjectives:validateLearningObjectives(value.learningObjectives,sources)}:{}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
 }
 
 function parseJson(text: string, maximum = MAX_PACKAGE_BYTES): unknown {

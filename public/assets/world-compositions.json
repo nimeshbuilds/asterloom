@@ -1,0 +1,2256 @@
+{
+  "version": 1,
+  "description": "75 authored settings composed from seven layouts and thirty vector objects. Live learning objects and rules are bound separately to reviewed material.",
+  "worlds": [
+    {
+      "id": "concept-map-repair",
+      "name": "The connection conservatory",
+      "domain": "concepts",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "bridge",
+          "label": "bridge",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "classification-workshop",
+      "name": "The sorting greenhouse",
+      "domain": "categories",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "basket",
+          "label": "basket",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "comparison-puzzle",
+      "name": "The twin observatories",
+      "domain": "comparison",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "analogy-construction",
+      "name": "The bridge atelier",
+      "domain": "relationships",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "bridge",
+          "label": "bridge",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "key",
+          "label": "key",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "definition-building",
+      "name": "The word forge",
+      "domain": "language",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "process-reconstruction",
+      "name": "The turning waterworks",
+      "domain": "processes",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "wave",
+          "label": "wave",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "missing-step-completion",
+      "name": "The apprentice bench",
+      "domain": "procedures",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "fault-diagnosis",
+      "name": "The inspection outpost",
+      "domain": "diagnosis",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "repair-challenge",
+      "name": "The repair harbor",
+      "domain": "systems",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "wave",
+          "label": "wave",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "constrained-action-planning",
+      "name": "The route expedition",
+      "domain": "planning",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "basket",
+          "label": "basket",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "evidence-investigation",
+      "name": "The evidence archive",
+      "domain": "evidence",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "key",
+          "label": "key",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "claim-verification",
+      "name": "The checking desk",
+      "domain": "evidence",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "argument-construction",
+      "name": "The reasoning pavilion",
+      "domain": "reasoning",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "competing-explanations",
+      "name": "The hypothesis observatory",
+      "domain": "science",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "flask",
+          "label": "flask",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "timeline-investigation",
+      "name": "The time garden",
+      "domain": "history",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "clock",
+          "label": "clock",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "branching-decisions",
+      "name": "The crossroads grove",
+      "domain": "decisions",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "role-missions",
+      "name": "The mission harbor",
+      "domain": "roles",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "resource-allocation",
+      "name": "The supply dock",
+      "domain": "resources",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "basket",
+          "label": "basket",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "prediction-and-experiment",
+      "name": "The experiment glade",
+      "domain": "science",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "flask",
+          "label": "flask",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "build-to-specification",
+      "name": "The makers yard",
+      "domain": "engineering",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "diagram-reconstruction",
+      "name": "The model gallery",
+      "domain": "structures",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "chart-and-data-investigation",
+      "name": "The observation tower",
+      "domain": "data",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "database",
+          "label": "database",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "media-checkpoints",
+      "name": "The listening cove",
+      "domain": "media",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "wave",
+          "label": "wave",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "clock",
+          "label": "clock",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "recall-escape-mission",
+      "name": "The memory archipelago",
+      "domain": "recall",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "key",
+          "label": "key",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "star",
+          "label": "star",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "structured-teach-back",
+      "name": "The explanation studio",
+      "domain": "explanation",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "discovery-scenes",
+      "name": "The little discovery garden",
+      "domain": "pictures",
+      "layout": "garden",
+      "objects": [
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 13,
+          "y": 63,
+          "size": 48
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 80,
+          "y": 23,
+          "size": 37
+        },
+        {
+          "glyph": "star",
+          "label": "star",
+          "x": 89,
+          "y": 77,
+          "size": 33
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "puppet-stories",
+      "name": "The pocket puppet theater",
+      "domain": "stories",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "puppet",
+          "label": "puppet",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "star",
+          "label": "star",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "pretend-play-stations",
+      "name": "The make-believe market",
+      "domain": "pretend-play",
+      "layout": "garden",
+      "objects": [
+        {
+          "glyph": "basket",
+          "label": "basket",
+          "x": 13,
+          "y": 63,
+          "size": 48
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 80,
+          "y": 23,
+          "size": 37
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 89,
+          "y": 77,
+          "size": 33
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "pattern-parade",
+      "name": "The shape parade",
+      "domain": "patterns",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "star",
+          "label": "star",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "train",
+          "label": "train",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "build-and-tell",
+      "name": "The story toybox",
+      "domain": "picture-building",
+      "layout": "garden",
+      "objects": [
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 13,
+          "y": 63,
+          "size": 48
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 80,
+          "y": 23,
+          "size": 37
+        },
+        {
+          "glyph": "leaf",
+          "label": "leaf",
+          "x": 89,
+          "y": 77,
+          "size": 33
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "word-and-picture-workshop",
+      "name": "The picture-post workshop",
+      "domain": "language",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "star",
+          "label": "star",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "step-train",
+      "name": "The little learning railway",
+      "domain": "sequence",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "train",
+          "label": "train",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "clock",
+          "label": "clock",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "changing-rule-sorter",
+      "name": "The changing garden gates",
+      "domain": "classification",
+      "layout": "garden",
+      "objects": [
+        {
+          "glyph": "basket",
+          "label": "basket",
+          "x": 13,
+          "y": 63,
+          "size": 48
+        },
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 80,
+          "y": 23,
+          "size": 37
+        },
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 89,
+          "y": 77,
+          "size": 33
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "clue-map",
+      "name": "The clue island",
+      "domain": "navigation",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "key",
+          "label": "key",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "partner-helper",
+      "name": "The together treehouse",
+      "domain": "cooperation",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "bridge",
+          "label": "bridge",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "heart",
+          "label": "heart",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "evidence-detective",
+      "name": "The detective bureau",
+      "domain": "evidence",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "experiment-predictor",
+      "name": "The junior discovery lab",
+      "domain": "science",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "flask",
+          "label": "flask",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "star",
+          "label": "star",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "systems-repair-workshop",
+      "name": "The tinkering hangar",
+      "domain": "systems",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "cloud",
+          "label": "cloud",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "plan-and-budget-expedition",
+      "name": "The expedition stores",
+      "domain": "resources",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "basket",
+          "label": "basket",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "teach-a-character",
+      "name": "The curious character corner",
+      "domain": "explanation",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "puppet",
+          "label": "puppet",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "hypothesis-casebook",
+      "name": "The hypothesis field station",
+      "domain": "science",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "flask",
+          "label": "flask",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "claim-and-evidence-arena",
+      "name": "The evidence forum",
+      "domain": "argument",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "constraint-design-workshop",
+      "name": "The design foundry",
+      "domain": "engineering",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "perspective-switching-drama",
+      "name": "The perspective stage",
+      "domain": "perspectives",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "puppet",
+          "label": "puppet",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "strategy-campaign",
+      "name": "The strategy mesa",
+      "domain": "planning",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "scenario-internship",
+      "name": "The practice precinct",
+      "domain": "professional",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "research-dossier",
+      "name": "The research stacks",
+      "domain": "research",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "database",
+          "label": "database",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "prototype-studio",
+      "name": "The prototype deck",
+      "domain": "engineering",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "review-studio",
+      "name": "The review atelier",
+      "domain": "review",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "capstone-campaign",
+      "name": "The summit expedition",
+      "domain": "application",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "flag",
+          "label": "flag",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "zero-trust-access-lab",
+      "name": "The access control room",
+      "domain": "security",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "key",
+          "label": "key",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "server",
+          "label": "server",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "incident-response-command",
+      "name": "The incident observatory",
+      "domain": "security",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "clock",
+          "label": "clock",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "threat-model-canvas",
+      "name": "The trust boundary workshop",
+      "domain": "security",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "secure-code-review",
+      "name": "The secure code desk",
+      "domain": "security",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "code",
+          "label": "code",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "packet-path-inspector",
+      "name": "The packet relay",
+      "domain": "networking",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "server",
+          "label": "server",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "wave",
+          "label": "wave",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "prompt-experiment-bench",
+      "name": "The prompt experiment bench",
+      "domain": "ai",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "flask",
+          "label": "flask",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "agent-workflow-studio",
+      "name": "The tool routing studio",
+      "domain": "agentic-ai",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "code",
+          "label": "code",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "retrieval-quality-lab",
+      "name": "The retrieval archive",
+      "domain": "retrieval",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "database",
+          "label": "database",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "model-evaluation-arena",
+      "name": "The evaluation observatory",
+      "domain": "ai",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "database",
+          "label": "database",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "ai-safety-response-lab",
+      "name": "The response review room",
+      "domain": "ai-safety",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "cloud-architecture-builder",
+      "name": "The cloud systems yard",
+      "domain": "cloud",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "cloud",
+          "label": "cloud",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "server",
+          "label": "server",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "bridge",
+          "label": "bridge",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "cloud-cost-control",
+      "name": "The cloud supply console",
+      "domain": "cloud",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "cloud",
+          "label": "cloud",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "kubernetes-recovery-room",
+      "name": "The cluster repair dock",
+      "domain": "orchestration",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "cube",
+          "label": "cube",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "server",
+          "label": "server",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "infrastructure-change-planner",
+      "name": "The infrastructure map room",
+      "domain": "infrastructure",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "server",
+          "label": "server",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "distributed-systems-trace",
+      "name": "The distributed signal trail",
+      "domain": "distributed-systems",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "server",
+          "label": "server",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "clock",
+          "label": "clock",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "wave",
+          "label": "wave",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "debugger-detective",
+      "name": "The trace inspection desk",
+      "domain": "development",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "code",
+          "label": "code",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "api-contract-workshop",
+      "name": "The interface workshop",
+      "domain": "development",
+      "layout": "workbench",
+      "objects": [
+        {
+          "glyph": "code",
+          "label": "code",
+          "x": 14,
+          "y": 65,
+          "size": 42
+        },
+        {
+          "glyph": "bridge",
+          "label": "bridge",
+          "x": 49,
+          "y": 17,
+          "size": 31
+        },
+        {
+          "glyph": "document",
+          "label": "document",
+          "x": 86,
+          "y": 62,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "database-query-lab",
+      "name": "The query workbench",
+      "domain": "databases",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "database",
+          "label": "database",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "code",
+          "label": "code",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "version-control-recovery",
+      "name": "The revision route",
+      "domain": "version-control",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "branch",
+          "label": "branch",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "clock",
+          "label": "clock",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "wrench",
+          "label": "wrench",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "test-design-studio",
+      "name": "The test design atelier",
+      "domain": "testing",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "code",
+          "label": "code",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "pencil",
+          "label": "pencil",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "shield",
+          "label": "shield",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "data-pipeline-repair",
+      "name": "The data channel works",
+      "domain": "data-engineering",
+      "layout": "network",
+      "objects": [
+        {
+          "glyph": "database",
+          "label": "database",
+          "x": 13,
+          "y": 26,
+          "size": 40
+        },
+        {
+          "glyph": "gear",
+          "label": "gear",
+          "x": 85,
+          "y": 25,
+          "size": 38
+        },
+        {
+          "glyph": "wave",
+          "label": "wave",
+          "x": 50,
+          "y": 83,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "statistics-evidence-lab",
+      "name": "The statistics field lab",
+      "domain": "statistics",
+      "layout": "console",
+      "objects": [
+        {
+          "glyph": "chart",
+          "label": "chart",
+          "x": 12,
+          "y": 27,
+          "size": 36
+        },
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 86,
+          "y": 60,
+          "size": 42
+        },
+        {
+          "glyph": "flask",
+          "label": "flask",
+          "x": 49,
+          "y": 16,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "product-tradeoff-council",
+      "name": "The product council",
+      "domain": "product",
+      "layout": "stage",
+      "objects": [
+        {
+          "glyph": "scales",
+          "label": "scales",
+          "x": 12,
+          "y": 35,
+          "size": 41
+        },
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 88,
+          "y": 36,
+          "size": 41
+        },
+        {
+          "glyph": "compass",
+          "label": "compass",
+          "x": 50,
+          "y": 13,
+          "size": 29
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "language-dialogue-trail",
+      "name": "The conversation promenade",
+      "domain": "language",
+      "layout": "trail",
+      "objects": [
+        {
+          "glyph": "speech",
+          "label": "speech",
+          "x": 13,
+          "y": 59,
+          "size": 38
+        },
+        {
+          "glyph": "globe",
+          "label": "globe",
+          "x": 48,
+          "y": 20,
+          "size": 30
+        },
+        {
+          "glyph": "bridge",
+          "label": "bridge",
+          "x": 87,
+          "y": 53,
+          "size": 42
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    },
+    {
+      "id": "clinical-reasoning-casebook",
+      "name": "The clinical case desk",
+      "domain": "clinical",
+      "layout": "archive",
+      "objects": [
+        {
+          "glyph": "heart",
+          "label": "heart",
+          "x": 12,
+          "y": 38,
+          "size": 40
+        },
+        {
+          "glyph": "book",
+          "label": "book",
+          "x": 88,
+          "y": 32,
+          "size": 43
+        },
+        {
+          "glyph": "lens",
+          "label": "lens",
+          "x": 49,
+          "y": 83,
+          "size": 30
+        }
+      ],
+      "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+    }
+  ]
+}

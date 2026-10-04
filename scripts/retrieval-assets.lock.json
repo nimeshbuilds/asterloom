@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "model": "Xenova/all-MiniLM-L6-v2",
+  "revision": "751bff37182d3f1213fa05d7196b954e230abad9",
+  "license": "Apache-2.0",
+  "transformersVersion": "4.3.0",
+  "onnxRuntimeVersion": "1.31.0-dev.20260914-8d85527a0",
+  "embeddingDimensions": 384,
+  "files": [
+    {
+      "path": "config.json",
+      "size": 650,
+      "sha256": "7135149f7cffa1a573466c6e4d8423ed73b62fd2332c575bf738a0d033f70df7"
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 711661,
+      "sha256": "da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 366,
+      "sha256": "9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3"
+    },
+    {
+      "path": "special_tokens_map.json",
+      "size": 125,
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+    },
+    {
+      "path": "README.md",
+      "size": 1767,
+      "sha256": "63ea99bf681a2e9eda4f6a537d5ed8fda95d1677111656da37e9cfd080c3af02"
+    },
+    {
+      "path": "onnx/model_quantized.onnx",
+      "size": 22972370,
+      "sha256": "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1"
+    }
+  ],
+  "runtimeFiles": [
+    {
+      "path": "ort-wasm-simd-threaded.mjs",
+      "sha256": "c57ca56328877353a575e51bbca6f18450027d6c9bf2307a2cb2c41363b4de9f",
+      "size": 24381
+    },
+    {
+      "path": "ort-wasm-simd-threaded.wasm",
+      "sha256": "06ba057753da3847e4c24f02d91ab133455b0817c69a44993a9a53a2146df9e3",
+      "size": 14264838
+    },
+    {
+      "path": "ort-wasm-simd-threaded.asyncify.mjs",
+      "sha256": "0966b6105cd936744498aa60df7a22cbd47af3374dbc64a9ab561c08a71e3611",
+      "size": 53057
+    },
+    {
+      "path": "ort-wasm-simd-threaded.asyncify.wasm",
+      "sha256": "49871f5a4409519797e127440868a6d1923339d9185907f301a5b2a1d90af082",
+      "size": 26861777
+    }
+  ],
+  "licenses": [
+    {
+      "package": "@huggingface/transformers",
+      "path": "LICENSE",
+      "destination": "LICENSE-APACHE-2.0.txt",
+      "size": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8d85527a010e294a26b274749f74294b2a32cec5/LICENSE",
+      "destination": "LICENSE-ONNX-RUNTIME.txt",
+      "size": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    }
+  ],
+  "javascript": {
+    "path": "dist/transformers.min.js",
+    "destination": "transformers.min.js",
+    "size": 581935,
+    "sha256": "1475fd440e9932ab206682ee42cb18f6097403e9ee77ea62084c592d0f83597d"
+  }
+}

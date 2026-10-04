@@ -1,10 +1,12 @@
-import {app,BrowserWindow,dialog,ipcMain,Menu,protocol,shell,session as electronSession} from 'electron';
+import {app,BrowserWindow,dialog,ipcMain,Menu,protocol,shell,safeStorage,session as electronSession} from 'electron';
 import {promises as fs} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {createService} from '../server/index.mjs';
-import {createGameBundle,findTemplate,loadEmbeddedGame,readGame} from './bundles.mjs';
+import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,normalizeTarget} from './bundles.mjs';
+import {isUniversalMacApp} from './architectures.mjs';
+import {createCredentialStore} from './credential-store.mjs';
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
 const ROOT=path.resolve(HERE,'..');
@@ -40,7 +42,9 @@ function templateRoots(){
   return [process.env.ASTERLOOM_TEMPLATE_DIR,path.join(ROOT,'release','desktop'),path.join(process.resourcesPath,'desktop-templates'),current?(process.platform==='darwin'?path.dirname(path.dirname(current)):path.dirname(current)):null];
 }
 async function templateFor(target){
-  if(app.isPackaged&&((target==='mac'&&process.platform==='darwin'&&process.arch==='arm64')||(target==='mac-intel'&&process.platform==='darwin'&&process.arch==='x64')||(target==='windows'&&process.platform==='win32')))return currentBundle();
+  target=normalizeTarget(target);
+  if(app.isPackaged&&target==='mac'&&process.platform==='darwin'&&await isUniversalMacApp(currentBundle()))return currentBundle();
+  if(app.isPackaged&&target==='windows'&&process.platform==='win32')return currentBundle();
   return findTemplate(target,templateRoots());
 }
 function trustedExternal(value){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password;}catch{return false;}}
@@ -65,7 +69,7 @@ app.whenReady().then(async()=>{try{
   let savedTor=false;try{savedTor=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'tor-settings.json'),'utf8')).enabled===true;}catch{}
   // Native requests to a friend's onion relay originate from this fixed app origin.
   process.env.LEARN_ALLOWED_ORIGINS=[...(process.env.LEARN_ALLOWED_ORIGINS||'').split(',').filter(Boolean),APP_URL].join(',');
-  service=await createService({port:0,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
+  service=await createService({port:0,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),credentialStore:createCredentialStore({filename:path.join(app.getPath('userData'),'ai-account.enc'),safeStorage}),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
   await configureTorProxy(service.torStatus());
   ipcMain.handle('asterloom:tor-status',event=>ownFrame(event)?{...service.torStatus(),proxyConfigured}:{error:'This action is unavailable.'});
   ipcMain.handle('asterloom:set-tor',async(event,enabled)=>{
@@ -73,7 +77,7 @@ app.whenReady().then(async()=>{try{
     try{const state=enabled?await service.startTor():await service.stopTor();await configureTorProxy(state);await fs.writeFile(path.join(app.getPath('userData'),'tor-settings.json'),JSON.stringify({enabled}),{mode:0o600});return {...state,proxyConfigured};}
     catch{return {error:'Tor could not be started. Check the bundled runtime and network access.'};}
   });
-  const availableExports=[];for(const target of ['mac','mac-intel','windows'])if(await templateFor(target))availableExports.push(target);
+  const availableExports=[];for(const target of ['mac','windows'])if(await templateFor(target))availableExports.push(target);
   ipcMain.on('asterloom:bootstrap',event=>{event.returnValue=ownFrame(event)?{notebook:embedded?.notebook||null,platform:process.platform==='darwin'?'mac':process.platform==='win32'?'windows':process.platform,availableExports}:null;});
   ipcMain.handle('asterloom:export-game',async(event,packageText,target)=>{
     if(!ownFrame(event))return {error:'Only this application can export a notebook.'};
@@ -81,9 +85,9 @@ app.whenReady().then(async()=>{try{
     exporting=true;
     try{
       readGame(packageText); // Validate before opening a native dialog or copying files.
-      if(!['mac','mac-intel','windows'].includes(target))throw new Error('Choose mac, mac-intel or windows.');
+      target=normalizeTarget(target);
       const template=await templateFor(target);
-      if(!template)throw new Error(`The ${target==='mac'?'Apple Silicon macOS':target==='mac-intel'?'Intel macOS':'Windows'} runtime template is not installed. Export on that platform, or place its Asterloom release in the desktop-templates folder.`);
+      if(!template)throw new Error(`The ${target==='mac'?'universal Mac':'Windows'} runtime template is not installed. Install its Asterloom release beside this studio to enable this export.`);
       const chosen=await dialog.showOpenDialog(window,{title:'Choose where to save your learning game',buttonLabel:'Export game here',properties:['openDirectory','createDirectory']});
       if(chosen.canceled||!chosen.filePaths[0])return {canceled:true};
       const result=await createGameBundle({packageText,target,template,destination:chosen.filePaths[0]});
@@ -103,7 +107,7 @@ app.whenReady().then(async()=>{try{
       if(responseHeaders.get('content-type')?.includes('text/html')){
         const html=await upstream.text();
         const hashes=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(match=>!(/\bsrc\s*=/i.test(match[1]))).map(match=>`'sha256-${createHash('sha256').update(match[2]).digest('base64')}'`);
-        responseHeaders.set('Content-Security-Policy',`default-src 'self' data: blob:; script-src 'self' ${hashes.join(' ')}; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://*.onion; object-src 'none'; base-uri 'self'; frame-src 'none'`);
+        responseHeaders.set('Content-Security-Policy',`default-src 'self' data: blob:; script-src 'self' 'wasm-unsafe-eval' ${hashes.join(' ')}; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://*.onion; object-src 'none'; base-uri 'self'; frame-src 'none'`);
         responseHeaders.delete('content-length');
         return new Response(html,{status:upstream.status,headers:responseHeaders});
       }

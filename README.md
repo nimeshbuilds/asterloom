@@ -2,7 +2,7 @@
 
 # Asterloom
 
-A local-first studio for turning your own materials into portable, editable learning adventures. Core creation and play do not require an AI service. Keep several notebooks in the studio; export one selected notebook with its materials and the studio itself.
+A local-first studio for turning your own materials into portable, editable learning adventures. Core creation and play do not require an AI service. Asterloom is made by [NimeshBuilds](https://github.com/NimeshBuilds). Keep several notebooks in the studio; export one selected notebook with its materials and the studio itself.
 
 **Current status: working development build, not a validated commercial release.** The repository distinguishes implemented engines from authored scaffold specifications. Do not market all 75 recipes as distinct complete simulations or claim proven learning benefits before field evaluation.
 
@@ -22,14 +22,13 @@ Open **http://127.0.0.1:4319**. For development use `npm run dev` (Vite on port 
 
 ```sh
 npm run build
-node desktop/download-tor.mjs --host
-npm run package:desktop
+node desktop/download-tor.mjs --platform=mac
+npm run package:desktop -- --platform=mac
 ```
 
 Built applications are placed under `release/desktop/`:
 
-- `Asterloom-darwin-arm64/Asterloom.app` — Apple Silicon Mac.
-- `Asterloom-darwin-x64/Asterloom.app` — Intel Mac.
+- `Asterloom-darwin-universal/Asterloom.app` — one Mac app for Apple Silicon and Intel, macOS 13+.
 - `Asterloom-win32-x64/Asterloom.exe` — Windows x64; keep its entire folder together.
 
 The default packager creates development applications. A publisher can sign a prepared macOS bundle with `node scripts/sign-desktop.mjs --identity "Developer ID Application: …" --app source.app --output signed.app`; notarization remains a separate distribution step. CI artifacts are unsigned. Modified game exports require their own publisher signature/notarization for trusted distribution; they cannot inherit the original publisher seal. Normal OS trust protections remain in effect.
@@ -40,20 +39,21 @@ In the desktop studio, open a notebook → **Export** → choose a platform. The
 
 - A library of separate learning notebooks, editable source materials and source-linked challenges.
 - TXT, Markdown, copied text, CSV, JSON, SRT/VTT and HTML imports in the browser.
-- Local PDF, DOCX, PPTX, XLSX and EPUB extraction; ordinary website text import with network restrictions.
+- Local PDF, DOCX, PPTX, XLSX and EPUB extraction; bounded public-page import with Mozilla Readability, preserved headings/lists/code/tables, access-wall detection, final-URL provenance and downloadable original snapshots.
 - MP3/MP4 and supported media attachments. Supply transcripts/descriptions where automatic extraction is unavailable.
-- Deterministic source extraction, local keyword retrieval, source evidence checks and author review.
+- Deterministic source extraction, exact evidence offsets/revisions, local hybrid lexical + semantic retrieval, evidence-selected objective drafts and author review. Desktop authoring uses the bundled q8 MiniLM encoder through ONNX WASM by default; WebGPU is attempted when supported. Its English-focused similarity estimates select evidence, not authoritative answers. No remote model or API tokens are required. Offline HTML authoring retains lexical retrieval when the native model assets are unavailable.
+- New document and text uploads preserve their original files with SHA-256 checksums. Originals travel with the notebook as downloadable attachments alongside extracted text; earlier notebooks require reimport to add originals.
 - **Seventeen bounded activity engines**: sequences, classification, policy decisions, relationship graphs, budgets, rubrics, diagram labels, worked completion, data investigation, media checkpoints, stateful scenarios, construction, explanation, source-picture exploration, changing-rule sorting, puppet/pretend play and picture build-and-tell. Specialized scenario interfaces include prediction, multi-case planning, role perspectives, dialogue and supplied prompt/output comparison.
 - A versioned catalog of **75 scaffold specifications**: 25 general, 25 domain/professional and 25 age-adapted recipes. Each recipe has a runtime contract and content prerequisites. A suitable, author-reviewed model must be explicitly linked before the recipe is playable. These recipes reuse engines; they are not 75 independently validated simulations.
 - Structured activity authoring, examples, strict JSON import/export, validation and live interactive boards. Source changes invalidate dependent evidence; rebuilding refreshes extracted structures.
 - A deterministic chapter outline with verbatim evidence and separately identified fictional scenery.
 - Source-linked visual authoring: upload an illustration or optionally generate one through an image API. Drafts require author review and never become factual source material. Reviewed figures remain attached through export/remix.
-- Six illustrated world themes, a logo/icon system and 75 prepared scaffold illustrations.
+- A logo/icon system, six overall themes, and 75 authored world compositions with domain objects, age profiles, live state-driven scenes and prepared SVG previews. PixiJS scenes retain accessible DOM controls and a simpler rendering fallback. Recipes share engines and presentation primitives.
 - Ten offline CC0 music recordings, prepared scaffold pairings, volume/mute, optional synthesized fallback and interaction sounds.
 - Durable local notebook/progress storage, interrupted-session recovery and separate progress backups. Structured attempts use transparent spaced-review intervals; assisted, collaborative and caregiver-reviewed work earns no independent-learning credit.
 - Portable `.learnpack` and self-contained HTML exports with create/remix/re-export capability.
 - Private asynchronous challenge rooms, compatible-content fingerprints, persisted results, retry queues and deduplicated standings. Scores are friendly, self-reported competition.
-- Optional excerpt-only game-model drafting and wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. A copy/paste prompt-and-JSON workflow also works with an existing assistant subscription. Provider credentials remain ephemeral. A chat subscription is not assumed to grant third-party API access.
+- Optional excerpt-only game-model drafting and wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. A copy/paste prompt-and-JSON workflow also works with an existing assistant subscription. API keys remain in session memory. Provider catalogs are fetched dynamically with a manual model-ID fallback. Optional ChatGPT-plan OAuth plumbing uses PKCE, verified identity tokens, scope checks, encrypted desktop credentials and the public Responses API. This distribution leaves subscription sign-in disabled pending provider eligibility/approval; commercial integration is not established merely by having working code. Claude subscription login requires provider approval, and a general Grok subscription integration has not been verified. No CLI or user token scraping is used.
 - Opt-in Tor rooms with a verified bundled runtime, onion-only proxy routing, saved outboxes and restricted peer endpoints. Separate-process and native-renderer peer tests have passed locally; the host must remain open for synchronization.
 
 ## Sources are the game material
@@ -109,10 +109,28 @@ GitHub Actions runs web/source/service checks and native application export/repl
 
 ## Assets and rights
 
-Composer credits and original notices are in [`public/assets/licenses/`](public/assets/licenses/). The ten recordings are CC0 works by **Juhani Junkala / SubspaceAudio** and **hernandack**. DM Sans and Fraunces use the SIL Open Font License; Lucide uses ISC. Project source is private and unlicensed unless the owner supplies a commercial or open-source license. Included-asset permissions for notebook exports are documented separately.
+Composer credits and original notices are in [`public/assets/licenses/`](public/assets/licenses/). The ten recordings are CC0 works by **Juhani Junkala / SubspaceAudio** and **hernandack**. DM Sans and Fraunces use the SIL Open Font License; Lucide uses ISC. Asterloom source and original assets use the Personal Learning License in `LICENSE`; third-party assets retain their original licenses. Included-asset permissions for notebook exports are documented separately.
 
 ## Playable example
 
 After building, run `npx tsx scripts/build-showcase.ts`. `release/examples/The-Systems-Expedition.html` is a complete offline game with eight structured activities and a remixable studio. Its `.learnpack` can also be opened or exported as a native game from Asterloom.
 
 Build `npx tsx scripts/build-laboratories.ts` for two more complete offline notebooks: **The Learning Laboratories** and **The Little Explorers**. They include original teaching sources, editable models and prepared assets, and make no model calls during play.
+
+## Personal learning and commercial licensing
+
+The [Asterloom Personal Learning License](LICENSE) permits individual and family
+learning and free sharing for those purposes. Business and institutional uses
+require a separate written commercial agreement. This is **source-available**,
+not OSI open source. Your materials remain yours, while the runtime inside an
+export retains its license. Third-party libraries, models, music and fonts retain
+their own terms. See [licensing rationale](docs/licensing.md).
+
+## Local retrieval assets
+
+`npm run build` prepares integrity-checked model, tokenizer, ONNX WASM and notice
+files from the pinned manifest. After the first preparation, those files are reused
+locally. The desktop bundle includes them; gameplay never loads them or sends
+source text to a provider. A plain HTML export can play, edit and remake games
+without them, using exact lexical matching and deterministic creation. Model
+quality, enjoyment and learning transfer still require representative evaluation.

@@ -17,7 +17,7 @@ export function mergeNotebookChanges(base:Notebook,incoming:Notebook,current:Not
   if(!same(base[key],current[key])&&!same(incoming[key],current[key]))conflict();
   (result as unknown as Record<string,unknown>)[key]=incoming[key];
  }
- for(const key of ['sources','cards','activities','artwork'] as const){
+ for(const key of ['sources','cards','activities','artwork','learningObjectives'] as const){
   if(same(base[key],incoming[key]))continue;
   const before=base[key]||[],after=incoming[key]||[],now=current[key]||[];
   const prior=new Map(before.map(item=>[item.id,item])),next=new Map(after.map(item=>[item.id,item]));

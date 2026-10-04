@@ -5,6 +5,22 @@ const STOP = new Set('a an the of in to for on and or but is are was were be bei
 const words = (value: string) => normalizeText(value).split(' ').filter(word => word.length > 1 && !STOP.has(word));
 interface Candidate { source: Source; answer: string; prompt: string; evidence: string; concept: string; questionType: 'definition' | 'cloze' | 'sequence'; distractors?: string[] }
 
+/** Ignore subtitle control records without changing offsets or inventing a normalized quotation. */
+function maskSubtitleMetadata(text: string): string {
+  const timestamp = /^(?:\d{2}:)?\d{2}:\d{2}[.,]\d{3}\s*-->/;
+  if (!/^\uFEFF?WEBVTT\b/.test(text) && !text.split(/\r?\n/).some(line => timestamp.test(line.trim()))) return text;
+  const lines = [...text.matchAll(/[^\r\n]+|\r?\n/g)];
+  let inMetadata = false;
+  return lines.map((match, index) => {
+    const line = match[0]; if (/^\r?\n$/.test(line)) { if (index > 0 && /^\r?\n$/.test(lines[index - 1][0])) inMetadata = false; return line; }
+    const clean = line.trim(); if (/^(?:NOTE|STYLE|REGION)(?:\s|$)/.test(clean)) inMetadata = true;
+    const nextContent = lines[index + 1]?.[0] === '\n' || lines[index + 1]?.[0] === '\r\n' ? lines[index + 2]?.[0] : undefined;
+    const metadata = inMetadata || /^\uFEFF?WEBVTT(?:\s|$)/.test(clean) || timestamp.test(clean) || !!nextContent && timestamp.test(nextContent.trim());
+    // A nonempty marker also breaks numbered-step runs across distinct subtitle cues.
+    return metadata ? '#'.repeat(line.length) : line;
+  }).join('');
+}
+
 function definitions(source: Source): Candidate[] {
   const result: Candidate[] = [];
   for (const line of source.text.split(/\r?\n/)) {
@@ -75,7 +91,7 @@ export function compileNotebook(sources: Source[], options: CompileOptions = {})
   for (const source of sources) {
     if (source.status !== 'ready' || !source.text.trim()) { warnings.push(`“${source.title}” needs readable text or a transcript before it can produce learning activities.`); continue; }
     if (source.text.length > 500_000) warnings.push(`“${source.title}” is large. This local pass uses the first 500,000 characters; split it into sections to include the remainder.`);
-    const bounded = { ...source, text: source.text.slice(0, 500_000) };
+    const bounded = { ...source, text: maskSubtitleMetadata(source.text.slice(0, 500_000)) };
     const definitionsFound = definitions(bounded);
     if (definitionsFound.length > 1) {
       const terms = definitionsFound.map(candidate => candidate.answer);

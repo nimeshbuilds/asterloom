@@ -1,8 +1,11 @@
+import LearningScene from './LearningScene';
+import {getAgePresentation,WORLD_PALETTES,defaultWorldIdForKind} from '../data/worlds';
+import {activityScene,sceneActions,applySceneAction} from '../lib/worldScene';
 import PictureBuildBoard from './PictureBuildBoard';
 import { initialPictureBuildResponse } from '../lib/pictureBuildEngine';
 import ChildPlayBoard from './ChildPlayBoard';
 import { initialChildPlayResponse } from '../lib/childPlayEngine';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ArrowDown, ArrowUp, ArrowRight, BookOpen, Check, CheckCircle2, CircleHelp, GripVertical, Lightbulb, Link2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { evaluateActivity, validateActivity } from '../lib/structuredEngine';
 import type { ActivityResponse, Evaluation, StructuredActivity } from '../lib/structuredEngine';
@@ -30,8 +33,13 @@ export interface StructuredBoardProps {
   sources: Source[];
   artwork?: NotebookArtwork[];
   savedResponse?: unknown;
-  onSave: (response: unknown) => void;
-  onComplete: (evaluation: ActivityEvaluation) => void;
+  ageGroup?: string;
+  theme?: string;
+  scaffoldId?: string;
+  onSave: (response: unknown) => void | Promise<boolean | void>;
+  onComplete: (evaluation: ActivityEvaluation) => void | Promise<boolean | void>;
+  onCommit?: (response: unknown, evaluation: ActivityEvaluation) => void | Promise<boolean | void>;
+  onRetrySave?: (evaluation: ActivityEvaluation) => void | Promise<boolean | void>;
 }
 export const ACTIVITY_KIND_LABELS: Record<StructuredActivity['kind'], string> = {
   sequence: 'Rebuild the sequence', classification: 'Sort the evidence', decision: 'Make the decision',
@@ -67,7 +75,7 @@ function restoredResponse(activity: StructuredActivity, saved?: unknown): Activi
   }
 }
 
-export default function StructuredBoard({ activity, sources, artwork, savedResponse, onSave, onComplete }: StructuredBoardProps) {
+export default function StructuredBoard({ activity, sources, artwork, savedResponse, onSave, onComplete, onCommit, onRetrySave, ageGroup = 'adult', theme = 'islands', scaffoldId }: StructuredBoardProps) {
   const [response, setResponse] = useState<ActivityResponse>(() => restoredResponse(activity, savedResponse));
   const initialDraft = object(object(savedResponse)._draft);
   const [result, setResult] = useState<Evaluation | null>(() => initialDraft.checked === true ? evaluateActivity(activity, restoredResponse(activity, savedResponse)) : null);
@@ -75,51 +83,92 @@ export default function StructuredBoard({ activity, sources, artwork, savedRespo
   const [hintUsed, setHintUsed] = useState(initialDraft.hintUsed === true);
   const [evidenceOpen, setEvidenceOpen] = useState(initialDraft.evidenceOpen === true);
   const [announcement, setAnnouncement] = useState('');
+  const [savingResult, setSavingResult] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const checkRevision = useRef(0);
+  const failedCheck = useRef<Evaluation | null>(null);
   const [edgeFrom, setEdgeFrom] = useState(typeof initialDraft.edgeFrom === 'string' ? initialDraft.edgeFrom : '');
   const [edgeTo, setEdgeTo] = useState(typeof initialDraft.edgeTo === 'string' ? initialDraft.edgeTo : '');
   const [edgeRelation, setEdgeRelation] = useState(typeof initialDraft.edgeRelation === 'string' ? initialDraft.edgeRelation : '');
+  const [precisionOpen,setPrecisionOpen] = useState(initialDraft.precisionOpen === true);
+  const [caregiverPanelOpen,setCaregiverPanelOpen] = useState(initialDraft.caregiverPanelOpen === true);
+  const [worldSelection, setWorldSelection] = useState(typeof initialDraft.worldSelection === 'string' ? initialDraft.worldSelection : '');
   const [selectedLabel, setSelectedLabel] = useState(typeof initialDraft.selectedLabel === 'string' ? initialDraft.selectedLabel : '');
   const prefix = useId().replaceAll(':', '');
   const fingerprint = JSON.stringify(activity);
   const validation = useMemo(() => validateActivity(activity, sources), [fingerprint, sources]);
   useEffect(() => {
+    checkRevision.current += 1; failedCheck.current = null; setSavingResult(false); setSaveError('');
     const draft = object(object(savedResponse)._draft), restored = restoredResponse(activity, savedResponse);
     setResponse(restored); setResult(draft.checked === true ? evaluateActivity(activity, restored) : null); setShowHint(draft.showHint === true); setHintUsed(draft.hintUsed === true); setEvidenceOpen(draft.evidenceOpen === true);
-    setEdgeFrom(typeof draft.edgeFrom === 'string' ? draft.edgeFrom : ''); setEdgeTo(typeof draft.edgeTo === 'string' ? draft.edgeTo : ''); setEdgeRelation(typeof draft.edgeRelation === 'string' ? draft.edgeRelation : ''); setSelectedLabel(typeof draft.selectedLabel === 'string' ? draft.selectedLabel : ''); setAnnouncement('');
+    setEdgeFrom(typeof draft.edgeFrom === 'string' ? draft.edgeFrom : ''); setEdgeTo(typeof draft.edgeTo === 'string' ? draft.edgeTo : ''); setEdgeRelation(typeof draft.edgeRelation === 'string' ? draft.edgeRelation : ''); setSelectedLabel(typeof draft.selectedLabel === 'string' ? draft.selectedLabel : ''); setPrecisionOpen(draft.precisionOpen === true); setCaregiverPanelOpen(draft.caregiverPanelOpen === true); setWorldSelection(typeof draft.worldSelection === 'string' ? draft.worldSelection : ''); setAnnouncement('');
   }, [fingerprint]);
+  function persistedResponse(next: ActivityResponse, draft: Record<string, unknown> = {}) {
+    return { ...next, _draft: { edgeFrom, edgeTo, edgeRelation, selectedLabel, showHint, hintUsed, evidenceOpen, checked: Boolean(result), worldSelection, precisionOpen, caregiverPanelOpen, ...draft } };
+  }
   function persist(next: ActivityResponse, draft: Record<string, unknown> = {}) {
-    onSave({ ...next, _draft: { edgeFrom, edgeTo, edgeRelation, selectedLabel, showHint, hintUsed, evidenceOpen, checked: Boolean(result), ...draft } });
+    failedCheck.current = null; setSaveError('');
+    return onSave(persistedResponse(next, draft));
   }
   function change(next: ActivityResponse, draft: Record<string, unknown> = {}) {
     const supported = hintUsed || ('caregiverSupport' in next && next.caregiverSupport === true);
     if (supported) setHintUsed(true);
     setResponse(next); setResult(null); persist(next, { checked: false, ...draft, hintUsed: supported });
   }
-  function check() {
-    const assessed = evaluateActivity(activity, response);
-    const evaluation = { ...assessed, hintUsed: hintUsed || assessed.hintUsed === true }; setResult(evaluation);
+  async function check() {
+    if (savingResult) return;
+    const revision = ++checkRevision.current;
+    const retry = onRetrySave ? failedCheck.current : null;
+    const assessed = retry ?? evaluateActivity(activity, response);
+    const evaluation = { ...assessed, hintUsed: hintUsed || assessed.hintUsed === true };
+    setSavingResult(true); setSaveError(''); setResult(null);
     if (evaluation.hintUsed) setHintUsed(true);
-    persist(response, { checked: true, hintUsed: evaluation.hintUsed });
-    if (evaluation.valid) onComplete(evaluation);
+    try {
+      let saved: (boolean | void)[];
+      if (retry && onRetrySave) {
+        // Retry the same progress snapshot rather than counting another attempt.
+        saved = [await onRetrySave(evaluation)];
+      } else if (onCommit) {
+        // Response, completion, points and review scheduling share one transaction.
+        saved = [await onCommit(persistedResponse(response, { checked: true, hintUsed: evaluation.hintUsed }), evaluation)];
+      } else {
+        // Preview hosts may use separate callbacks; both must acknowledge success.
+        const responseSave = persist(response, { checked: true, hintUsed: evaluation.hintUsed });
+        const completionSave = evaluation.valid ? onComplete(evaluation) : undefined;
+        saved = await Promise.all([Promise.resolve(responseSave), Promise.resolve(completionSave)]);
+      }
+      if (revision !== checkRevision.current) return;
+      if (saved.some(value => value === false)) throw new Error('The result could not be saved.');
+      failedCheck.current = null; setResult(evaluation);
+    } catch {
+      if (revision === checkRevision.current) { failedCheck.current = evaluation; setSaveError('Your result has not been saved yet. Keep this page open and try saving it again.'); }
+    } finally {
+      if (revision === checkRevision.current) setSavingResult(false);
+    }
   }
   function restart() { setShowHint(false); setSelectedLabel(''); setEdgeFrom(''); setEdgeTo(''); setEdgeRelation(''); change(restoredResponse(activity), { showHint: false, hintUsed, selectedLabel: '', edgeFrom: '', edgeTo: '', edgeRelation: '' }); setAnnouncement('A fresh attempt is ready.'); }
   if (!validation.success) return <div className="structured-notice warning" role="alert"><strong>This activity needs an author’s attention.</strong><p>{validation.errors.slice(0, 3).join(' ')}</p></div>;
   const referencedFigure = sources.find(source => source.kind === 'image' && typeof source.dataUrl === 'string' && /^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source.dataUrl) && activity.sourceRefs.some(reference => reference.sourceId === source.id));
   const hints = result?.details ?? [];
   const detailClass = (id: string) => result?.valid ? hints.find(detail => detail.id === id)?.correct === true ? ' is-correct' : hints.find(detail => detail.id === id)?.correct === false ? ' needs-revision' : '' : '';
-  return <section className={`structured-board board-${activity.kind}`} aria-label={activity.title}>
+  const presentation = getAgePresentation(ageGroup);
+  const scene = activityScene(activity, response);
+  const palette = WORLD_PALETTES[theme] ?? WORLD_PALETTES.islands;
+  return <section className={`structured-board board-${activity.kind} presentation-${presentation.density}`} data-age={presentation.id} data-theme={theme} aria-busy={savingResult} aria-label={activity.title} style={{'--world-ink':palette.ink,'--world-accent':palette.accent,'--world-tint':palette.sky,'--world-paper':palette.paper} as CSSProperties}>
     <header className="structured-heading"><div><span className="structured-kicker">{ACTIVITY_KIND_LABELS[activity.kind]}</span><h2>{activity.title}</h2></div><span className="structured-badge">{activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Reflection' : 'Hands-on challenge'}</span></header>
     <p className="structured-instruction">{activity.instruction}</p>
     {activity.reviewStatus === 'needs-review' && <p className="structured-review-note">Draft preview: review the source meaning and answer rules in the studio before this activity can earn points or learning credit.</p>}
     <div className="sr-only" aria-live="polite">{announcement}</div>
+    <div className="structured-workspace" inert={savingResult || undefined}>
+    <LearningScene scaffoldId={scaffoldId ?? activity.scaffoldIds?.[0] ?? defaultWorldIdForKind(activity.kind)} theme={theme} ageGroup={ageGroup} snapshot={scene} selectedId={worldSelection} onSelect={id => {setWorldSelection(id);persist(response,{worldSelection:id});}} actions={sceneActions(activity,response,worldSelection)} onAction={action => change(applySceneAction(activity,response,action))} compact={['picture','picture-build','child-play'].includes(activity.kind)}/>
     {activity.kind === 'completion' && 'slotTokens' in response && <CompletionBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'data' && 'evidenceRows' in response && <DataBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'media' && 'activeCheckpointId' in response && <MediaBoard activity={activity} response={response} sources={sources} onChange={change}/>}
     {activity.kind === 'scenario' && 'actions' in response && <ScenarioBoard activity={activity} response={response} onChange={change}/>}
     {(activity.kind === 'construction' || activity.kind === 'explanation') && ('instances' in response || 'arguments' in response) && <CompositionBoard activity={activity} response={response} onChange={change}/>}
-    {activity.kind === 'picture-build' && 'parts' in response && <PictureBuildBoard activity={activity} response={response} sources={sources} onChange={change}/>}
-    {activity.kind === 'child-play' && 'actionIds' in response && <ChildPlayBoard activity={activity} response={response} sources={sources} onChange={change}/>}
-    {activity.kind === 'picture' && 'exploredTokenIds' in response && <PictureBoard activity={activity} response={response} sources={sources} onChange={change}/>}
+    {activity.kind === 'picture-build' && 'parts' in response && <PictureBuildBoard activity={activity} response={response} sources={sources} onChange={change} ageGroup={ageGroup} precisionOpen={precisionOpen} onPrecisionChange={open=>{setPrecisionOpen(open);persist(response,{precisionOpen:open});}}/>}
+    {activity.kind === 'child-play' && 'actionIds' in response && <ChildPlayBoard activity={activity} response={response} sources={sources} onChange={change} ageGroup={ageGroup} caregiverOpen={caregiverPanelOpen} onCaregiverToggle={open=>{setCaregiverPanelOpen(open);persist(response,{caregiverPanelOpen:open});}}/>}
+    {activity.kind === 'picture' && 'exploredTokenIds' in response && <PictureBoard activity={activity} response={response} sources={sources} onChange={change} ageGroup={ageGroup} caregiverOpen={caregiverPanelOpen} onCaregiverToggle={open=>{setCaregiverPanelOpen(open);persist(response,{caregiverPanelOpen:open});}}/>}
     {activity.kind === 'rule-switch' && 'firstCommitted' in response && <RuleSwitchBoard activity={activity} response={response} onChange={change}/>}
 
     {activity.kind === 'sequence' && 'order' in response && <div className="structured-sequence"><p className="structured-helper">Move the steps into a valid order. Use the arrows to rearrange them.</p><ol>{response.order.map((id, index) => { const item = activity.items.find(item => item.id === id)!; const move = (offset: number) => { const order = [...response.order]; [order[index], order[index + offset]] = [order[index + offset], order[index]]; change({ order }); setAnnouncement(`${item.label} moved to position ${index + offset + 1}.`); }; return <li key={id}><span className="structured-step-number">{index + 1}</span><GripVertical size={16} className="structured-grip" aria-hidden="true"/><span>{item.label}</span><div className="structured-move-controls"><button type="button" className="structured-icon-button" disabled={index === 0} aria-label={`Move ${item.label} up`} onClick={() => move(-1)}><ArrowUp size={17}/></button><button type="button" className="structured-icon-button" disabled={index === response.order.length - 1} aria-label={`Move ${item.label} down`} onClick={() => move(1)}><ArrowDown size={17}/></button></div></li>; })}</ol></div>}
@@ -139,7 +188,10 @@ export default function StructuredBoard({ activity, sources, artwork, savedRespo
     <div className="structured-tools"><button type="button" className="structured-text-button" aria-expanded={showHint} onClick={() => { const open = !showHint; setShowHint(open); if (open) setHintUsed(true); persist(response, { showHint: open, hintUsed: hintUsed || open }); }}><Lightbulb size={16}/>{showHint ? 'Hide hint' : 'A little help'}</button><button type="button" className="structured-text-button" onClick={restart}><RotateCcw size={15}/>Start over</button></div>
     {showHint && <div className="structured-hint"><Lightbulb size={18}/><p>{activity.hint}</p></div>}
     <details className="structured-evidence" open={evidenceOpen} onToggle={event => { const open = event.currentTarget.open; setEvidenceOpen(open); if (open) setHintUsed(true); persist(response, { evidenceOpen: open, hintUsed: hintUsed || open }); }}><summary><BookOpen size={16}/>Explore the source material</summary>{activity.sourceRefs.map((reference, index) => <div key={index}><strong>{sources.find(source => source.id === reference.sourceId)?.title ?? reference.sourceId}{reference.locator ? ` · ${reference.locator}` : ''}</strong><blockquote>{reference.evidence}</blockquote>{referencedFigure?.id === reference.sourceId && activity.kind !== 'diagram' && <figure className="structured-reference-figure"><img src={referencedFigure.dataUrl} alt={`Source figure: ${referencedFigure.title}`}/><figcaption>{referencedFigure.title}</figcaption></figure>}</div>)}<LearningFigures notebook={{sources,artwork}} activity={activity}/></details>
+    </div>
+    {saveError && <p className="structured-save-error" role="alert">{saveError}</p>}
     {result && <div className={`structured-feedback ${result.outcome}`} role="status"><div>{result.correct ? <CheckCircle2 size={23}/> : <CircleHelp size={23}/>}<strong>{result.outcome === 'draft-preview' ? 'Draft preview · author review needed' : result.outcome === 'correct' ? 'Your work holds together.' : result.outcome === 'self-reviewed' ? 'A useful reflection.' : result.outcome === 'invalid' ? 'A little more to complete.' : 'You have something to build on.'}</strong></div><p>{result.feedback}</p>{result.details.length > 0 && <ul tabIndex={0} aria-label="Evaluation details">{result.details.map(detail => <li key={detail.id} className={detail.correct === true ? 'passed' : detail.correct === false ? 'revisit' : ''}>{detail.correct === true ? <Check size={15}/> : <span className="structured-feedback-dot"/>}<span>{detail.message}</span></li>)}</ul>}</div>}
-    <footer className="structured-board-footer"><span>{result?.valid && result.correct !== null ? `${result.score} of ${result.maxScore} checks satisfied` : 'Saved as you explore'}</span><button type="button" className="structured-primary" onClick={check} disabled={result?.correct === true}><CheckCircle2 size={18}/>{result?.correct ? 'Challenge complete' : activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Save my reflection' : 'Check my work'}</button></footer>
+    <footer className="structured-board-footer"><span role={savingResult ? 'status' : undefined}>{savingResult ? 'Saving your result…' : result?.valid && result.correct !== null ? `${result.score} of ${result.maxScore} checks satisfied` : 'Saved as you explore'}</span><button type="button" className="structured-primary" onClick={() => void check()} disabled={savingResult || result?.correct === true}><CheckCircle2 size={18}/>{savingResult ? 'Saving result…' : saveError && onRetrySave ? 'Retry saving result' : result?.correct ? 'Challenge complete' : activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Save my reflection' : 'Check my work'}</button></footer>
+    <p className="nimeshbuilds-credit">Crafted by <a href="https://github.com/NimeshBuilds" target="_blank" rel="noreferrer">NimeshBuilds</a></p>
   </section>;
 }

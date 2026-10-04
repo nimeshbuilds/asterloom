@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {_electron as electron} from 'playwright';
 import {createService} from '../server/index.mjs';
+import {nativeTestExecutable} from './testing.mjs';
 
 const enabled=process.env.ASTERLOOM_NATIVE_TOR_TEST==='1';
 test('native IPC configures onion-only SOCKS and the sandboxed renderer joins a real onion room',{skip:!enabled,timeout:360000},async()=>{
@@ -17,7 +18,9 @@ test('native IPC configures onion-only SOCKS and the sandboxed renderer joins a 
     remote=await createService({port:0,dataDir:path.join(directory,'remote'),enableTor:true,torBinary:binary});
     const env={...process.env,ASTERLOOM_DATA_DIR:path.join(directory,'native')};delete env.ELECTRON_RUN_AS_NODE;
     const executable=process.env.ASTERLOOM_SMOKE_APP;
-    application=await electron.launch({...executable?{executablePath:executable,args:[]}:{args:['desktop/main.mjs']},env,cwd:process.cwd(),timeout:30000});
+    const selected=await nativeTestExecutable(executable,directory);
+    application=await electron.launch({...selected?{executablePath:selected,args:[]}:{args:['desktop/main.mjs']},env,cwd:process.cwd(),timeout:30000});
+    if(process.env.ASTERLOOM_SMOKE_ARCH)assert.equal(await application.evaluate(()=>process.arch),process.env.ASTERLOOM_SMOKE_ARCH);
     // The same transport contract applies to a studio and a standalone game.
     // Wait for either app's rendered world, then exercise its actual bridge.
     const page=await application.firstWindow();await page.getByRole('heading',{level:1}).first().waitFor({timeout:20000});

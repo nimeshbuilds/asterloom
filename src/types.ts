@@ -15,7 +15,17 @@ export interface Source {
   status: SourceStatus;
   addedAt: string;
   error?: string;
+  originalFile?: { name: string; mime: string; dataUrl: string; size: number; sha256: string };
+  /** Describes the imported web snapshot, not later edits to readable source text. */
+  webImport?: { requestedUrl: string; retrievedAt: string; extractor: string; contentStatus: 'extracted' | 'partial' | 'needs-assistance'; warnings: string[] };
 }
+
+export interface EvidenceLocator { kind: 'text' | 'page' | 'slide' | 'sheet' | 'timestamp'; label: string; lineStart: number; lineEnd: number }
+/** Offsets are UTF-16 code units in the exact readable source text, end exclusive. */
+export interface EvidenceReference { sourceId: string; sourceRevision: string; start: number; end: number; quote: string; locator: EvidenceLocator }
+export interface EvidenceBlock extends EvidenceReference { id: string; sourceTitle: string }
+export interface LearningObjective { id: string; title: string; operation: 'recall' | 'sequence' | 'classification' | 'explanation'; reviewStatus: 'needs-review' | 'reviewed'; evidence: EvidenceReference[] }
+
 
 export interface LearningCard {
   id: string;
@@ -58,6 +68,7 @@ export interface Notebook {
   cards: LearningCard[];
   activities?: StructuredActivity[];
   artwork?: NotebookArtwork[];
+  learningObjectives?: LearningObjective[];
   revision: number;
 }
 

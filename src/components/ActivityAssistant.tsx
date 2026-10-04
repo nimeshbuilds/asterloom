@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Copy, Download, Sparkles } from 'lucide-react';
-import type { Source } from '../types';
+import type { Source,EvidenceReference } from '../types';
+import {isCurrentEvidence} from '../lib/evidence';
 import type { StructuredActivity } from '../lib/structuredEngine';
-import type { ProviderConfig } from '../lib/provider';
+import {useProviderSession,canRequest} from '../lib/providerSession';
+import ProviderConnection from './ProviderConnection';
 import { ASSISTANT_ACTIVITY_KINDS, createActivityDraftPrompt, requestActivityDraft, validateActivityDraft } from '../lib/activityAssistant';
 import type { ActivityDraftRequest } from '../lib/activityAssistant';
 import { download } from '../lib/imports';
@@ -22,8 +24,8 @@ export function parseActivityAuthorDraft(text: string): ActivityAuthorDraft {
   return { sourceId: value.sourceId, excerpt: value.excerpt, kind: value.kind as ActivityDraftRequest['kind'], reply: value.reply };
 }
 
-export default function ActivityAssistant({ notebookId = 'preview', sources, ageGroup = 'adult', goal = 'Apply the material', onCreate, onError }: {
-  notebookId?: string; sources: Source[]; ageGroup?: string; goal?: string; onCreate: (activity: StructuredActivity) => void; onError: (message: string) => void;
+export default function ActivityAssistant({ notebookId = 'preview', sources, ageGroup = 'adult', goal = 'Apply the material', onCreate, onError, initialEvidence }: {
+  initialEvidence?: EvidenceReference; notebookId?: string; sources: Source[]; ageGroup?: string; goal?: string; onCreate: (activity: StructuredActivity) => void; onError: (message: string) => void;
 }) {
   const key = `asterloom:activity-assistant:${notebookId}`;
   const [initial] = useState(() => { try { const v = JSON.parse(localStorage.getItem(key) ?? '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; } });
@@ -31,7 +33,7 @@ export default function ActivityAssistant({ notebookId = 'preview', sources, age
   const [excerpt, setExcerpt] = useState(typeof initial.excerpt === 'string' ? initial.excerpt.slice(0, 6000) : '');
   const [kind, setKind] = useState<ActivityDraftRequest['kind']>(ASSISTANT_ACTIVITY_KINDS.includes(initial.kind) ? initial.kind : 'auto');
   const [reply, setReply] = useState(typeof initial.reply === 'string' ? initial.reply.slice(0, 100_000) : '');
-  const [config, setConfig] = useState<ProviderConfig>({ provider: 'openai', model: '', apiKey: '', baseUrl: '' });
+  const [config, setConfig] = useProviderSession();
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [draftSaveError, setDraftSaveError] = useState('');
   const saveFailureReported = useRef(false), draftInput = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController | null>(null), latest = useRef({ sources, onCreate, onError }); latest.current = { sources, onCreate, onError };
@@ -44,6 +46,7 @@ export default function ActivityAssistant({ notebookId = 'preview', sources, age
       if (!saveFailureReported.current) { saveFailureReported.current = true; latest.current.onError(warning); }
     }
   }, [key, sourceId, excerpt, kind, reply]);
+  useEffect(()=>{if(initialEvidence&&isCurrentEvidence(initialEvidence,latest.current.sources)){setSourceId(initialEvidence.sourceId);setExcerpt(initialEvidence.quote);setReply('');setMessage('The exact selected evidence is ready. Review the passage, then choose whether to request a draft.');}},[initialEvidence]);
   const source = sources.find(s => s.id === sourceId);
   function request(): ActivityDraftRequest {
     const current = latest.current.sources.find(s => s.id === sourceId);
@@ -89,14 +92,11 @@ export default function ActivityAssistant({ notebookId = 'preview', sources, age
     <details><summary>Read the selected source</summary><pre className="activity-source-preview">{source?.text.slice(0, 30_000) ?? 'Select readable material.'}</pre></details>
     <label>Exact passage to share<textarea rows={5} maxLength={6000} value={excerpt} onChange={event => setExcerpt(event.target.value)} disabled={busy} placeholder="Paste an exact passage from your source"/></label>
     <label>Activity to prepare<select value={kind} disabled={busy} onChange={event => setKind(event.target.value as typeof kind)}><option value="auto">Let the assistant choose a supported family</option>{ASSISTANT_ACTIVITY_KINDS.map(k => <option key={k} value={k}>{k[0].toUpperCase() + k.slice(1)}</option>)}</select></label>
-    <p className="structured-helper">Only this passage, source title, audience and learning goal are shared. One request, at most 3,000 output tokens, with no automatic retries. The provider may charge for API use.</p>
+    <p className="structured-helper">Only this passage, source title, audience and learning goal are shared. One request with no automatic retries. API routes request at most 3,000 output tokens; ChatGPT plan requests use provider-controlled limits. The provider may charge for API use.</p>
     <div className="activity-builder-actions"><button type="button" className="structured-secondary" disabled={!excerpt.trim()} onClick={() => void copy()}><Copy size={16}/>Copy activity prompt</button><button type="button" className="structured-secondary" disabled={!excerpt.trim()} onClick={() => { try { download(createActivityDraftPrompt(request()), 'asterloom-activity-prompt.txt', 'text/plain'); } catch (error) { report(error); } }}><Download size={16}/>Save activity prompt</button></div>
-    <details><summary>Or use an API / local model</summary><p>Credentials stay in this open form and never travel with a game. Existing chat subscriptions work through the copy-and-paste flow above.</p>
-      <label>Draft provider<select value={config.provider} disabled={busy} onChange={event => setConfig({ ...config, provider: event.target.value as ProviderConfig['provider'] })}><option value="openai">OpenAI API</option><option value="anthropic">Anthropic API</option><option value="xai">xAI API</option><option value="compatible">Compatible / local model</option></select></label>
-      <label>Draft model ID<input value={config.model} disabled={busy} onChange={event => setConfig({ ...config, model: event.target.value })}/></label>
-      <label>Draft API key<input type="password" autoComplete="off" value={config.apiKey} disabled={busy} onChange={event => setConfig({ ...config, apiKey: event.target.value })}/></label>
-      {config.provider === 'compatible' && <label>Draft endpoint URL<input value={config.baseUrl} disabled={busy} onChange={event => setConfig({ ...config, baseUrl: event.target.value })} placeholder="http://127.0.0.1:11434/v1"/></label>}
-      <button type="button" className="structured-secondary" disabled={busy || !excerpt.trim() || !config.model.trim() || (!config.apiKey && config.provider !== 'compatible')} onClick={() => void generate()}><Sparkles size={16}/>{busy ? 'Preparing a draft…' : 'Request one activity draft'}</button>
+    <details><summary>Or use an API / local model</summary><p>Connect an available provider below. You can also use the prepared prompt with your existing assistant.</p>
+      <ProviderConnection config={config} onChange={setConfig} disabled={busy}/>
+      <button type="button" className="structured-secondary" disabled={busy || !excerpt.trim() || !canRequest(config)} onClick={() => void generate()}><Sparkles size={16}/>{busy ? 'Preparing a draft…' : 'Request one activity draft'}</button>
       {busy && <button type="button" className="structured-secondary" onClick={() => controller.current?.abort()}>Cancel request</button>}
     </details>
     <label>Activity assistant JSON reply<textarea aria-label="Activity assistant JSON reply" rows={8} maxLength={100_000} value={reply} disabled={busy} onChange={event => setReply(event.target.value)} placeholder={'{"activity":{…}}'}/></label>

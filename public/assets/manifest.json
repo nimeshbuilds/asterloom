@@ -1,6 +1,6 @@
 {
   "brand": "Asterloom",
-  "version": 1,
+  "version": 2,
   "worlds": [
     {
       "id": "islands",
@@ -39,6 +39,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "concept-map-repair",
+      "composition": {
+        "id": "concept-map-repair",
+        "name": "The connection conservatory",
+        "domain": "concepts",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "bridge",
+            "label": "bridge",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/concept-map-repair.svg"
     },
     {
@@ -46,6 +76,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "classification-workshop",
+      "composition": {
+        "id": "classification-workshop",
+        "name": "The sorting greenhouse",
+        "domain": "categories",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "basket",
+            "label": "basket",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/classification-workshop.svg"
     },
     {
@@ -53,6 +113,36 @@
       "family": "match",
       "scene": "forest",
       "motif": "comparison-puzzle",
+      "composition": {
+        "id": "comparison-puzzle",
+        "name": "The twin observatories",
+        "domain": "comparison",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/comparison-puzzle.svg"
     },
     {
@@ -60,6 +150,36 @@
       "family": "match",
       "scene": "forest",
       "motif": "analogy-construction",
+      "composition": {
+        "id": "analogy-construction",
+        "name": "The bridge atelier",
+        "domain": "relationships",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "bridge",
+            "label": "bridge",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "key",
+            "label": "key",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/analogy-construction.svg"
     },
     {
@@ -67,6 +187,36 @@
       "family": "cloze",
       "scene": "library",
       "motif": "definition-building",
+      "composition": {
+        "id": "definition-building",
+        "name": "The word forge",
+        "domain": "language",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/definition-building.svg"
     },
     {
@@ -74,6 +224,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "process-reconstruction",
+      "composition": {
+        "id": "process-reconstruction",
+        "name": "The turning waterworks",
+        "domain": "processes",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "wave",
+            "label": "wave",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/process-reconstruction.svg"
     },
     {
@@ -81,6 +261,36 @@
       "family": "cloze",
       "scene": "library",
       "motif": "missing-step-completion",
+      "composition": {
+        "id": "missing-step-completion",
+        "name": "The apprentice bench",
+        "domain": "procedures",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/missing-step-completion.svg"
     },
     {
@@ -88,6 +298,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "fault-diagnosis",
+      "composition": {
+        "id": "fault-diagnosis",
+        "name": "The inspection outpost",
+        "domain": "diagnosis",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/fault-diagnosis.svg"
     },
     {
@@ -95,6 +335,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "repair-challenge",
+      "composition": {
+        "id": "repair-challenge",
+        "name": "The repair harbor",
+        "domain": "systems",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "wave",
+            "label": "wave",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/repair-challenge.svg"
     },
     {
@@ -102,6 +372,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "constrained-action-planning",
+      "composition": {
+        "id": "constrained-action-planning",
+        "name": "The route expedition",
+        "domain": "planning",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "basket",
+            "label": "basket",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/constrained-action-planning.svg"
     },
     {
@@ -109,6 +409,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "evidence-investigation",
+      "composition": {
+        "id": "evidence-investigation",
+        "name": "The evidence archive",
+        "domain": "evidence",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "key",
+            "label": "key",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/evidence-investigation.svg"
     },
     {
@@ -116,6 +446,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "claim-verification",
+      "composition": {
+        "id": "claim-verification",
+        "name": "The checking desk",
+        "domain": "evidence",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/claim-verification.svg"
     },
     {
@@ -123,6 +483,36 @@
       "family": "explain",
       "scene": "library",
       "motif": "argument-construction",
+      "composition": {
+        "id": "argument-construction",
+        "name": "The reasoning pavilion",
+        "domain": "reasoning",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/argument-construction.svg"
     },
     {
@@ -130,6 +520,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "competing-explanations",
+      "composition": {
+        "id": "competing-explanations",
+        "name": "The hypothesis observatory",
+        "domain": "science",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "flask",
+            "label": "flask",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/competing-explanations.svg"
     },
     {
@@ -137,6 +557,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "timeline-investigation",
+      "composition": {
+        "id": "timeline-investigation",
+        "name": "The time garden",
+        "domain": "history",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "clock",
+            "label": "clock",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/timeline-investigation.svg"
     },
     {
@@ -144,6 +594,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "branching-decisions",
+      "composition": {
+        "id": "branching-decisions",
+        "name": "The crossroads grove",
+        "domain": "decisions",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/branching-decisions.svg"
     },
     {
@@ -151,6 +631,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "role-missions",
+      "composition": {
+        "id": "role-missions",
+        "name": "The mission harbor",
+        "domain": "roles",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/role-missions.svg"
     },
     {
@@ -158,6 +668,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "resource-allocation",
+      "composition": {
+        "id": "resource-allocation",
+        "name": "The supply dock",
+        "domain": "resources",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "basket",
+            "label": "basket",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/resource-allocation.svg"
     },
     {
@@ -165,6 +705,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "prediction-and-experiment",
+      "composition": {
+        "id": "prediction-and-experiment",
+        "name": "The experiment glade",
+        "domain": "science",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "flask",
+            "label": "flask",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/prediction-and-experiment.svg"
     },
     {
@@ -172,6 +742,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "build-to-specification",
+      "composition": {
+        "id": "build-to-specification",
+        "name": "The makers yard",
+        "domain": "engineering",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/build-to-specification.svg"
     },
     {
@@ -179,6 +779,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "diagram-reconstruction",
+      "composition": {
+        "id": "diagram-reconstruction",
+        "name": "The model gallery",
+        "domain": "structures",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/diagram-reconstruction.svg"
     },
     {
@@ -186,6 +816,36 @@
       "family": "recall",
       "scene": "islands",
       "motif": "chart-and-data-investigation",
+      "composition": {
+        "id": "chart-and-data-investigation",
+        "name": "The observation tower",
+        "domain": "data",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "database",
+            "label": "database",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/chart-and-data-investigation.svg"
     },
     {
@@ -193,6 +853,36 @@
       "family": "timed",
       "scene": "ocean",
       "motif": "media-checkpoints",
+      "composition": {
+        "id": "media-checkpoints",
+        "name": "The listening cove",
+        "domain": "media",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "wave",
+            "label": "wave",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "clock",
+            "label": "clock",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/media-checkpoints.svg"
     },
     {
@@ -200,6 +890,36 @@
       "family": "recall",
       "scene": "islands",
       "motif": "recall-escape-mission",
+      "composition": {
+        "id": "recall-escape-mission",
+        "name": "The memory archipelago",
+        "domain": "recall",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "key",
+            "label": "key",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "star",
+            "label": "star",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/recall-escape-mission.svg"
     },
     {
@@ -207,6 +927,36 @@
       "family": "explain",
       "scene": "library",
       "motif": "structured-teach-back",
+      "composition": {
+        "id": "structured-teach-back",
+        "name": "The explanation studio",
+        "domain": "explanation",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/structured-teach-back.svg"
     },
     {
@@ -214,6 +964,36 @@
       "family": "match",
       "scene": "forest",
       "motif": "discovery-scenes",
+      "composition": {
+        "id": "discovery-scenes",
+        "name": "The little discovery garden",
+        "domain": "pictures",
+        "layout": "garden",
+        "objects": [
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 13,
+            "y": 63,
+            "size": 48
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 80,
+            "y": 23,
+            "size": 37
+          },
+          {
+            "glyph": "star",
+            "label": "star",
+            "x": 89,
+            "y": 77,
+            "size": 33
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/discovery-scenes.svg"
     },
     {
@@ -221,6 +1001,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "puppet-stories",
+      "composition": {
+        "id": "puppet-stories",
+        "name": "The pocket puppet theater",
+        "domain": "stories",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "puppet",
+            "label": "puppet",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "star",
+            "label": "star",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/puppet-stories.svg"
     },
     {
@@ -228,6 +1038,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "pretend-play-stations",
+      "composition": {
+        "id": "pretend-play-stations",
+        "name": "The make-believe market",
+        "domain": "pretend-play",
+        "layout": "garden",
+        "objects": [
+          {
+            "glyph": "basket",
+            "label": "basket",
+            "x": 13,
+            "y": 63,
+            "size": 48
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 80,
+            "y": 23,
+            "size": 37
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 89,
+            "y": 77,
+            "size": 33
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/pretend-play-stations.svg"
     },
     {
@@ -235,6 +1075,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "pattern-parade",
+      "composition": {
+        "id": "pattern-parade",
+        "name": "The shape parade",
+        "domain": "patterns",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "star",
+            "label": "star",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "train",
+            "label": "train",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/pattern-parade.svg"
     },
     {
@@ -242,6 +1112,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "build-and-tell",
+      "composition": {
+        "id": "build-and-tell",
+        "name": "The story toybox",
+        "domain": "picture-building",
+        "layout": "garden",
+        "objects": [
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 13,
+            "y": 63,
+            "size": 48
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 80,
+            "y": 23,
+            "size": 37
+          },
+          {
+            "glyph": "leaf",
+            "label": "leaf",
+            "x": 89,
+            "y": 77,
+            "size": 33
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/build-and-tell.svg"
     },
     {
@@ -249,6 +1149,36 @@
       "family": "match",
       "scene": "forest",
       "motif": "word-and-picture-workshop",
+      "composition": {
+        "id": "word-and-picture-workshop",
+        "name": "The picture-post workshop",
+        "domain": "language",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "star",
+            "label": "star",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/word-and-picture-workshop.svg"
     },
     {
@@ -256,6 +1186,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "step-train",
+      "composition": {
+        "id": "step-train",
+        "name": "The little learning railway",
+        "domain": "sequence",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "train",
+            "label": "train",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "clock",
+            "label": "clock",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/step-train.svg"
     },
     {
@@ -263,6 +1223,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "changing-rule-sorter",
+      "composition": {
+        "id": "changing-rule-sorter",
+        "name": "The changing garden gates",
+        "domain": "classification",
+        "layout": "garden",
+        "objects": [
+          {
+            "glyph": "basket",
+            "label": "basket",
+            "x": 13,
+            "y": 63,
+            "size": 48
+          },
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 80,
+            "y": 23,
+            "size": 37
+          },
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 89,
+            "y": 77,
+            "size": 33
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/changing-rule-sorter.svg"
     },
     {
@@ -270,6 +1260,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "clue-map",
+      "composition": {
+        "id": "clue-map",
+        "name": "The clue island",
+        "domain": "navigation",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "key",
+            "label": "key",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/clue-map.svg"
     },
     {
@@ -277,6 +1297,36 @@
       "family": "explain",
       "scene": "library",
       "motif": "partner-helper",
+      "composition": {
+        "id": "partner-helper",
+        "name": "The together treehouse",
+        "domain": "cooperation",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "bridge",
+            "label": "bridge",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "heart",
+            "label": "heart",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/partner-helper.svg"
     },
     {
@@ -284,6 +1334,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "evidence-detective",
+      "composition": {
+        "id": "evidence-detective",
+        "name": "The detective bureau",
+        "domain": "evidence",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/evidence-detective.svg"
     },
     {
@@ -291,6 +1371,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "experiment-predictor",
+      "composition": {
+        "id": "experiment-predictor",
+        "name": "The junior discovery lab",
+        "domain": "science",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "flask",
+            "label": "flask",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "star",
+            "label": "star",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/experiment-predictor.svg"
     },
     {
@@ -298,6 +1408,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "systems-repair-workshop",
+      "composition": {
+        "id": "systems-repair-workshop",
+        "name": "The tinkering hangar",
+        "domain": "systems",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "cloud",
+            "label": "cloud",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/systems-repair-workshop.svg"
     },
     {
@@ -305,6 +1445,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "plan-and-budget-expedition",
+      "composition": {
+        "id": "plan-and-budget-expedition",
+        "name": "The expedition stores",
+        "domain": "resources",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "basket",
+            "label": "basket",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/plan-and-budget-expedition.svg"
     },
     {
@@ -312,6 +1482,36 @@
       "family": "explain",
       "scene": "library",
       "motif": "teach-a-character",
+      "composition": {
+        "id": "teach-a-character",
+        "name": "The curious character corner",
+        "domain": "explanation",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "puppet",
+            "label": "puppet",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/teach-a-character.svg"
     },
     {
@@ -319,6 +1519,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "hypothesis-casebook",
+      "composition": {
+        "id": "hypothesis-casebook",
+        "name": "The hypothesis field station",
+        "domain": "science",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "flask",
+            "label": "flask",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/hypothesis-casebook.svg"
     },
     {
@@ -326,6 +1556,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "claim-and-evidence-arena",
+      "composition": {
+        "id": "claim-and-evidence-arena",
+        "name": "The evidence forum",
+        "domain": "argument",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/claim-and-evidence-arena.svg"
     },
     {
@@ -333,6 +1593,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "constraint-design-workshop",
+      "composition": {
+        "id": "constraint-design-workshop",
+        "name": "The design foundry",
+        "domain": "engineering",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/constraint-design-workshop.svg"
     },
     {
@@ -340,6 +1630,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "perspective-switching-drama",
+      "composition": {
+        "id": "perspective-switching-drama",
+        "name": "The perspective stage",
+        "domain": "perspectives",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "puppet",
+            "label": "puppet",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/perspective-switching-drama.svg"
     },
     {
@@ -347,6 +1667,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "strategy-campaign",
+      "composition": {
+        "id": "strategy-campaign",
+        "name": "The strategy mesa",
+        "domain": "planning",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/strategy-campaign.svg"
     },
     {
@@ -354,6 +1704,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "scenario-internship",
+      "composition": {
+        "id": "scenario-internship",
+        "name": "The practice precinct",
+        "domain": "professional",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/scenario-internship.svg"
     },
     {
@@ -361,6 +1741,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "research-dossier",
+      "composition": {
+        "id": "research-dossier",
+        "name": "The research stacks",
+        "domain": "research",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "database",
+            "label": "database",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/research-dossier.svg"
     },
     {
@@ -368,6 +1778,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "prototype-studio",
+      "composition": {
+        "id": "prototype-studio",
+        "name": "The prototype deck",
+        "domain": "engineering",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/prototype-studio.svg"
     },
     {
@@ -375,6 +1815,36 @@
       "family": "explain",
       "scene": "library",
       "motif": "review-studio",
+      "composition": {
+        "id": "review-studio",
+        "name": "The review atelier",
+        "domain": "review",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/review-studio.svg"
     },
     {
@@ -382,6 +1852,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "capstone-campaign",
+      "composition": {
+        "id": "capstone-campaign",
+        "name": "The summit expedition",
+        "domain": "application",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "flag",
+            "label": "flag",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/capstone-campaign.svg"
     },
     {
@@ -389,6 +1889,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "zero-trust-access-lab",
+      "composition": {
+        "id": "zero-trust-access-lab",
+        "name": "The access control room",
+        "domain": "security",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "key",
+            "label": "key",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "server",
+            "label": "server",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/zero-trust-access-lab.svg"
     },
     {
@@ -396,6 +1926,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "incident-response-command",
+      "composition": {
+        "id": "incident-response-command",
+        "name": "The incident observatory",
+        "domain": "security",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "clock",
+            "label": "clock",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/incident-response-command.svg"
     },
     {
@@ -403,6 +1963,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "threat-model-canvas",
+      "composition": {
+        "id": "threat-model-canvas",
+        "name": "The trust boundary workshop",
+        "domain": "security",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/threat-model-canvas.svg"
     },
     {
@@ -410,6 +2000,36 @@
       "family": "explain",
       "scene": "library",
       "motif": "secure-code-review",
+      "composition": {
+        "id": "secure-code-review",
+        "name": "The secure code desk",
+        "domain": "security",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "code",
+            "label": "code",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/secure-code-review.svg"
     },
     {
@@ -417,6 +2037,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "packet-path-inspector",
+      "composition": {
+        "id": "packet-path-inspector",
+        "name": "The packet relay",
+        "domain": "networking",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "server",
+            "label": "server",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "wave",
+            "label": "wave",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/packet-path-inspector.svg"
     },
     {
@@ -424,6 +2074,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "prompt-experiment-bench",
+      "composition": {
+        "id": "prompt-experiment-bench",
+        "name": "The prompt experiment bench",
+        "domain": "ai",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "flask",
+            "label": "flask",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/prompt-experiment-bench.svg"
     },
     {
@@ -431,6 +2111,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "agent-workflow-studio",
+      "composition": {
+        "id": "agent-workflow-studio",
+        "name": "The tool routing studio",
+        "domain": "agentic-ai",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "code",
+            "label": "code",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/agent-workflow-studio.svg"
     },
     {
@@ -438,6 +2148,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "retrieval-quality-lab",
+      "composition": {
+        "id": "retrieval-quality-lab",
+        "name": "The retrieval archive",
+        "domain": "retrieval",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "database",
+            "label": "database",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/retrieval-quality-lab.svg"
     },
     {
@@ -445,6 +2185,36 @@
       "family": "match",
       "scene": "forest",
       "motif": "model-evaluation-arena",
+      "composition": {
+        "id": "model-evaluation-arena",
+        "name": "The evaluation observatory",
+        "domain": "ai",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "database",
+            "label": "database",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/model-evaluation-arena.svg"
     },
     {
@@ -452,6 +2222,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "ai-safety-response-lab",
+      "composition": {
+        "id": "ai-safety-response-lab",
+        "name": "The response review room",
+        "domain": "ai-safety",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/ai-safety-response-lab.svg"
     },
     {
@@ -459,6 +2259,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "cloud-architecture-builder",
+      "composition": {
+        "id": "cloud-architecture-builder",
+        "name": "The cloud systems yard",
+        "domain": "cloud",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "cloud",
+            "label": "cloud",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "server",
+            "label": "server",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "bridge",
+            "label": "bridge",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/cloud-architecture-builder.svg"
     },
     {
@@ -466,6 +2296,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "cloud-cost-control",
+      "composition": {
+        "id": "cloud-cost-control",
+        "name": "The cloud supply console",
+        "domain": "cloud",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "cloud",
+            "label": "cloud",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/cloud-cost-control.svg"
     },
     {
@@ -473,6 +2333,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "kubernetes-recovery-room",
+      "composition": {
+        "id": "kubernetes-recovery-room",
+        "name": "The cluster repair dock",
+        "domain": "orchestration",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "cube",
+            "label": "cube",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "server",
+            "label": "server",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/kubernetes-recovery-room.svg"
     },
     {
@@ -480,6 +2370,36 @@
       "family": "sequence",
       "scene": "ocean",
       "motif": "infrastructure-change-planner",
+      "composition": {
+        "id": "infrastructure-change-planner",
+        "name": "The infrastructure map room",
+        "domain": "infrastructure",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "server",
+            "label": "server",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/infrastructure-change-planner.svg"
     },
     {
@@ -487,6 +2407,36 @@
       "family": "connect",
       "scene": "observatory",
       "motif": "distributed-systems-trace",
+      "composition": {
+        "id": "distributed-systems-trace",
+        "name": "The distributed signal trail",
+        "domain": "distributed-systems",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "server",
+            "label": "server",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "clock",
+            "label": "clock",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "wave",
+            "label": "wave",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/distributed-systems-trace.svg"
     },
     {
@@ -494,6 +2444,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "debugger-detective",
+      "composition": {
+        "id": "debugger-detective",
+        "name": "The trace inspection desk",
+        "domain": "development",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "code",
+            "label": "code",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/debugger-detective.svg"
     },
     {
@@ -501,6 +2481,36 @@
       "family": "match",
       "scene": "forest",
       "motif": "api-contract-workshop",
+      "composition": {
+        "id": "api-contract-workshop",
+        "name": "The interface workshop",
+        "domain": "development",
+        "layout": "workbench",
+        "objects": [
+          {
+            "glyph": "code",
+            "label": "code",
+            "x": 14,
+            "y": 65,
+            "size": 42
+          },
+          {
+            "glyph": "bridge",
+            "label": "bridge",
+            "x": 49,
+            "y": 17,
+            "size": 31
+          },
+          {
+            "glyph": "document",
+            "label": "document",
+            "x": 86,
+            "y": 62,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/api-contract-workshop.svg"
     },
     {
@@ -508,6 +2518,36 @@
       "family": "cloze",
       "scene": "library",
       "motif": "database-query-lab",
+      "composition": {
+        "id": "database-query-lab",
+        "name": "The query workbench",
+        "domain": "databases",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "database",
+            "label": "database",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "code",
+            "label": "code",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/database-query-lab.svg"
     },
     {
@@ -515,6 +2555,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "version-control-recovery",
+      "composition": {
+        "id": "version-control-recovery",
+        "name": "The revision route",
+        "domain": "version-control",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "branch",
+            "label": "branch",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "clock",
+            "label": "clock",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "wrench",
+            "label": "wrench",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/version-control-recovery.svg"
     },
     {
@@ -522,6 +2592,36 @@
       "family": "sort",
       "scene": "workshop",
       "motif": "test-design-studio",
+      "composition": {
+        "id": "test-design-studio",
+        "name": "The test design atelier",
+        "domain": "testing",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "code",
+            "label": "code",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "pencil",
+            "label": "pencil",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "shield",
+            "label": "shield",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/test-design-studio.svg"
     },
     {
@@ -529,6 +2629,36 @@
       "family": "diagram",
       "scene": "observatory",
       "motif": "data-pipeline-repair",
+      "composition": {
+        "id": "data-pipeline-repair",
+        "name": "The data channel works",
+        "domain": "data-engineering",
+        "layout": "network",
+        "objects": [
+          {
+            "glyph": "database",
+            "label": "database",
+            "x": 13,
+            "y": 26,
+            "size": 40
+          },
+          {
+            "glyph": "gear",
+            "label": "gear",
+            "x": 85,
+            "y": 25,
+            "size": 38
+          },
+          {
+            "glyph": "wave",
+            "label": "wave",
+            "x": 50,
+            "y": 83,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/data-pipeline-repair.svg"
     },
     {
@@ -536,6 +2666,36 @@
       "family": "recall",
       "scene": "islands",
       "motif": "statistics-evidence-lab",
+      "composition": {
+        "id": "statistics-evidence-lab",
+        "name": "The statistics field lab",
+        "domain": "statistics",
+        "layout": "console",
+        "objects": [
+          {
+            "glyph": "chart",
+            "label": "chart",
+            "x": 12,
+            "y": 27,
+            "size": 36
+          },
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 86,
+            "y": 60,
+            "size": 42
+          },
+          {
+            "glyph": "flask",
+            "label": "flask",
+            "x": 49,
+            "y": 16,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/statistics-evidence-lab.svg"
     },
     {
@@ -543,6 +2703,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "product-tradeoff-council",
+      "composition": {
+        "id": "product-tradeoff-council",
+        "name": "The product council",
+        "domain": "product",
+        "layout": "stage",
+        "objects": [
+          {
+            "glyph": "scales",
+            "label": "scales",
+            "x": 12,
+            "y": 35,
+            "size": 41
+          },
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 88,
+            "y": 36,
+            "size": 41
+          },
+          {
+            "glyph": "compass",
+            "label": "compass",
+            "x": 50,
+            "y": 13,
+            "size": 29
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/product-tradeoff-council.svg"
     },
     {
@@ -550,6 +2740,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "language-dialogue-trail",
+      "composition": {
+        "id": "language-dialogue-trail",
+        "name": "The conversation promenade",
+        "domain": "language",
+        "layout": "trail",
+        "objects": [
+          {
+            "glyph": "speech",
+            "label": "speech",
+            "x": 13,
+            "y": 59,
+            "size": 38
+          },
+          {
+            "glyph": "globe",
+            "label": "globe",
+            "x": 48,
+            "y": 20,
+            "size": 30
+          },
+          {
+            "glyph": "bridge",
+            "label": "bridge",
+            "x": 87,
+            "y": 53,
+            "size": 42
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/language-dialogue-trail.svg"
     },
     {
@@ -557,6 +2777,36 @@
       "family": "scenario",
       "scene": "islands",
       "motif": "clinical-reasoning-casebook",
+      "composition": {
+        "id": "clinical-reasoning-casebook",
+        "name": "The clinical case desk",
+        "domain": "clinical",
+        "layout": "archive",
+        "objects": [
+          {
+            "glyph": "heart",
+            "label": "heart",
+            "x": 12,
+            "y": 38,
+            "size": 40
+          },
+          {
+            "glyph": "book",
+            "label": "book",
+            "x": 88,
+            "y": 32,
+            "size": 43
+          },
+          {
+            "glyph": "lens",
+            "label": "lens",
+            "x": 49,
+            "y": 83,
+            "size": 30
+          }
+        ],
+        "settingNote": "Illustrated setting. Learning objects and rules come from your reviewed material."
+      },
       "file": "scaffolds/clinical-reasoning-casebook.svg"
     }
   ],

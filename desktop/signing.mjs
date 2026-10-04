@@ -1,4 +1,4 @@
-import {promises as fs} from 'node:fs';
+import {promises as fs,constants as fsConstants} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath} from 'node:url';
@@ -66,7 +66,7 @@ export async function signApplicationCopy({app,output,identity}){
   const temp=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-sign-'));const candidate=path.join(temp,path.basename(target));let publication;
   try{
     console.log('Copying the application into local signing staging.');
-    await fs.cp(source,candidate,{recursive:true,verbatimSymlinks:true,errorOnExist:true,force:false});
+    await fs.cp(source,candidate,{recursive:true,verbatimSymlinks:true,errorOnExist:true,force:false,mode:fsConstants.COPYFILE_FICLONE});
     // Only remove presentation metadata that prevents sealing this NEW copy.
     // Security metadata, including quarantine and provenance, is preserved.
     for(const name of ['com.apple.FinderInfo','com.apple.ResourceFork'])await command('/usr/bin/xattr',['-dr',name,candidate]);
@@ -85,7 +85,7 @@ export async function signApplicationCopy({app,output,identity}){
     }
     const report={format:'asterloom-signing-report',version:1,app:path.basename(target),signing:'developer-id',authority:appDetails.match(/^Authority=(.+)$/m)?.[1],teamIdentifier:appDetails.match(/^TeamIdentifier=(.+)$/m)?.[1],timestamp:appDetails.match(/^Timestamp=(.+)$/m)?.[1],hardenedRuntime:true,strictDeepVerification:true,machOBinaries:inventory.binaries.length,notarized:false,runtimeValidation:'pending',generatedAt:new Date().toISOString()};
     await fs.mkdir(path.dirname(target),{recursive:true});publication=await fs.mkdtemp(path.join(path.dirname(target),'.asterloom-signing-'));
-    const staged=path.join(publication,path.basename(target));await fs.cp(candidate,staged,{recursive:true,verbatimSymlinks:true,errorOnExist:true,force:false});
+    const staged=path.join(publication,path.basename(target));await fs.cp(candidate,staged,{recursive:true,verbatimSymlinks:true,errorOnExist:true,force:false,mode:fsConstants.COPYFILE_FICLONE});
     await command('/usr/bin/codesign',['--verify','--deep','--strict','--verbose=2',staged]);
     await fs.rename(staged,target);await fs.writeFile(`${target}.signing.json`,JSON.stringify(report,null,2));
     console.log(`Signed candidate prepared: ${target}. Native/PDF/Tor validation and authenticated notarization remain separate steps.`);

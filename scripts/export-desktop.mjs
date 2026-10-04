@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {createGameBundle,findTemplate} from '../desktop/bundles.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const [input,target='mac',output=path.join(ROOT,'release','games')]=process.argv.slice(2);
-if(!input)throw new Error('Usage: node scripts/export-desktop.mjs notebook.learnpack mac|mac-intel|windows [output-directory]');
+if(!input)throw new Error('Usage: node scripts/export-desktop.mjs notebook.learnpack mac|windows [output-directory]');
 await fs.mkdir(output,{recursive:true});
 const template=await findTemplate(target,[process.env.ASTERLOOM_TEMPLATE_DIR,path.join(ROOT,'release','desktop')]);
 if(!template)throw new Error('No runtime template exists for this platform. Run node scripts/package-desktop.mjs first.');

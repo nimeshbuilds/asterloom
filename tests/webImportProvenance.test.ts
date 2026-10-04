@@ -1,0 +1,24 @@
+import {describe,it,expect} from 'vitest';
+import type {Source} from '../src/types';
+import {parsePackage,serializePackage,validateWebImport} from '../src/lib/package';
+import {bytesDigest,evidenceBlocks,isCurrentEvidence} from '../src/lib/evidence';
+import {createNotebook} from '../src/lib/utils';
+import {compileNotebook} from '../src/lib/compiler';
+const webImport={requestedUrl:'https://example.org/original?chapter=2',retrievedAt:'2026-10-04T12:00:00Z',extractor:'mozilla-readability',contentStatus:'partial' as const,warnings:['Only the publicly delivered excerpt was imported.','Embedded diagrams and linked material were not imported.']};
+describe('portable web snapshot provenance',()=>{
+ it('preserves requested and final URLs, receipt warnings, exact snapshot bytes and searchable evidence through export',()=>{
+  const raw='<article><h1>Public excerpt</h1><p>Orbit: The curved path of an object around a body.</p></article>',bytes=new TextEncoder().encode(raw);
+  const source:Source={id:'web-page',kind:'website',title:'Public excerpt',text:'Public excerpt\nOrbit: The curved path of an object around a body.',status:'ready',url:'https://example.org/redirected/chapter',addedAt:webImport.retrievedAt,webImport,originalFile:{name:'example.org-snapshot.html',mime:'text/html',dataUrl:`data:text/html;base64,${Buffer.from(bytes).toString('base64')}`,size:bytes.length,sha256:bytesDigest(bytes)}};
+  const exported=serializePackage(createNotebook({sources:[source]}));const loaded=parsePackage(exported).sources[0];expect(loaded.webImport).toEqual({...webImport,retrievedAt:'2026-10-04T12:00:00.000Z'});expect(loaded.url).toBe(source.url);expect(loaded.originalFile).toEqual(source.originalFile);const [block]=evidenceBlocks(loaded);expect(isCurrentEvidence(block,[loaded])).toBe(true);expect(block.quote).not.toContain('<article>');
+  const changed={...loaded,text:loaded.text+' Added by the author.'};expect(changed.webImport).toEqual(loaded.webImport);expect(isCurrentEvidence(block,[changed])).toBe(false);
+ });
+ it('retains assisted placeholders without claiming extracted content and strips unrelated credentials',()=>{const value=validateWebImport({...webImport,contentStatus:'needs-assistance',extractor:'manual-import-guidance',apiKey:'never-export',headers:{authorization:'never-export'}});expect(value.contentStatus).toBe('needs-assistance');expect(JSON.stringify(value)).not.toContain('never-export');const source:Source={id:'blocked-page',kind:'website',title:'Sign-in required',text:'',status:'needs-transcript',url:webImport.requestedUrl,addedAt:webImport.retrievedAt,webImport:value};const loaded=parsePackage(serializePackage(createNotebook({sources:[source]}))).sources[0];expect(loaded.text).toBe('');expect(evidenceBlocks(loaded)).toEqual([]);expect(loaded.webImport?.warnings).toEqual(webImport.warnings);});
+ it.each([
+  {requestedUrl:'javascript:alert(1)'},{requestedUrl:'https://alice:secret@example.org/'},{requestedUrl:'not a URL'},{requestedUrl:'https://example.org/'+ 'a'.repeat(4000)},
+  {retrievedAt:'invalid'},{extractor:'x'.repeat(201)},{contentStatus:'complete-and-verified'},{warnings:Array.from({length:21},()=> 'warning')},{warnings:['w'.repeat(2001)]},{warnings:[{}]},
+ ])('rejects malformed or oversized provenance %j',change=>{expect(()=>validateWebImport({...webImport,...change})).toThrow();});
+});
+describe('subtitle source compilation',()=>{
+ it.each(['WEBVTT\n\n00:00:01.000 --> 00:00:05.000\n','1\r\n00:00:01,000 --> 00:00:05,000\r\n'])('keeps spoken evidence but never teaches a timestamp/header %s',header=>{const text=header+'Repeated practice gives learners more opportunities to recall information from memory.';const source:Source={id:'captions',kind:'transcript',title:'Lecture',text,status:'ready',addedAt:webImport.retrievedAt};const result=compileNotebook([source]);expect(result.cards.length).toBeGreaterThan(0);for(const card of result.cards){expect(card.answer).not.toBe('00');expect(card.evidence).not.toContain('-->');expect(card.options).not.toContain('WEBVTT');expect(source.text).toContain(card.evidence);expect(card.questionType).toBe('cloze');}expect(source.text).toBe(text);});
+ it('does not join numbered procedures across distinct cues or learn NOTE/STYLE control blocks',()=>{const text='WEBVTT\n\nNOTE A verylongmetadatacomment is not spoken teaching material and must not become a recall answer.\n\nSTYLE\n::cue { color: blue; }\n\ncue-name\n00:00:01.000 --> 00:00:02.000\n1. Open the wooden gate.\n\n00:00:03.000 --> 00:00:04.000\n2. Walk across the garden.\n\n00:00:05.000 --> 00:00:06.000\n3. Close the wooden gate.';const source:Source={id:'cues',kind:'transcript',title:'Cues',text,status:'ready',addedAt:webImport.retrievedAt};const cards=compileNotebook([source]).cards;expect(cards).toEqual([]);});
+});

@@ -1,3 +1,4 @@
+import {getAgePresentation} from '../data/worlds';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Source } from '../types';
 import { initialPictureResponse, isPictureNarration, isPictureRaster, validatePictureSources } from '../lib/pictureEngine';
@@ -5,8 +6,8 @@ import type { PictureActivity, PictureResponse, PictureToken } from '../lib/pict
 import { duckMusic } from '../lib/music';
 import './picture.css';
 
-export default function PictureBoard({ activity, response, onChange, sources }: {
-  activity: PictureActivity; response: PictureResponse; onChange: (value: PictureResponse) => void; sources: Source[];
+export default function PictureBoard({ activity, response, onChange, sources, ageGroup = 'adult', caregiverOpen, onCaregiverToggle }: {
+  activity: PictureActivity; response: PictureResponse; onChange: (value: PictureResponse) => void; sources: Source[]; ageGroup?:string;caregiverOpen?:boolean;onCaregiverToggle?:(open:boolean)=>void;
 }) {
   const prefix = useId(), audio = useRef<HTMLAudioElement>(null);
   const [imageSize, setImageSize] = useState({ width: 100, height: 100 });
@@ -31,7 +32,7 @@ export default function PictureBoard({ activity, response, onChange, sources }: 
     return <svg viewBox={`${x} ${y} ${width} ${height}`} aria-hidden="true" focusable="false"><defs><clipPath id={clip}><rect x={x} y={y} width={width} height={height}/></clipPath></defs><image href={scene?.dataUrl} width={imageSize.width} height={imageSize.height} clipPath={`url(#${clip})`}/></svg>;
   }
   if (errors.length || imageBroken || !isPictureRaster(scene?.dataUrl)) return <div className="picture-board"><p className="picture-notice" role="alert">This picture needs its original image and source notes before it can be played. Open the studio to restore the missing material.</p><details><summary>Material to restore</summary><ul>{[...errors, ...(imageBroken ? ['The attached raster file could not be decoded by this browser.'] : [])].map((error, i) => <li key={i}>{error}</li>)}</ul></details></div>;
-  return <section className="picture-board" aria-label={activity.mode === 'word-picture' ? 'Words and pictures' : 'Picture discovery'}>
+  return <section className={`picture-board presentation-${getAgePresentation(ageGroup).density}`} aria-label={activity.mode === 'word-picture' ? 'Words and pictures' : 'Picture discovery'}>
     <div className="picture-modes" aria-label="Picture activity modes">
       <button type="button" aria-pressed={state.phase === 'explore'} onClick={() => { audio.current?.pause(); change({ phase: 'explore' }); }}>Explore the picture</button>
       <button type="button" aria-pressed={state.phase === 'play'} onClick={() => change({ phase: 'play' })}>Play with pictures</button>
@@ -57,6 +58,6 @@ export default function PictureBoard({ activity, response, onChange, sources }: 
       <div className="picture-next"><span role="status">{currentSelection ? 'Picture saved. You can change your mind.' : 'Choose one picture when you are ready.'}</span>{activeIndex < activity.rounds.length - 1 ? <button type="button" className="picture-primary" disabled={!currentSelection} onClick={() => round(activity.rounds[activeIndex + 1].id)}>Next clue <span aria-hidden="true">→</span></button> : <p>{Object.values(state.answers).every(Boolean) ? 'Ready? Use “Check my work” below.' : 'Visit the other clues to finish your picture choices.'}</p>}</div>
     </>}
     {mediaError && <p role="alert" className="picture-notice">{mediaError}</p>}
-    <details className="picture-caregiver"><summary>For a grown-up</summary><p>{activity.caregiverNote}</p><p>Read the words, help with the controls, and invite the child to explain what they notice. If you guide the answer, mark this attempt as supported. Listening and taking breaks never cost points.</p><button type="button" disabled={state.caregiverSupport} onClick={() => change({ caregiverSupport: true })}>{state.caregiverSupport ? 'Caregiver support recorded' : 'We worked on the answers together'}</button></details>
+    <details className="picture-caregiver" open={caregiverOpen} onToggle={event=>{if(event.currentTarget.open!==caregiverOpen)onCaregiverToggle?.(event.currentTarget.open);}}><summary>For a grown-up</summary><p>{activity.caregiverNote}</p><p>Read the words, help with the controls, and invite the child to explain what they notice. If you guide the answer, mark this attempt as supported. Listening and taking breaks never cost points.</p><button type="button" disabled={state.caregiverSupport} onClick={() => change({ caregiverSupport: true })}>{state.caregiverSupport ? 'Caregiver support recorded' : 'We worked on the answers together'}</button></details>
   </section>;
 }
