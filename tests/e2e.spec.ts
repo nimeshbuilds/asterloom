@@ -87,6 +87,59 @@ test('hiding a hint cannot restore independent recall credit after pause and rel
   expect(saved.activeSession.state).toMatchObject({ assisted: true, hint: false, independentCount: 0 });
 });
 
+test('editing source material blocks stale saved answers from earning credit', async ({ page }) => {
+  await openLibrary(page);
+  await page.getByRole('button', { name: 'Open A small guide to the cosmos', exact: true }).click();
+  await page.getByRole('button', { name: 'Begin adventure', exact: false }).click();
+  await page.locator('.answer-option').first().click();
+  await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
+  await page.getByRole('button', { name: 'Open studio', exact: false }).click();
+  await page.locator('.source-main').first().click();
+  await page.getByRole('textbox', { name: 'Readable source text', exact: true }).fill('Comet: an icy object that travels through the solar system.');
+  await page.getByRole('button', { name: 'Done', exact: false }).click();
+  await page.getByRole('button', { name: 'Play game', exact: false }).click();
+  await expect(page.getByRole('heading', { name: 'Review the source references', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check my answer', exact: false })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Back to notebook', exact: true }).click();
+  await expect(page.locator('.world-statbar')).toContainText('0discovery points');
+});
+
+test('revised objectives clear current completion while keeping historical XP', async ({ page }) => {
+  await openLibrary(page);
+  await page.getByRole('button', { name: 'Open A small guide to the cosmos', exact: true }).click();
+  await page.getByRole('button', { name: 'Begin adventure', exact: false }).click();
+  await page.locator('.answer-option').filter({ hasText: /Star$/ }).click();
+  await page.getByRole('button', { name: 'Check my answer', exact: false }).click();
+  await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
+  await expect(page.locator('.world-statbar')).toContainText('1solved independently');
+  await page.getByRole('button', { name: 'Open studio', exact: false }).click();
+  await page.getByRole('tab', { name: /Challenges/ }).click();
+  await page.getByRole('button', { name: 'Edit challenge 1', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Question or situation', exact: true }).fill('Select the astronomical term that matches this definition.');
+  await page.getByRole('button', { name: 'Save challenge', exact: false }).click();
+  await page.getByRole('button', { name: 'Your worlds', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Open A small guide to the cosmos', exact: true }).click();
+  await expect(page.locator('.world-statbar')).toContainText('0solved independently'); await expect(page.locator('.world-statbar')).toContainText('20discovery points');
+  await page.getByRole('button', { name: 'Your worlds', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Open Inside the connected world', exact: true }).click();
+  await page.locator('.system-mission').filter({ hasText: 'Plan a small lab' }).click();
+  await page.getByRole('spinbutton').nth(0).fill('2'); await page.getByRole('spinbutton').nth(1).fill('1');
+  await page.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await page.getByRole('button', { name: 'Save & return', exact: false }).click();
+  await expect(page.locator('.system-mission.completed')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Open studio', exact: false }).click();
+  await page.getByRole('tab', { name: /Challenges/ }).click();
+  await page.getByRole('button', { name: 'Edit Plan a small lab', exact: true }).click();
+  const json = page.getByRole('textbox', { name: 'Activity JSON', exact: true });
+  const activity = JSON.parse(await json.inputValue()); activity.budget = 9; activity.reviewStatus = 'needs-review';
+  await json.fill(JSON.stringify(activity)); await page.getByRole('button', { name: 'Import activities', exact: true }).click();
+  await page.getByRole('button', { name: 'Your worlds', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Open Inside the connected world', exact: true }).click();
+  await expect(page.locator('.system-mission.completed')).toHaveCount(0); await expect(page.locator('.world-statbar')).toContainText('50discovery points');
+  await page.locator('.system-mission').filter({ hasText: 'Plan a small lab' }).click();
+  await expect(page.getByRole('spinbutton').nth(0)).toHaveValue('0'); await expect(page.locator('.structured-feedback')).toHaveCount(0);
+});
+
 test('create, edit, export exactly one notebook, import, and keep the other notebook private', async ({ page }, testInfo) => {
   await openLibrary(page);
   await createNotebook(page, 'Networks for explorers');
@@ -136,6 +189,60 @@ test('an existing assistant can refine wording through a checked local JSON exch
   const notebook = JSON.parse(await readFile(packFile, 'utf8')).notebook;
   expect(notebook.cards[0]).toMatchObject({ prompt: cards[0].prompt, answer: cards[0].answer, evidence: cards[0].evidence, reviewStatus: 'needs-review' });
   expect(aiCalls).toBe(0);
+});
+
+test('delayed wording refinement preserves newer title edits and rejects newer source edits', async ({ page }, testInfo) => {
+  let release: (() => void) | undefined; let requestNumber = 0;
+  await page.route('**/api/generate', async route => {
+    const number = ++requestNumber;
+    const cards = JSON.parse(route.request().postDataJSON().prompt.split('REFERENCE DATA:\n')[1]);
+    cards[0].prompt = `Wording draft ${number}`;
+    await new Promise<void>(resolve => { release = resolve; });
+    await route.fulfill({ json: { text: JSON.stringify({ cards }) } });
+  });
+  await openLibrary(page); await createNotebook(page, 'Before the slow request');
+  const start = async () => {
+    release = undefined;
+    await page.getByRole('button', { name: 'Refine with optional AI', exact: false }).click();
+    await page.getByRole('combobox', { name: 'Or connect an API provider', exact: true }).selectOption('compatible');
+    await page.getByRole('textbox', { name: 'Model ID', exact: true }).fill('local-test-model');
+    await page.getByRole('button', { name: 'Refine wording', exact: true }).click();
+    await expect.poll(() => Boolean(release)).toBe(true); await closeDialog(page);
+  };
+  await start();
+  await page.getByRole('textbox', { name: 'Notebook title', exact: true }).fill('My newer title');
+  release!();
+  await expect(page.locator('.challenge-review').first()).toContainText('Wording draft 1');
+  await expect(page.getByRole('textbox', { name: 'Notebook title', exact: true })).toHaveValue('My newer title');
+  await start();
+  await page.getByRole('tab', { name: /Materials/ }).click(); await page.locator('.source-main').first().click();
+  await page.getByRole('textbox', { name: 'Readable source text', exact: true }).fill(notes + '\nA newly added observation must be preserved.');
+  await page.getByRole('button', { name: 'Done', exact: false }).click(); release!();
+  await expect(page.getByRole('dialog')).toContainText('Your latest edits were kept.');
+  await page.getByRole('button', { name: 'Got it', exact: true }).click();
+  const exported = await exportDownload(page, 'pack'); const path = testInfo.outputPath('intervening-edits.learnpack'); await exported.saveAs(path);
+  const notebook = JSON.parse(await readFile(path, 'utf8')).notebook;
+  expect(notebook.title).toBe('My newer title'); expect(notebook.sources[0].text).toContain('A newly added observation');
+  expect(notebook.cards[0].prompt).toBe('Wording draft 1'); expect(notebook.cards.every((card: any) => card.reviewStatus === 'needs-review')).toBe(true);
+});
+
+test('rebuilding changed source structure replaces obsolete derived game models', async ({ page }, testInfo) => {
+  await openLibrary(page); await createNotebook(page, 'Changing categories');
+  const rebuild = async (text: string) => {
+    await page.getByRole('tab', { name: /Materials/ }).click(); await page.locator('.source-main').first().click();
+    await page.getByRole('textbox', { name: 'Readable source text', exact: true }).fill(text);
+    await page.getByRole('button', { name: 'Done', exact: false }).click();
+    await page.getByRole('button', { name: 'Build learning game', exact: false }).click();
+  };
+  await rebuild('Warm > A\nCool > B');
+  const firstExport = await exportDownload(page, 'pack'); const firstPath = testInfo.outputPath('categories-before.learnpack'); await firstExport.saveAs(firstPath);
+  const before = JSON.parse(await readFile(firstPath, 'utf8')).notebook;
+  expect(before.activities).toHaveLength(1); expect(before.activities[0].kind).toBe('classification'); await closeDialog(page);
+  await rebuild('Warm > A\nCool > B\nWarm > C');
+  const nextExport = await exportDownload(page, 'pack'); const nextPath = testInfo.outputPath('categories-after.learnpack'); await nextExport.saveAs(nextPath);
+  const after = JSON.parse(await readFile(nextPath, 'utf8')).notebook;
+  expect(after.activities).toHaveLength(1); expect(after.activities[0].id).not.toBe(before.activities[0].id);
+  expect(after.activities[0].items).toHaveLength(3); expect(after.activities[0].extractedFrom).toBe(after.sources[0].id);
 });
 
 test('a full HTML export plays and creates a new remixed game entirely offline', async ({ page, browser }, testInfo) => {
@@ -200,9 +307,20 @@ test('optional artwork remains a reviewed source-bound presentation asset throug
   await closeDialog(page);
   await page.getByRole('button', { name: 'I checked this visual against the source', exact: false }).click();
   await expect(page.locator('.visual-gallery')).toContainText('Reviewed visual');
+  await page.locator('.visual-gallery summary').click();
+  const visualAudit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+  await writeFile('.qa/accessibility-visual-studio.json', JSON.stringify(visualAudit.violations, null, 2));
+  expect.soft(visualAudit.violations.filter(issue => issue.impact === 'serious' || issue.impact === 'critical').map(issue => ({ id: issue.id, targets: issue.nodes.map(node => node.target) }))).toEqual([]);
+  await page.locator('.visual-studio').screenshot({ path: '.qa/visual-studio-desktop.png', animations: 'disabled' });
+  const viewport = page.viewportSize()!; await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= 391)).toBe(true);
+  await page.locator('.visual-studio').screenshot({ path: '.qa/visual-studio-mobile.png', animations: 'disabled' });
+  await page.setViewportSize(viewport);
   await page.getByRole('button', { name: 'Your worlds', exact: true }).last().click();
   await page.getByRole('button', { name: 'Open Visual learning world', exact: true }).click();
   await expect(page.locator('.learning-figures img')).toHaveCount(1);
+  await page.locator('.learning-figures summary').click();
+  await page.screenshot({ path: '.qa/visual-provenance.png', fullPage: true, animations: 'disabled' });
   await page.locator('.mission-card').filter({ has: page.getByRole('heading', { name: 'Recall escape mission', exact: true }) }).click();
   await page.getByRole('button', { name: 'View learning figures', exact: true }).click();
   await expect(page.locator('.learning-figures img')).toBeVisible();
@@ -224,6 +342,17 @@ test('optional artwork remains a reviewed source-bound presentation asset throug
   const remixed = await exportDownload(learner, 'pack'); const remixPath = testInfo.outputPath('visual-remix.learnpack'); await remixed.saveAs(remixPath);
   const remix = JSON.parse(await readFile(remixPath, 'utf8')).notebook;
   expect(remix.artwork.map((asset: any) => asset.reviewStatus)).toEqual(['reviewed', 'draft']); expect(remix.sources).toHaveLength(1);
+  await closeDialog(learner);
+  await learner.getByRole('tab', { name: /Materials/ }).click(); await learner.locator('.source-main').first().click();
+  await learner.getByRole('textbox', { name: 'Readable source text', exact: true }).fill('The original source passage has been removed by the author.');
+  await learner.getByRole('button', { name: 'Done', exact: false }).click();
+  await learner.getByRole('tab', { name: /Game design/ }).click();
+  await expect(learner.locator('.visual-gallery .status-pill').filter({ hasText: 'Citation needs repair' })).toHaveCount(2);
+  const reviewButtons = learner.getByRole('button', { name: 'I checked this visual against the source', exact: false });
+  await expect(reviewButtons).toHaveCount(2); await expect(reviewButtons.nth(0)).toBeDisabled(); await expect(reviewButtons.nth(1)).toBeDisabled();
+  await learner.getByRole('tab', { name: /Challenges/ }).click();
+  const reviewStatuses = await learner.locator('.challenge-review .status-pill').allTextContents();
+  expect(reviewStatuses.length).toBeGreaterThan(0); expect(reviewStatuses.every(status => status === 'Needs review')).toBe(true);
   expect(imageCalls).toBe(1); await context.close();
 });
 
@@ -374,6 +503,7 @@ test('library, creator, recall game and all structured boards pass serious acces
   };
   await audit('library');
   await page.getByRole('button', { name: 'Edit A small guide to the cosmos', exact: true }).click(); await audit('creator');
+  await page.getByRole('tab', { name: /Game design/ }).click(); await audit('design');
   await page.getByRole('button', { name: 'Play game', exact: false }).click(); await audit('game');
   await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
   await page.getByRole('button', { name: 'Your worlds', exact: true }).last().click();

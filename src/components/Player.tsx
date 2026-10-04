@@ -4,7 +4,7 @@ import type { LearningCard, Notebook, Progress } from '../types';
 import type { Scaffold } from '../data/scaffolds';
 import { AGE_GROUPS } from '../data/scaffolds';
 import { recordAttempt, selectDueCards } from '../lib/storage';
-import { normalizeText, seededShuffle, stableHash } from '../lib/utils';
+import { hasCurrentCardEvidence, normalizeText, seededShuffle, stableHash } from '../lib/utils';
 import WorldArt from './WorldArt';
 import LearningFigures from './LearningFigures';
 import {musicFeedback,duckMusic} from '../lib/music';
@@ -60,11 +60,12 @@ function chunksFor(card: LearningCard, notebook: Notebook): { items: string[]; i
 }
 
 export default function Player({ notebook, scaffold, progress, onProgress, onExit, onError, onComplete }: Props) {
+  const eligibleCards = notebook.cards.filter(item => hasCurrentCardEvidence(item, notebook.sources));
   const [session] = useState(() => {
     const saved = progress.activeSession;
-    if (saved?.scaffoldId === scaffold.id && saved.index < saved.cardIds.length && saved.cardIds.every(id => notebook.cards.some(card => card.id === id))) return saved;
+    if (saved?.scaffoldId === scaffold.id && saved.index < saved.cardIds.length && saved.cardIds.every(id => eligibleCards.some(card => card.id === id))) return saved;
     const seed = stableHash(`${notebook.id}:${Date.now()}`);
-    return { scaffoldId: scaffold.id, cardIds: selectDueCards(notebook.cards, progress, Math.min(8, notebook.cards.length)).map(card => card.id), index: 0, seed, startedAt: new Date().toISOString(), state: undefined };
+    return { scaffoldId: scaffold.id, cardIds: selectDueCards(eligibleCards, progress, Math.min(8, eligibleCards.length)).map(card => card.id), index: 0, seed, startedAt: new Date().toISOString(), state: undefined };
   });
   const [index, setIndex] = useState(Math.min(session.index, session.cardIds.length));
   const [state, setState] = useState<PlayState>(() => restoreState(session.state));
@@ -72,7 +73,8 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   const latestProgress = useRef(progress); latestProgress.current = progress;
   const completed = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  const cards = session.cardIds.map(id => notebook.cards.find(card => card.id === id)).filter((card): card is LearningCard => !!card);
+  const sessionIsCurrent = session.cardIds.every(id => eligibleCards.some(item => item.id === id));
+  const cards = session.cardIds.map(id => eligibleCards.find(card => card.id === id)).filter((card): card is LearningCard => !!card);
   const card = cards[index];
   const done = index >= cards.length;
   const young = notebook.ageGroup === '3-5' || notebook.ageGroup === '6-8';
@@ -92,11 +94,12 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     return () => window.clearInterval(timer);
   }, [isTimed, done, session.startedAt]);
   useEffect(() => {
-    if (done && cards.length && !completed.current) { completed.current = true; musicFeedback('complete'); onComplete?.(state.independentCount, cards.length); }
+    if (sessionIsCurrent && done && cards.length && !completed.current) { completed.current = true; musicFeedback('complete'); onComplete?.(state.independentCount, cards.length); }
   }, [done]);
 
   function submit(correct: boolean) {
     if (!card || state.submitted) return;
+    if (!sessionIsCurrent || !hasCurrentCardEvidence(card, notebook.sources)) { onError('This challenge’s source material changed. Review or rebuild it in the studio before playing.'); return; }
     musicFeedback(correct?'success':'try-again');
     const assisted = state.assisted || state.hint || state.evidence || scaffold.family === 'explain';
     let updated = recordAttempt(latestProgress.current, card, correct, assisted ? 'guessing' : state.confidence);
@@ -121,6 +124,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     window.speechSynthesis.cancel(); const utterance=new SpeechSynthesisUtterance(card?.prompt ?? scaffold.name); utterance.onstart=()=>duckMusic(true);utterance.onend=()=>duckMusic(false);utterance.onerror=()=>duckMusic(false);window.speechSynthesis.speak(utterance);
   }
 
+  if (!sessionIsCurrent || (!cards.length && notebook.cards.length > 0)) return <div className="player-empty"><BookOpen size={40}/><h2>Review the source references</h2><p>These challenges reference material that changed. Rebuild from the current sources or review the questions in the studio before playing.</p><button className="btn primary" onClick={onExit}>Back to notebook</button></div>;
   if (!cards.length) return <div className="player-empty"><BookOpen size={40}/><h2>No challenges to play yet</h2><p>Add sources and create challenges in the studio first.</p><button className="btn primary" onClick={onExit}>Back to the studio</button></div>;
 
   if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><div className="session-complete"><div className="completion-art"><WorldArt theme={notebook.theme}/></div><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{progress.xp}</strong><span>Total practice XP</span></div><div><strong>{progress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div></div>;
@@ -128,7 +132,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   const source = notebook.sources.find(item => item.id === card.sourceId);
   const sourceVisuals = (notebook.artwork ?? []).filter(art => art.sourceId === card.sourceId && art.reviewStatus === 'reviewed' && source?.text.includes(art.evidence));
   const conceptLabel = normalizeText(card.concept).includes(normalizeText(card.answer)) ? 'Source recall' : card.concept;
-  const pool = [card, ...seededShuffle(notebook.cards.filter(item => item.id !== card.id && normalizeText(item.answer) !== normalizeText(card.answer)), session.seed + index)].filter((item, at, all) => all.findIndex(other => normalizeText(other.answer) === normalizeText(item.answer)) === at).slice(0, young ? 2 : 3);
+  const pool = [card, ...seededShuffle(eligibleCards.filter(item => item.id !== card.id && normalizeText(item.answer) !== normalizeText(card.answer)), session.seed + index)].filter((item, at, all) => all.findIndex(other => normalizeText(other.answer) === normalizeText(item.answer)) === at).slice(0, young ? 2 : 3);
   const pairAnswers = seededShuffle(pool.map(item => item.answer), session.seed + index + 31);
   const ordering = chunksFor(card, notebook);
   const sequenceOrder = state.order.length === ordering.items.length && new Set(state.order).size === ordering.items.length && state.order.every(value => Number(value) < ordering.items.length) ? state.order : seededShuffle(ordering.items.map((_, at) => String(at)), session.seed + index + 47);
@@ -164,6 +168,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
       <main className="challenge-area">
         <div className="challenge-meta"><span className="eyebrow">CHALLENGE {index + 1} OF {cards.length}</span>{isTimed && <span className="timer-chip" aria-label="Elapsed session time">{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')} · no time limit</span>}<span className="concept-chip">{conceptLabel}</span></div>
         <p className="game-instructions">{instructions[scaffold.family]}</p>
+        {card.questionType === 'manual' && !card.sourceId && <p className="caregiver-note">Author-written challenge. The answer was supplied by the notebook author.</p>}
         {young && <p className="caregiver-note">{notebook.ageGroup === '3-5' ? 'Explore together with a grown-up. Use read-aloud whenever it helps.' : 'Need a little help? Try read-aloud or open a hint.'}</p>}
         <section className="challenge-card">
           <h1 ref={heading} tabIndex={-1}>{pairMode ? (scaffold.family === 'sort' ? 'Give every idea a home.' : scaffold.family === 'connect' ? 'Make the connections.' : 'Find the matching pairs.') : scaffold.family === 'sequence' ? (ordering.isProcedure ? 'What happens first? And next?' : 'Put the passage back together.') : scaffold.family === 'explain' ? `How would you explain ${card.concept}?` : card.prompt.split('\n\n')[0]}</h1>

@@ -18,6 +18,8 @@ The default build produces these development bundles:
 
 Double-click the `.app` or `.exe`. Windows users must retain its sibling resources and runtime files. This is a portable application folder, not a lone dependency-free Windows binary. `--platform=mac` builds both Mac variants; `--platform=mac-arm64`, `--platform=mac-intel`, and `--platform=windows` build one target.
 
+The packager downloads the exact target platform canvas N-API binding from the npm URL in `package-lock.json`, verifies its locked SHA-512 integrity, and installs it after pruning. Wrong-platform bindings are removed; any additional unconfigured production native module makes the build fail. This keeps PDF extraction available in cross-built Windows and Intel Mac bundles. Actual native smoke tests also extract a real PDF through the bundled service.
+
 For developer launch after a frontend build and validator generation, use `electron .` with root package main set to `desktop/main.mjs`. The packaging command regenerates `desktop/generated/package-validation.mjs` from the same TypeScript package validator used by the browser. Keep it synchronized after validator changes.
 
 ## Export a game
@@ -46,7 +48,7 @@ An exported game has a deterministic package identity based on its complete note
 
 ## Distribution status
 
-These are **development builds**. No Apple Developer ID certificate, notarization credentials, or Windows Authenticode certificate is configured. macOS game exports are re-signed ad hoc on a Mac after embedding their notebook, which supports local testing but is not trusted commercial signing. Operating systems may warn or block distribution builds; their normal trust protections are not bypassed.
+These are **development builds**. No Apple Developer ID certificate, notarization credentials, or Windows Authenticode certificate is configured. macOS game exports are signed in local temporary storage and published into the selected destination after embedding their notebook; this supports File Provider destinations that synthesize unsignable Finder metadata. They are re-signed ad hoc on a Mac, which supports local testing but is not trusted commercial signing. Operating systems may warn or block distribution builds; their normal trust protections are not bypassed.
 
 This implementation does not supply an installer, automatic signed updates, verified Windows execution from macOS or real-user compatibility certification. Desktop bundle structure and notebook isolation have automated tests. A successful cross-build alone does not prove that the Windows binary has been executed on Windows.
 
@@ -61,6 +63,10 @@ Tests verify native export layout, executable-mode preservation, one-notebook in
 ## Bundled Tor transport
 
 `node desktop/download-tor.mjs` retrieves the official Tor Expert Bundle 15.0.24 (Tor 0.4.9.13) for macOS arm64, macOS x64 and Windows x64. Use `--host` or `--platform=mac-arm64`, `--platform=mac-intel`, `--platform=windows` for one target. Archives must pass both the signed SHA-256 list and detached OpenPGP signature using the pinned Tor Browser signing fingerprint `EF6E286DDA85EA2A4BA7DE684E2C6E8793298290`. The verification records, official license files and platform runtime accompany packaged builds. Binaries and archives stay out of Git. Official sources: [Tor download](https://download.torproject.org/tor/), [release directory](https://dist.torproject.org/torbrowser/15.0.24/), [signing-key documentation](https://support.torproject.org/tor-browser/getting-started/verifying-tor-browser/).
+
+The pipeline also downloads the exact Tor 0.4.9.13 core source archive from `https://dist.torproject.org/tor-0.4.9.13.tar.gz`, verifies its signed checksum against David Goulet's pinned official release key `B74417EDDF22AC9F9E90F49142E86A2A11F48D36`, and carries the archive plus verification record into each native build/export. `--sources-only` refreshes just that source archive. [Tor's source verification instructions](https://support.torproject.org/little-t-tor/getting-started/verifying/) establish the signing key and checksum procedure.
+
+The expert binary reports GPLv3 because its PoW libraries are enabled; [Tor documents this build distinction](https://community.torproject.org/onion-services/advanced/dos/). The included core source and original license notices are preserved, but they are not a certification of complete corresponding-source compliance for every dependency/transport. Public commercial distribution still requires a complete dependency/source and licensing review.
 
 On macOS the verified extracted Mach-O files receive local ad-hoc signatures, required to run unsigned expert binaries on Apple Silicon. This changes those extracted executable files after archive verification; the original signed archives are retained. It does not establish Apple Developer ID trust or notarization. Packaging copies only the selected platform's Tor runtime. Missing runtime builds report Tor unavailable.
 

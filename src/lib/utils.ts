@@ -1,4 +1,4 @@
-import type { Notebook, Source, SourceKind } from '../types';
+import type { LearningCard, Notebook, Source, SourceKind } from '../types';
 
 export function createId(prefix = 'id'): string {
   const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -45,3 +45,11 @@ export function downloadFile(content: string | Blob, filename: string, mime = 'a
 export function safeFilename(title: string): string { return title.replace(/[^a-z0-9 _-]/gi, '').trim().replace(/\s+/g, '-').slice(0, 80) || 'learning-notebook'; }
 
 export function normalizeText(value: string): string { return value.toLocaleLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]+/gu, ' ').trim(); }
+
+/** A source-derived answer is playable only while its original quotation still exists. */
+export function hasCurrentCardEvidence(card: LearningCard, sources: readonly Source[]): boolean {
+  if (!card.sourceId) return card.questionType === 'manual';
+  const source = sources.find(item => item.id === card.sourceId);
+  if (!source || !card.evidence?.trim() || !source.text.includes(card.evidence)) return false;
+  return card.questionType === 'manual' || card.evidence.toLocaleLowerCase().includes(card.answer.toLocaleLowerCase());
+}

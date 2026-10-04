@@ -1,5 +1,6 @@
 import {promises as fs} from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {parsePackage,serializePackage} from './generated/package-validation.mjs';
@@ -45,17 +46,37 @@ export async function createGameBundle({packageText,target,template,destination,
   const executable=target.startsWith('mac')?path.join(source,'Contents','MacOS','Asterloom'):path.join(source,'Asterloom.exe');
   if(!await existing(executable))throw new Error('This platform’s desktop template is incomplete. Rebuild the desktop release.');
   const output=await uniqueDestination(destinationRoot,`${safeTitle(game.notebook.title)}${target==='windows'?' - Windows':''}`,target);
+  // File Provider destinations can synthesize FinderInfo that cannot be
+  // removed. Sign on the local temporary filesystem, then publish atomically
+  // through a hidden destination directory, including across disk volumes.
+  const needsMacSigning=target.startsWith('mac')&&process.platform==='darwin'&&sign;
+  const staging=await fs.mkdtemp(path.join(needsMacSigning?os.tmpdir():destinationRoot,'.asterloom-export-'));
+  const stagedOutput=path.join(staging,path.basename(output));
+  let publication;
   try{
-    await fs.cp(source,output,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true});
-    const resources=resourcesDirectory(output,target);await fs.mkdir(resources,{recursive:true});
+    await fs.cp(source,stagedOutput,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true});
+    const resources=resourcesDirectory(stagedOutput,target);await fs.mkdir(resources,{recursive:true});
     await fs.writeFile(path.join(resources,'game.learnpack'),game.packageText,'utf8');
     await fs.writeFile(path.join(resources,'game-manifest.json'),JSON.stringify({format:'asterloom-desktop-game',version:1,identity:game.identity,notebookId:game.notebook.id,title:game.notebook.title,platform:TARGETS[target].platform,arch:TARGETS[target].arch,exportedAt:new Date().toISOString(),signing:'development-unsigned'},null,2));
     // A copied macOS app changes its resource seal when notebook content is embedded.
     // Ad-hoc re-signing enables local development testing; this is not notarization.
     let signing='unsigned';
-    if(target.startsWith('mac')&&process.platform==='darwin'&&sign){await run('/usr/bin/codesign',['--force','--deep','--sign','-',output]);signing='ad-hoc';}
+    if(needsMacSigning){
+      // Finder can attach presentation metadata while a destination folder is
+      // being viewed. Apple rejects that metadata when sealing a new bundle.
+      // Remove only these two attributes from our new copy; keep quarantine
+      // and provenance attributes and leave the original application alone.
+      for(const attribute of ['com.apple.FinderInfo','com.apple.ResourceFork'])await run('/usr/bin/xattr',['-dr',attribute,stagedOutput]);
+      await run('/usr/bin/codesign',['--force','--deep','--sign','-',stagedOutput]);signing='ad-hoc';
+    }
+    if(needsMacSigning){
+      publication=await fs.mkdtemp(path.join(destinationRoot,'.asterloom-export-'));
+      const publishingOutput=path.join(publication,path.basename(output));
+      await fs.cp(stagedOutput,publishingOutput,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true});
+      await fs.rename(publishingOutput,output);
+    }else await fs.rename(stagedOutput,output);
     return {path:output,identity:game.identity,notebookId:game.notebook.id,platform:target,signing};
-  }catch(error){await fs.rm(output,{recursive:true,force:true});throw error;}
+  }finally{await fs.rm(staging,{recursive:true,force:true});if(publication)await fs.rm(publication,{recursive:true,force:true});}
 }
 
 export async function loadEmbeddedGame(resources){

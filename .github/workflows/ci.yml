@@ -73,6 +73,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Verify source extraction and room services on this operating system
+        run: npm run test:server
       - run: npm run assets
       - run: npm run build
       - name: Download verified Tor runtime
@@ -117,6 +119,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Verify source extraction and room services on this operating system
+        run: npm run test:server
       - run: npm run assets
       - run: npm run build
       - name: Download verified Tor runtime

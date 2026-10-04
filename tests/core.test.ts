@@ -2,10 +2,12 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { compileNotebook, createManualCard, searchSources, transcriptToText } from '../src/lib/compiler';
 import { exportOfflineHtml, parsePackage, parseProgress, serializePackage, serializeProgress, validateNotebook } from '../src/lib/package';
 import { emptyProgress, recordAttempt, selectDueCards, sourceFingerprint } from '../src/lib/storage';
-import { createNotebook, createSource } from '../src/lib/utils';
+import { mergeNotebookChanges } from '../src/lib/notebookMerge';
+import { reconcileNotebookProgress } from '../src/lib/progressRevision';
+import { createNotebook, createSource, hasCurrentCardEvidence } from '../src/lib/utils';
 import { refineCards, createRefinementPrompt, applyRefinementResponse } from '../src/lib/provider';
 import type { Notebook, NotebookArtwork } from '../src/types';
-import { ACTIVITY_EXAMPLES, EXAMPLE_ACTIVITY_SOURCE } from '../src/lib/structuredEngine';
+import { ACTIVITY_EXAMPLES, EXAMPLE_ACTIVITY_SOURCE, extractStructuredActivities } from '../src/lib/structuredEngine';
 
 function fixture() {
   const source = createSource('Retrieval: bringing an idea back from memory without looking at the answer.\nSpacing: revisiting material across separate sessions instead of one long block.\nFeedback: information that helps a learner identify and correct a misunderstanding.\n1. Read the source carefully.\n2. Close your notes and retrieve the idea.\n3. Compare your answer with the source.\n4. Plan a later review.\n\nMeaningful practice helps people connect new information with their existing knowledge.', 'Learning principles');
@@ -29,6 +31,17 @@ describe('deterministic source compiler', () => {
     const sourceTerms = new Set(definitionCards.map(card => card.answer));
     expect(definitionCards.every(card => card.options.every(option => sourceTerms.has(option)))).toBe(true);
     expect(() => validateNotebook(notebook)).not.toThrow();
+  });
+  it('blocks old source answers after material changes, including a saved-session card', () => {
+    const notebook = fixture(); const card = notebook.cards[0];
+    expect(hasCurrentCardEvidence(card, notebook.sources)).toBe(true);
+    const changed = notebook.sources.map(source => ({ ...source, text: 'A replacement document with different claims.' }));
+    expect(hasCurrentCardEvidence(card, changed)).toBe(false);
+    expect(hasCurrentCardEvidence(card, [])).toBe(false);
+    expect(hasCurrentCardEvidence({ ...card, evidence: '' }, notebook.sources)).toBe(false);
+    expect(hasCurrentCardEvidence({ ...card, sourceId: '', questionType: 'manual' }, [])).toBe(true);
+    expect(hasCurrentCardEvidence({ ...card, sourceId: '' }, [])).toBe(false);
+    expect(hasCurrentCardEvidence({ ...card, questionType: 'manual' }, changed)).toBe(false);
   });
   it('does not fabricate questions from unavailable media or tiny fragments', () => {
     const source = createSource('', 'Audio lecture', 'audio');
@@ -99,6 +112,20 @@ describe('portable learning packages', () => {
     const embedded = output.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/);
     expect(JSON.parse(embedded![1]).description).toBe(notebook.description);
     expect(output.match(/<head>/g)).toHaveLength(1);
+  });
+});
+
+describe('derived activity revision identity', () => {
+  it('changes a classifier ID when any category line changes and preserves extraction provenance on export', () => {
+    const source = createSource('Warm > A\nCool > B', 'Explicit categories');
+    const first = extractStructuredActivities([source]).activities.find(activity => activity.kind === 'classification')!;
+    const changed = { ...source, text: source.text + '\nWarm > C' };
+    const next = extractStructuredActivities([changed]).activities.find(activity => activity.kind === 'classification')!;
+    expect(next.id).not.toBe(first.id); expect(next.extractedFrom).toBe(source.id);
+    const notebook = createNotebook({ sources: [changed], cards: [], activities: [next] });
+    const imported = parsePackage(serializePackage(notebook));
+    expect(imported.activities?.[0].extractedFrom).toBe(source.id);
+    expect(imported.activities?.[0].id).toBe(next.id);
   });
 });
 
@@ -178,6 +205,58 @@ describe('durable practice state and review scheduling', () => {
     expect(() => serializeProgress(withResponse({ text: 'é'.repeat(6000) }))).toThrow('10 KB');
     expect(() => serializeProgress(withResponse({ value: Infinity }))).toThrow('JSON data');
     expect(() => serializeProgress({ ...progress, structured: { 'example-budget': { ...result, score: 3 } } })).toThrow('maximum');
+  });
+});
+
+describe('progress after objective revisions', () => {
+  it('clears changed or removed card credit and a stale session while retaining historical effort', () => {
+    const previous = fixture(); const [changed, removed, retained] = previous.cards;
+    let progress = emptyProgress(previous.id);
+    for (const card of [changed, removed, retained]) progress = recordAttempt(progress, card, true);
+    progress.journal = [{ id: 'journal-kept', text: 'An earlier reflection.', at: new Date().toISOString() }];
+    progress.activeSession = { scaffoldId: 'recall', cardIds: [changed.id, retained.id], index: 0, seed: 1, startedAt: new Date().toISOString(), state: { selection: changed.answer } };
+    const next = { ...previous, cards: previous.cards.filter(card => card.id !== removed.id).map(card => card.id === changed.id ? { ...card, answer: card.options.find(option => option !== card.answer)!, correctIndex: card.options.findIndex(option => option !== card.answer) } : card) };
+    const revised = reconcileNotebookProgress(previous, next, progress);
+    expect(revised.completedCardIds).toEqual([retained.id]); expect(Object.keys(revised.cards)).toEqual([retained.id]); expect(revised.activeSession).toBeUndefined();
+    expect(revised.xp).toBe(progress.xp); expect(revised.attempts).toEqual(progress.attempts); expect(revised.journal).toEqual(progress.journal); expect(revised.bestStreak).toBe(progress.bestStreak);
+    expect(progress.activeSession).toBeDefined();
+  });
+  it('resets a changed authored rule under the same ID but preserves review and scenery-only changes', () => {
+    const previous = createNotebook({ id: 'revised-rules', sources: [{ ...EXAMPLE_ACTIVITY_SOURCE }], activities: [ACTIVITY_EXAMPLES[0], ACTIVITY_EXAMPLES.find(activity => activity.kind === 'budget')!] });
+    const budget = previous.activities![1]; const progress = emptyProgress(previous.id);
+    progress.xp = 100; const state = { response: { quantities: { small: 2, large: 1 } }, completed: true, score: 3, maxScore: 3, attempts: 1, updatedAt: new Date().toISOString() };
+    progress.structured = { [budget.id]: state, [previous.activities![0].id]: { ...state, response: { order: ['question', 'collect', 'analyze', 'report'] } } };
+    const presentation = { ...previous, title: 'A new title', theme: 'forest', activities: previous.activities!.map(activity => ({ ...activity, title: 'Renamed chapter', reviewStatus: 'reviewed' as const, explanation: 'A clearer explanation.', hint: 'A revised hint.' })) };
+    expect(reconcileNotebookProgress(previous, presentation, progress)).toBe(progress);
+    const next = { ...previous, activities: previous.activities!.map(activity => activity.kind === 'budget' ? { ...activity, budget: 6 } : activity) };
+    const revised = reconcileNotebookProgress(previous, next, progress);
+    expect(revised.structured?.[budget.id]).toBeUndefined(); expect(revised.structured?.[previous.activities![0].id]).toEqual(progress.structured[previous.activities![0].id]); expect(revised.xp).toBe(100);
+  });
+});
+
+describe('concurrent authoring operations', () => {
+  it('merges a delayed source append with a newer title and independently added source', () => {
+    const base = fixture(); const arrivedLater = createSource('Delayed material from the importer.', 'Delayed document');
+    const independent = createSource('A note added while import was running.', 'New note');
+    const incoming = { ...base, sources: [...base.sources, arrivedLater] };
+    const current = { ...base, title: 'My newer title', sources: [...base.sources, independent] };
+    const merged = mergeNotebookChanges(base, incoming, current);
+    expect(merged.title).toBe('My newer title'); expect(merged.sources.map(source => source.id)).toEqual([base.sources[0].id, independent.id, arrivedLater.id]);
+    expect(current.sources).toHaveLength(2); expect(base.sources).toHaveLength(1);
+  });
+  it('rejects a stale rewrite when that source was changed or removed in the meantime', () => {
+    const base = fixture(); const incoming = { ...base, sources: [{ ...base.sources[0], text: 'A delayed rewrite.' }] };
+    const current = { ...base, sources: [{ ...base.sources[0], text: 'The author’s newer correction.' }] };
+    expect(() => mergeNotebookChanges(base, incoming, current)).toThrow('newer edits were kept');
+    expect(() => mergeNotebookChanges(base, incoming, { ...base, sources: [] })).toThrow('newer edits were kept');
+    expect(current.sources[0].text).toBe('The author’s newer correction.');
+  });
+  it('preserves an independent artwork addition while a generated draft is pending', () => {
+    const base = fixture();
+    const asset: NotebookArtwork = { id: 'art-pending', title: 'A pending visual', dataUrl: 'data:image/png;base64,AAAA', sourceId: base.sources[0].id, evidence: base.sources[0].text.split('\n')[0], purpose: 'decorative', reviewStatus: 'draft', createdAt: new Date().toISOString() };
+    const independent = { ...asset, id: 'art-uploaded', title: 'An uploaded visual', reviewStatus: 'reviewed' as const };
+    const merged = mergeNotebookChanges(base, { ...base, artwork: [asset] }, { ...base, artwork: [independent] });
+    expect(merged.artwork).toEqual([independent, asset]);
   });
 });
 

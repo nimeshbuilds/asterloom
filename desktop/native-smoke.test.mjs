@@ -4,6 +4,8 @@ import {promises as fs} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import {_electron as electron} from 'playwright';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -13,6 +15,12 @@ const exportedExecutable=bundle=>nativeTarget==='windows'?path.join(bundle,'Aste
 const exportedResources=bundle=>nativeTarget==='windows'?path.join(bundle,'resources'):path.join(bundle,'Contents','Resources');
 const fixtureNotebook={id:'native-smoke-notebook',title:'Native export verification',description:'An isolated native learning notebook.',createdAt:'2026-10-03T12:00:00.000Z',updatedAt:'2026-10-03T12:00:00.000Z',ageGroup:'adult',goal:'Remember networking facts',theme:'islands',scaffoldIds:['recall-escape-mission'],sources:[{id:'native-source',title:'Network notes',kind:'text',text:'DNS: Resolves domain names to addresses.',status:'ready',addedAt:'2026-10-03T12:00:00.000Z'}],cards:[{id:'native-card',prompt:'What resolves names?',answer:'DNS',options:['DNS','Router'],correctIndex:0,sourceId:'native-source',evidence:'DNS: Resolves domain names to addresses.',concept:'DNS',tags:[],explanation:'DNS resolves names.',questionType:'definition',reviewStatus:'reviewed'}],revision:1};
 const fixturePackage=JSON.stringify({format:'learnpack',version:1,exportedAt:'2026-10-03T12:00:00.000Z',notebook:fixtureNotebook});
+function fixturePdf(){
+  const stream='BT /F1 12 Tf 50 750 Td (DNS resolves names to addresses.) Tj ET';
+  const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`];
+  let text='%PDF-1.4\n';const offsets=[];for(let i=0;i<objects.length;i++){offsets.push(Buffer.byteLength(text));text+=`${i+1} 0 obj\n${objects[i]}\nendobj\n`;}
+  const start=Buffer.byteLength(text);text+=`xref\n0 6\n0000000000 65535 f \n${offsets.map(value=>`${String(value).padStart(10,'0')} 00000 n `).join('\n')}\ntrailer\n<< /Root 1 0 R /Size 6 >>\nstartxref\n${start}\n%%EOF`;return Buffer.from(text).toString('base64');
+}
 
 test('native studio saves across launches, exports a standalone game, and opens its isolated studio',{skip:!enabled,timeout:360000},async()=>{
   const directory=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-native-smoke-'));
@@ -29,6 +37,8 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const security=await page.evaluate(()=>({origin:location.origin,require:typeof window.require,bridge:typeof window.asterloomDesktop?.exportGame}));
     assert.equal(security.origin,'asterloom://app');assert.equal(security.require,'undefined');assert.equal(security.bridge,'function');
     const health=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(health.ok,true);assert.equal(health.capabilities.pdf,true);
+    const pdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
+    assert.equal(pdf.status,200,JSON.stringify(pdf.body));assert.match(pdf.body.source.content,/DNS resolves names to addresses/);assert.equal(pdf.body.source.metadata.pages,1);
     await page.getByRole('button',{name:'Create a world',exact:true}).last().click();
     await page.getByLabel('Notebook title').fill('Native continuity test');
     // Small Windows runner displays trigger the compact layout, which hides
@@ -64,6 +74,10 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor({state:'attached'});
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:path.join(ROOT,'.qa','native-exported-game.png'),animations:'disabled'});
+    // A user's Finder can add this presentation attribute to an exported app.
+    // Re-exporting must remove it from the new copy without modifying source
+    // metadata or stripping security-related quarantine/provenance attributes.
+    if(process.platform==='darwin')await promisify(execFile)('/usr/bin/xattr',['-wx','com.apple.FinderInfo','0000000000000000040000000000000000000000000000000000000000000000',exported.path]);
     await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},output);
     await page.getByRole('button',{name:'Export',exact:true}).click();
     await page.getByRole('button',{name:nativeTarget==='windows'?/Windows application bundle/:nativeTarget==='mac-intel'?/macOS · Intel/:/macOS · Apple Silicon/}).click();
@@ -71,6 +85,10 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const remixedPath=path.join(output,nativeTarget==='windows'?'A remixed native game - Windows':'A remixed native game.app');
     const remixed=JSON.parse(await fs.readFile(path.join(exportedResources(remixedPath),'game.learnpack'),'utf8'));
     assert.equal(remixed.notebook.title,'A remixed native game');assert.equal(remixed.progress,undefined);
+    if(process.platform==='darwin'){
+      const originalAttributes=await promisify(execFile)('/usr/bin/xattr',[exported.path]);assert.match(originalAttributes.stdout,/com.apple.FinderInfo/);
+      const newAttributes=await promisify(execFile)('/usr/bin/xattr',[remixedPath]);assert.doesNotMatch(newAttributes.stdout,/com.apple.FinderInfo|com.apple.ResourceFork/);
+    }
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:'A remixed native game',exact:true}).waitFor({timeout:20000});
     assert.deepEqual(errors,[]);

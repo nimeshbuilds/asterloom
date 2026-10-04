@@ -22,6 +22,7 @@ Open **http://127.0.0.1:4319**. For development use `npm run dev` (Vite on port 
 
 ```sh
 npm run build
+node desktop/download-tor.mjs --host
 npm run package:desktop
 ```
 
@@ -44,13 +45,16 @@ In the desktop studio, open a notebook → **Export** → choose a platform. The
 - Deterministic source extraction, local keyword retrieval, source evidence checks and author review.
 - Ten reusable practice interaction families; **seven structured activity engines**: sequences, classification, policy decisions, relationship graphs, budgets, rubrics and diagram labels.
 - A versioned catalog of **75 scaffold specifications**: 25 general, 25 domain/professional and 25 age-adapted recipes. Explicit content prerequisites govern what can be built reliably.
-- Structured activity authoring, examples, strict JSON import/export, validation and live interactive boards.
+- Structured activity authoring, examples, strict JSON import/export, validation and live interactive boards. Source changes invalidate dependent evidence; rebuilding refreshes extracted structures.
+- A deterministic chapter outline with verbatim evidence and separately identified fictional scenery.
+- Source-linked visual authoring: upload an illustration or optionally generate one through an image API. Drafts require author review and never become factual source material. Reviewed figures remain attached through export/remix.
 - Six illustrated world themes, a logo/icon system and 75 prepared scaffold illustrations.
 - Ten offline CC0 music recordings, prepared scaffold pairings, volume/mute, optional synthesized fallback and interaction sounds.
 - Durable local notebook/progress storage, interrupted-session recovery and separate progress backups.
 - Portable `.learnpack` and self-contained HTML exports with create/remix/re-export capability.
 - Private asynchronous challenge rooms, compatible-content fingerprints, persisted results, retry queues and deduplicated standings. Scores are friendly, self-reported competition.
-- Optional wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. Provider credentials remain ephemeral. A chat subscription is not assumed to grant third-party API access.
+- Optional wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. A copy/paste prompt-and-JSON workflow also works with an existing assistant subscription. Provider credentials remain ephemeral. A chat subscription is not assumed to grant third-party API access.
+- Opt-in Tor rooms with a verified bundled runtime, onion-only proxy routing, saved outboxes and restricted peer endpoints. Separate-process and native-renderer peer tests have passed locally; the host must remain open for synchronization.
 
 ## Sources are the game material
 
@@ -99,10 +103,14 @@ GitHub Actions runs web/source/service checks and native application export/repl
 - Validate fun, age appropriateness, retention and transfer with representative learners.
 - Complete specialized fixtures/engines and interaction polish for recipes whose prerequisites go beyond the existing engines.
 - Ship validated local audio transcription/OCR models if automatic media understanding is advertised.
-- Verify Tor peer transport on real networks and platforms before making reliability claims.
+- Broaden Tor reliability testing across real networks and platforms, and finish redistribution review for every bundled dependency.
 - Complete signing/notarization, distribution/update processes, support and any paid checkout offering.
 - Test accessibility with assistive technology and broaden browser/OS/device coverage.
 
 ## Assets and rights
 
 Composer credits and original notices are in [`public/assets/licenses/`](public/assets/licenses/). The ten recordings are CC0 works by **Juhani Junkala / SubspaceAudio** and **hernandack**. DM Sans and Fraunces use the SIL Open Font License; Lucide uses ISC. Project source is private and unlicensed unless the owner supplies a commercial or open-source license. Included-asset permissions for notebook exports are documented separately.
+
+## Playable example
+
+After building, run `npx tsx scripts/build-showcase.ts`. `release/examples/The-Systems-Expedition.html` is a complete offline game with eight structured activities and a remixable studio. Its `.learnpack` can also be opened or exported as a native game from Asterloom.

@@ -14,6 +14,7 @@ export interface ActivityBase {
   explanation: string; hint: string;
   /** Explicit author binding; technical kind compatibility alone is insufficient. */
   scaffoldIds?: string[];
+  extractedFrom?: string;
 }
 export interface SequenceActivity extends ActivityBase { kind: 'sequence'; items: ActivityItem[]; constraints: { before: string; after: string }[] }
 export interface ClassificationActivity extends ActivityBase { kind: 'classification'; categories: ActivityItem[]; items: ActivityItem[]; membership: { itemId: string; categoryIds: string[] }[] }
@@ -54,7 +55,7 @@ export interface Evaluation {
   score: number; maxScore: number; feedback: string;
   details: { id: string; correct: boolean | null; message: string }[];
 }
-const BASE = ['version', 'id', 'title', 'instruction', 'sourceRefs', 'reviewStatus', 'explanation', 'hint', 'kind', 'scaffoldIds'];
+const BASE = ['version', 'id', 'title', 'instruction', 'sourceRefs', 'reviewStatus', 'explanation', 'hint', 'kind', 'scaffoldIds', 'extractedFrom'];
 const SAFE_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/;
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
 function plain(value: unknown): value is Record<string, unknown> {
@@ -158,6 +159,7 @@ export function validateActivity(input: unknown, sources?: Pick<Source, 'id' | '
   const errors: string[] = [];
   if (!plain(input)) return { success: false, errors: ['activity: expected a plain object'] };
   if (input.version !== 1) errors.push('version: unsupported activity version');
+  if (input.extractedFrom !== undefined) ident(input.extractedFrom, 'extractedFrom', errors);
   if (input.scaffoldIds !== undefined) { const ids = array(input.scaffoldIds, 'scaffoldIds', errors, 1, 20); ids.forEach(id => ident(id, 'scaffoldIds', errors)); if (new Set(ids).size !== ids.length) errors.push('scaffoldIds: duplicate recipe binding'); }
   ident(input.id, 'id', errors);
   for (const key of ['title', 'instruction', 'explanation', 'hint']) string(input[key], key, errors);
@@ -366,7 +368,7 @@ export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title'
   for (const source of sources.slice(0, 50)) {
     if (source.status !== 'ready') continue;
     const text = source.text.slice(0, 500_000); const lines = text.split(/\r?\n/);
-    const base = (kind: string, evidence: string): ActivityBase => ({ version: 1, id: `activity-${hash(source.id + kind + evidence)}`, title: `${source.title}: ${kind}`, instruction: 'Reconstruct the structure explicitly stated in the source.', sourceRefs: [{ sourceId: source.id, evidence }], reviewStatus: 'needs-review', explanation: 'This answer follows the supplied source structure. Review factual accuracy before publishing.', hint: 'Use the exact relationships, categories or order stated in the source.' });
+    const base = (kind: string, evidence: string): ActivityBase => ({ version: 1, extractedFrom: source.id, id: `activity-${hash(source.id + kind + evidence)}`, title: `${source.title}: ${kind}`, instruction: 'Reconstruct the structure explicitly stated in the source.', sourceRefs: [{ sourceId: source.id, evidence }], reviewStatus: 'needs-review', explanation: 'This answer follows the supplied source structure. Review factual accuracy before publishing.', hint: 'Use the exact relationships, categories or order stated in the source.' });
     const add = (activity: StructuredActivity) => { if (activities.length < 150) { const check = validateActivity(activity, [source]); if (check.success) activities.push(check.value); else warnings.push(`${source.title}: ${check.errors[0]}`); } };
     let run: { ordinal: number; label: string; line: string }[] = [];
     const flush = () => {
@@ -414,10 +416,12 @@ export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title'
     // Separate references avoid implying that disjoint source lines were contiguous.
     if (categories.size >= 2 && members.size >= 2) {
       const activity: ClassificationActivity = { ...base('classification', categoryLines[0]), kind: 'classification', categories: [...categories].map(([label, id]) => ({ id, label })), items: [...members].map(([label, entry]) => ({ id: entry.id, label })), membership: [...members.values()].map(entry => ({ itemId: entry.id, categoryIds: entry.categoryIds })) };
+      activity.id = `activity-${hash(source.id + 'classification' + JSON.stringify(categoryLines))}`;
       activity.sourceRefs = categoryLines.map(evidence => ({ sourceId: source.id, evidence })); add(activity);
     }
     if (nodes.size >= 2 && edges.length) {
       const activity: DependencyActivity = { ...base('relationships', relationLines[0]), kind: 'dependency', nodes: [...nodes].map(([label, id]) => ({ id, label })), edges, acyclic: false };
+      activity.id = `activity-${hash(source.id + 'relationships' + JSON.stringify(relationLines))}`;
       activity.sourceRefs = relationLines.map(evidence => ({ sourceId: source.id, evidence })); add(activity);
     }
   }
