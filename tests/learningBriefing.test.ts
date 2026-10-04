@@ -60,8 +60,8 @@ describe('source-grounded teaching and authored mission coverage',()=>{
   const n=fixture();n.sources.push({...n.sources[0],id:'copy',title:'Independent copied document'});n.cards.push({...n.cards[0],id:'copy-card',sourceId:'copy'});const p=plan(n);expect(new Set(p.passages.map(x=>x.reference.sourceId))).toEqual(new Set(['source-notes','copy']));expect(new Set(p.passages.map(x=>x.id)).size).toBe(p.passages.length);
  });
  it('keeps long-source fragments substantial and exactly cited instead of making a one-word lesson',()=>{const text='source notes '.repeat(77)+'photographs.';const n=fixture(text),p=plan(n);expect(p.coverage.uncoveredTargetIds).toEqual([]);expect(p.passages.every(passage=>passage.reference.quote.length>=40&&isCurrentEvidence(passage.reference,n.sources))).toBe(true);expect(p.passages[0].reference.start).toBe(0);expect(p.passages.at(-1)!.reference.end).toBe(text.length);});
- it('retrieves a related worked example from the full source beyond adjacent paragraphs',()=>{
-  const n=fixture('Packet: a small unit of data that travels between the two modeled devices.\n\nUnrelated material about planting a garden and watering soil.\n\nAnother unrelated paragraph about a library shelf.\n\nExample: In this packet model, the receiver reads the packet after arrival. The packet can be inspected because the receiver now has the data. This example is limited to the model.');const p=plan(n);expect(p.passages.some(x=>x.reference.quote.startsWith('Example:'))).toBe(true);expect(p.walkthrough.kind).toBe('source-example');expect(p.coverage.uncoveredTargetIds).toEqual([]);
+ it('retains a nonadjacent explained example within the target source unit',()=>{
+  const n=fixture('# Packet model\n\nPacket: a small unit of data that travels between the two modeled devices.\n\nThis training model contains one sender and one receiver.\n\nThe description applies only to the two devices supplied in the exercise.\n\nExample: In this packet model, the receiver reads the packet after arrival. The packet can be inspected because the receiver now has the data. This example is limited to the model.\n\n# Garden notes\n\nThe garden notebook has a separate watering procedure.');const p=plan(n);expect(p.passages.some(x=>x.reference.quote.startsWith('Example:'))).toBe(true);expect(p.walkthrough.kind).toBe('source-example');expect(p.coverage.uncoveredTargetIds).toEqual([]);expect(p.passages).toHaveLength(4);expect(p.passages.every(x=>isCurrentEvidence(x.reference,n.sources))).toBe(true);expect(JSON.stringify(p)).not.toContain('separate watering');
  });
  it('reserves source context across an eight-target chapter and blocks oversized incomplete chapters',()=>{
   const n=fixture();n.sources=[];n.cards=[];
@@ -84,6 +84,41 @@ describe('source-grounded teaching and authored mission coverage',()=>{
  it('has caregiver oral participation and mature adult presentation without attributing learning styles',()=>{
   const n=fixture();n.ageGroup='3-5';const young=plan(n);expect(young.practice.spokenAllowed).toBe(true);expect(young.story.guidance).toContain('grown-up');const s=prepared(young);s.practice={...s.practice,mode:'spoken',explanation:'',connection:'',spokenConfirmed:true};expect(lessonPracticeReady(young,s)).toBe(true);
   const adult=plan();expect(adult.practice.spokenAllowed).toBe(false);expect(lessonPracticeReady(adult,{...prepared(adult),practice:{...s.practice,focusId:adult.practice.focusOptions[0].id}})).toBe(false);expect(adult.story.setting).not.toMatch(/puppet|grown-up|little|young/);
+ });
+});
+
+
+describe('target-scoped teaching selection',()=>{
+ const seed='Seed: The plant structure that contains an embryo and can grow into a new plant.';
+ const root='Root: The plant organ that absorbs water and dissolved minerals.';
+ const reset='This procedure resets an account.\n1. Open the settings screen.\n2. Choose reset.\n3. Confirm the reset.';
+ function targeted(text:string,evidence=seed){const n=fixture(text);n.cards[0]={...n.cards[0],id:'seed',answer:'Seed',concept:'Seed',evidence};return n;}
+ function references(p:LearningPlan){return[...p.passages.map(x=>x.reference),...p.walkthrough.steps.flatMap(x=>[x.reference,...(x.reason?[x.reason]:[])]),...p.practice.focusOptions.map(x=>x.reference),...(p.rehearsal?.tiles.map(x=>x.reference)??[]),...(p.rehearsal?.slots.map(x=>x.reference)??[])];}
+ it('does not teach an account-reset procedure before a seed target in the next section',()=>{
+  const n=targeted('# Reset procedure\n\n'+reset+'\n\n# Plant glossary\n\n'+seed+'\n'+root),p=plan(n);
+  expect(p.status).toBe('grounded');expect(p.coverage.coveredTargetIds).toEqual(['seed']);expect(p.walkthrough.kind).toBe('source-reading');expect(p.practice.orderIds).toEqual([]);expect(p.rehearsal?.kind).toBe('reference-kit');expect(p.rehearsal?.tiles.map(x=>x.label)).toEqual(['Seed','Root']);
+  expect(references(p).every(ref=>ref.start>=n.sources[0].text.indexOf(seed)&&isCurrentEvidence(ref,n.sources))).toBe(true);expect(JSON.stringify(p)).not.toContain('settings screen');
+ });
+ it('does not select an unrelated example just because its words match the target',()=>{
+  const n=targeted('# Seed glossary\n\n'+seed+'\n\n'+root+'\n\n# Account simulation\n\nExample: The seed account resets after confirmation because this training model requires the seed account confirmation.');const p=plan(n);
+  expect(p.walkthrough.kind).toBe('source-reading');expect(references(p).every(ref=>!ref.quote.includes('account'))).toBe(true);expect(p.passages).toHaveLength(2);
+ });
+ it('does not turn contextual procedures into the target rehearsal, even inside the same bounded unit',()=>{
+  const n=targeted('# Plant glossary\n\n'+seed+'\n\nThis procedure is supplied as background, not the selected definition.\n1. Read the provided observation.\n2. Record the observation.');const p=plan(n);
+  expect(p.passages.some(x=>x.role==='context'&&x.reference.quote.includes('procedure'))).toBe(true);expect(p.walkthrough.kind).toBe('source-reading');expect(p.rehearsal).toBeUndefined();expect(p.practice.orderIds).toEqual([]);
+ });
+ it('retains multiple source units when the activity explicitly cites them and excludes uncited neighbors',()=>{
+  const flower='Flower: The reproductive structure described in this training source.';
+  const n=targeted('# Plant glossary\n\n'+seed+'\n\n'+root+'\n\n# Account reset\n\n'+reset+'\n\n# Flower glossary\n\n'+flower+'\n\nThis source describes flower structure only within the supplied training model.');
+  const activity={...ACTIVITY_EXAMPLES[0],sourceRefs:[{sourceId:n.sources[0].id,evidence:seed},{sourceId:n.sources[0].id,evidence:flower}]};
+  const p=buildLearningBriefing({notebook:n,scaffold,activity});expect(p.coverage.coveredTargetIds).toEqual([activity.id]);expect(p.passages).toHaveLength(4);expect(p.passages.some(x=>x.reference.quote===root)).toBe(true);expect(p.passages.some(x=>x.reference.quote.includes('flower structure'))).toBe(true);expect(references(p).every(ref=>isCurrentEvidence(ref,n.sources)&&!ref.quote.includes('reset'))).toBe(true);
+ });
+ it.each([
+  ['section','# Plant note\n\nSeed grows.\n\n# Reset procedure\n\n'+reset],
+  ['page','[Page 1]\nSeed grows.\n\n[Page 2]\n'+reset],
+  ['subtitle cue','WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nSeed grows.\n\n00:00:02.000 --> 00:00:04.000\n'+reset],
+ ])('does not merge a short target across a %s boundary',(_kind,text)=>{
+  const n=targeted(text,'Seed grows.'),p=plan(n);expect(p.status).toBe('limited');expect(p.passages.map(x=>x.reference.quote)).toEqual(['Seed grows.']);expect(references(p).every(ref=>isCurrentEvidence(ref,n.sources)&&ref.quote==='Seed grows.')).toBe(true);expect(p.rehearsal).toBeUndefined();
  });
 });
 

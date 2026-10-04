@@ -179,7 +179,7 @@ describe('explicit source structure extraction', () => {
 
 
 describe('honest recipe runtime eligibility', () => {
-  const notebook = { ageGroup: 'adult', activities: ACTIVITY_EXAMPLES, cards: [] };
+  const notebook = { ageGroup: 'adult', activities: ACTIVITY_EXAMPLES, cards: [], sources:[{...EXAMPLE_ACTIVITY_SOURCE,kind:'text' as const,addedAt:'2026-10-04T00:00:00Z'}] };
   it('covers all 75 recipes and never routes advanced recipes to source recall', () => {
     expect(SCAFFOLD_RUNTIME).toHaveLength(75);
     expect(SCAFFOLD_RUNTIME.filter(runtime => runtime.mode === 'source-practice').map(runtime => runtime.scaffoldId)).toEqual(['recall-escape-mission']);
@@ -271,9 +271,9 @@ it('does not accept plain ordering or single-policy-choice models as stateful pl
   for (const id of ['constrained-action-planning', 'version-control-recovery']) {
     const legacy = { ...sequence(), scaffoldIds: [id] };
     expect(validateActivity(legacy).success).toBe(true);
-    expect(resolveScaffoldRuntime(id, { ageGroup: 'adult', cards: [], activities: [legacy] }).available).toBe(false);
+    expect(resolveScaffoldRuntime(id, { ageGroup: 'adult', cards: [], sources:[], activities: [legacy] }).available).toBe(false);
   }
   const oneChoice = { ...example('example-cloud-iam'), scaffoldIds: ['product-tradeoff-council'] };
   expect(validateActivity(oneChoice).success).toBe(true);
-  expect(resolveScaffoldRuntime('product-tradeoff-council', { ageGroup: 'adult', cards: [], activities: [oneChoice] }).available).toBe(false);
+  expect(resolveScaffoldRuntime('product-tradeoff-council', { ageGroup: 'adult', cards: [], sources:[], activities: [oneChoice] }).available).toBe(false);
 });

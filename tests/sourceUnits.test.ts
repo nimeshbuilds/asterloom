@@ -63,6 +63,23 @@ describe('concept selection without arbitrary quizzes', () => {
     expect(cloze.prompt).not.toContain('Packet switching');
     expect(() => parsePackage(serializePackage(createNotebook({ sources: [source], cards })))).not.toThrow();
   });
+  it('reads numbered glossary labels without including list markers in concepts or changing citation offsets', () => {
+    const text = '# Plant glossary\r\n\r\n  1. Seed: the plant structure containing an embryo that can grow into a new plant.\r\n\t2) Root: the plant organ that absorbs water and dissolved minerals.\r\n3. **Leaf**: the plant organ that captures light in this source model.';
+    const concepts = sourceConcepts(text);
+    expect(concepts.map(concept => concept.term)).toEqual(['Seed', 'Root', 'Leaf']);
+    expect(concepts.map(concept => concept.start)).toEqual(['Seed:', 'Root:', '**Leaf**:'].map(label => text.indexOf(label)));
+    for (const concept of concepts) {
+      expect(concept.quote).toBe(text.slice(concept.start, concept.end));
+      expect(concept.quote).not.toMatch(/^\d+[.)]/);
+      expect(concept.form).toBe('label');
+    }
+    const source = createSource(text, 'Numbered plant glossary');
+    const prepared = prepareAutomaticLearning(createNotebook({ sources: [source] })).notebook;
+    expect(new Set(prepared.cards.map(card => card.answer))).toEqual(new Set(['Seed', 'Root', 'Leaf']));
+    expect(prepared.cards.every(card => ['definition', 'cloze'].includes(card.questionType) && source.text.includes(card.evidence))).toBe(true);
+    expect(prepared.activities?.some(activity => activity.kind === 'sequence')).toBe(false);
+    expect(parsePackage(serializePackage(prepared))).toEqual(prepared);
+  });
   it('never borrows unrelated-section vocabulary or asks indistinguishable definitions', () => {
     const source = createSource('# Networks\nPacket: a bounded unit of information sent through a network.\nRouter: a device that forwards units between networks.\n\n# Plants\nRoot: the part that anchors a plant and absorbs water.\nLeaf: the part that captures light for the plant.');
     const result = compileNotebook([source], { maxCards: 2 });

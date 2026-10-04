@@ -1,6 +1,10 @@
 # Build status and evidence
 
-Asterloom 0.6.0 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+Asterloom 0.6.1 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+
+## Source-first selection in 0.6.1
+
+Activity candidates now require current, readable source evidence and a compatible explicitly bound model. A title, theme, goal or age change cannot supply missing facts or rules. Upload and rebuild share the same preparation path. Numbered glossaries retain definition practice without becoming procedures. Lesson context stays within cited source units; an unrelated neighboring procedure cannot replace the target lesson. Unsupported or stale activities remain editable but are not offered as learning missions. Exact citation checks establish provenance, not semantic entailment; authored and AI-derived rules still require review.
 
 ## Activity production
 

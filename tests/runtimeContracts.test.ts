@@ -6,15 +6,15 @@ import { SCENARIO_INTERACTION_EXAMPLES, SCENARIO_INTERACTION_SOURCES } from '../
 import { describe, expect, it } from 'vitest';
 import { resolveScaffoldRuntime } from '../src/lib/scaffoldRuntime';
 import { validateActivity } from '../src/lib/structuredEngine';
-import { SCENARIO_EXAMPLES } from '../src/lib/scenarioEngine';
+import { SCENARIO_EXAMPLES,SCENARIO_EXAMPLE_SOURCES } from '../src/lib/scenarioEngine';
 import { SCENARIO_PREDICTION_EXAMPLE, SCENARIO_CAMPAIGN_EXAMPLE, SCENARIO_MODE_EXAMPLES, SCENARIO_MODE_SOURCES } from '../src/lib/scenarioModeExamples';
-import { PLANT_EXPLANATION } from '../src/lib/compositionExamples';
+import { PLANT_EXPLANATION,COMPOSITION_EXAMPLE_SOURCE } from '../src/lib/compositionExamples';
 import { COMPOSITION_MODE_EXAMPLES, COMPOSITION_MODE_EXAMPLE_SOURCE, PARTNER_PLANTS, SQL_CODE_REVIEW } from '../src/lib/compositionModeExamples';
 import { pictureDiscoveryFixture, pictureWordFixture, pictureSources } from '../src/data/pictureFixtures';
 import { ruleSwitchFixture, ruleSwitchSources } from '../src/data/ruleSwitchFixtures';
 import type { StructuredActivity } from '../src/lib/structuredEngine';
 function eligibility(id: string, activity: StructuredActivity, ageGroup = 'adult') {
-  return resolveScaffoldRuntime(id, { ageGroup, cards: [], activities: [{ ...activity, scaffoldIds: [id] }] });
+  return resolveScaffoldRuntime(id, { ageGroup, cards: [], sources:[...SCENARIO_EXAMPLE_SOURCES,...SCENARIO_MODE_SOURCES,...SCENARIO_INTERACTION_SOURCES,COMPOSITION_EXAMPLE_SOURCE,COMPOSITION_MODE_EXAMPLE_SOURCE,...childPlaySources,...pictureSources,...ruleSwitchSources,PICTURE_BUILD_EXAMPLE_SOURCE], activities: [{ ...activity, scaffoldIds: [id] }] });
 }
 describe('specialized source-backed runtime contracts', () => {
   it.each([...PICTURE_BUILD_EXAMPLES, ...childPlayFixtures, ...SCENARIO_MODE_EXAMPLES, ...SCENARIO_INTERACTION_EXAMPLES, ...COMPOSITION_MODE_EXAMPLES, pictureDiscoveryFixture, pictureWordFixture, ruleSwitchFixture].map(a => [a.id, a] as const))('checks the exact supplied evidence for %s', (_, activity) => {

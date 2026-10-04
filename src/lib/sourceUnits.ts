@@ -144,7 +144,7 @@ export function sourceConcepts(text: string, segments = segmentSource(text)): So
   for (const segment of segments) {
     if (segment.fragment || segment.kind === 'code' || segment.kind === 'table') continue;
     for (const match of segment.quote.matchAll(/[^\r\n]+/g)) {
-      const line = match[0], clean = line.replace(/^\s*[-*•]\s+/, '').trim();
+      const line = match[0], clean = line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim();
       const label = clean.match(/^(?:\*\*)?([^:：\n]{2,85}?)(?:\*\*)?\s*[:：]\s*(.{12,650})$/u);
       if (label) {
         const start = segment.start + match.index! + line.indexOf(clean);

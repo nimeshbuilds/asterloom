@@ -2,8 +2,7 @@ import type { EvidenceReference, LearningCard, Notebook, Source } from '../types
 import type { Scaffold } from '../data/scaffolds';
 import type { StructuredActivity } from './structuredEngine';
 import { evidenceBlocks, evidenceReference, sourceRevision, textDigest } from './evidence';
-import { retrievalTerms } from './retrieval';
-import { sourceConcepts } from './sourceUnits';
+import { sourceConcepts, sourceLearningUnits } from './sourceUnits';
 import { isPictureRaster } from './pictureEngine';
 import { mediaPlaybackUrl, sourceMediaIdentity } from './mediaAssets';
 import { buildLessonStory, buildLessonActionGuide, type LessonStory, type LessonActionGuide } from './lessonStory';
@@ -47,14 +46,26 @@ function reference(source:Source,start:number,end:number):EvidenceReference {
   const prefix=block?.locator.kind!=='text'?block?.locator.label.split(' · lines ')[0]:undefined;
   return{sourceId:source.id,sourceRevision:sourceRevision(source),start,end,quote:source.text.slice(start,end),locator:{kind:block?.locator.kind??'text',label:prefix?`${prefix} · lines ${lineStart}–${lineEnd}`:`Lines ${lineStart}–${lineEnd}`,lineStart,lineEnd}};
 }
-function teachingBlocks(source:Source):ReturnType<typeof evidenceBlocks> {
-  const output:ReturnType<typeof evidenceBlocks>=[];
-  for(const block of evidenceBlocks(source,1000)){
-    const previous=output.at(-1);
-    if(previous&&(previous.quote.trim().length<40||block.quote.trim().length<40)&&block.end-previous.start<=1200&&!source.text.slice(previous.end,block.start).trim()){
-      const merged=reference(source,previous.start,block.end);
-      output[output.length-1]={...merged,id:`e-${textDigest(source.id).slice(0,16)}-${merged.sourceRevision.slice(0,20)}-${merged.start}-${merged.end}`,sourceTitle:source.title};
-    }else output.push(block);
+type TeachingBlock=ReturnType<typeof evidenceBlocks>[number]&{unitId:string};
+function teachingBlocks(source:Source):TeachingBlock[] {
+  const output:TeachingBlock[]=[],blocks=evidenceBlocks(source,1000);
+  // Unit boundaries preserve authored sections, page/cue boundaries and bounded long-section units.
+  // Never merge a short tail with the first paragraph of another teaching unit.
+  let blockIndex=0;
+  for(const unit of sourceLearningUnits(source)){
+    while(blockIndex<blocks.length&&blocks[blockIndex].end<=unit.start)blockIndex++;
+    for(let index=blockIndex;index<blocks.length&&blocks[index].start<unit.end;index++){
+      const block=blocks[index];
+      const start=Math.max(block.start,unit.start),end=Math.min(block.end,unit.end);
+      const span=start===block.start&&end===block.end?block:reference(source,start,end);
+      if(!span.quote.trim())continue;
+      const scoped:TeachingBlock={...span,id:`e-${textDigest(source.id).slice(0,16)}-${span.sourceRevision.slice(0,20)}-${start}-${end}`,sourceTitle:source.title,unitId:unit.id};
+      const previous=output.at(-1);
+      if(previous&&previous.unitId===unit.id&&(previous.quote.trim().length<40||scoped.quote.trim().length<40)&&scoped.end-previous.start<=1200&&!source.text.slice(previous.end,scoped.start).trim()){
+        const merged=reference(source,previous.start,scoped.end);
+        output[output.length-1]={...merged,id:`e-${textDigest(source.id).slice(0,16)}-${merged.sourceRevision.slice(0,20)}-${merged.start}-${merged.end}`,sourceTitle:source.title,unitId:unit.id};
+      }else output.push(scoped);
+    }
   }
   return output;
 }
@@ -85,9 +96,10 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   const cards=activity?[]:notebook.cards.filter(c=>wanted.has(c.id));
   const raw=activity?activity.sourceRefs.map(r=>({...r,targetId:activity.id})):cards.map(c=>({sourceId:c.sourceId,evidence:c.evidence,targetId:c.id}));
   const warnings:string[]=[], passages:LessonPassage[]=[], seen=new Set<string>();
-  const blockCache=new Map<string,ReturnType<typeof evidenceBlocks>>();
-  const add=(source:Source,block:ReturnType<typeof evidenceBlocks>[number],role:LessonPassage['role'])=>{if(seen.has(block.id)||passages.length>=(role==='focus'?12:16)||role==='context'&&block.quote.trim().length<40)return;seen.add(block.id);passages.push({id:block.id,title:source.title,role,reference:evidenceReference(block)});};
-  const anchors:{source:Source;index:number;blocks:ReturnType<typeof evidenceBlocks>}[]=[];
+  const blockCache=new Map<string,TeachingBlock[]>();
+  const alreadyIncluded=(sourceId:string,block:EvidenceReference)=>passages.some(p=>p.reference.sourceId===sourceId&&p.reference.start<=block.start&&p.reference.end>=block.end);
+  const add=(source:Source,block:ReturnType<typeof evidenceBlocks>[number],role:LessonPassage['role'])=>{if(seen.has(block.id)||alreadyIncluded(source.id,block)||passages.length>=(role==='focus'?12:16)||role==='context'&&block.quote.trim().length<40)return;seen.add(block.id);passages.push({id:block.id,title:source.title,role,reference:evidenceReference(block)});};
+  const anchors:{source:Source;index:number;blocks:TeachingBlock[]}[]=[];
   for(const ref of raw){
     const source=notebook.sources.find(s=>s.id===ref.sourceId),start=source?.text.indexOf(ref.evidence??'')??-1;
     if(!source||source.status!=='ready'||!sourceBindingCurrent(source,notebook.sources)||!ref.evidence?.trim()||start<0){warnings.push('Some mission evidence is missing, changed or not ready. Return to the author workspace to repair it.');continue;}
@@ -100,18 +112,17 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
     if(hasGap&&ref.evidence.length<=1200){const exactRef=reference(source,start,end);add(source,{...exactRef,id:`e-${textDigest(source.id).slice(0,16)}-${exactRef.sourceRevision.slice(0,20)}-${start}-${end}`,sourceTitle:source.title},'focus');for(const{i}of matching)anchors.push({source,index:i,blocks});}
     else for(const{b,i}of matching){add(source,b,'focus');anchors.push({source,index:i,blocks});}
   }
-  // Search the whole SAME source for relevant authored background and explained examples. Lexical ranking
-  // chooses material to inspect; it does not establish a new factual relationship between the passages.
-  const sourceCandidates=new Map<string,{source:Source;block:ReturnType<typeof evidenceBlocks>[number];score:number}[]>();
-  for(const{source,blocks}of anchors){if(sourceCandidates.has(source.id))continue;
-    const terms=new Set(retrievalTerms(raw.filter(r=>r.sourceId===source.id).map(r=>r.evidence).join(' ')).filter(t=>t.length>2));
-    const candidates=blocks.filter(b=>!seen.has(b.id)).map(block=>{const overlap=new Set(retrievalTerms(block.quote).filter(t=>terms.has(t))).size;const teaching=/\b(?:example|because|therefore|background|introduction|overview|means|defined|procedure|steps|method)\b/i.test(block.quote);return{source,block,score:overlap+(overlap>0&&teaching?4:0)};}).filter(c=>c.score>=2).sort((a,b)=>b.score-a.score||a.block.start-b.block.start);
-    sourceCandidates.set(source.id,candidates);
+  // Additional background must belong to a unit that contains the actual target evidence.
+  // Merely sharing a file, a keyword or a neighboring position does not authorize a new lesson topic.
+  const sourceCandidates=new Map<string,{source:Source;block:TeachingBlock}[]>();
+  for(const{source,index,blocks}of anchors){
+    const unitId=blocks[index].unitId,key=`${source.id}:${unitId}`;
+    if(sourceCandidates.has(key))continue;
+    sourceCandidates.set(key,blocks.filter(block=>block.unitId===unitId&&!alreadyIncluded(source.id,block)&&block.quote.trim().length>=40).map(block=>({source,block})));
   }
-  // Fair first pass gives each source a contextual passage before one large source can consume the budget.
+  // Give each cited unit background before one long unit consumes the bounded context allowance.
   for(const candidates of sourceCandidates.values())if(candidates[0])add(candidates[0].source,candidates[0].block,'context');
-  for(const{source,index,blocks}of anchors){if(index>0)add(source,blocks[index-1],'context');if(index+1<blocks.length)add(source,blocks[index+1],'context');}
-  for(const candidate of [...sourceCandidates.values()].flat().sort((a,b)=>b.score-a.score||a.block.start-b.block.start))add(candidate.source,candidate.block,'context');
+  for(const candidate of [...sourceCandidates.values()].flat())add(candidate.source,candidate.block,'context');
   const targets=activity?[activity.id]:cards.map(c=>c.id);
   const covered=(ref:typeof raw[number])=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);if(!source||!ref.evidence.trim())return false;const start=source.text.indexOf(ref.evidence);if(start<0)return false;const end=start+ref.evidence.length;let cursor=start;const spans=passages.filter(p=>p.reference.sourceId===ref.sourceId).map(p=>p.reference).sort((a,b)=>a.start-b.start);for(const span of spans){if(span.end<=cursor||span.start>=end)continue;if(span.start>cursor&&source.text.slice(cursor,span.start).trim())return false;cursor=Math.max(cursor,span.end);if(cursor>=end)return true;}return cursor>=end||!source.text.slice(cursor,end).trim();};
   const coveredTargetIds=targets.filter(id=>raw.some(r=>r.targetId===id)&&raw.filter(r=>r.targetId===id).every(covered));
@@ -119,7 +130,6 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   if(uncoveredTargetIds.length)warnings.push('This chapter cannot include all of its source evidence within the lesson limit. Split the deck into smaller chapters or repair the missing evidence before starting a quest.');
   const sourceOrder=new Map(notebook.sources.map((s,i)=>[s.id,i]));
   passages.sort((a,b)=>(sourceOrder.get(a.reference.sourceId)??0)-(sourceOrder.get(b.reference.sourceId)??0)||a.reference.start-b.reference.start);
-  if([...sourceCandidates.values()].some(c=>c.length))warnings.push('Related source passages were selected by shared words. Check their relevance; selection alone does not establish a causal connection.');
   if(!raw.length)warnings.push('No learning target was selected.');
   const total=passages.reduce((n,p)=>n+p.reference.quote.trim().length,0);
   const sparse=total<120;
@@ -132,7 +142,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   let kind:LearningPlan['walkthrough']['kind']='source-reading',title='A worked source-reading approach',limitation='The source does not supply a complete worked solution here. This walkthrough demonstrates how to read its evidence; it does not invent a solution or causal explanation.';
   let steps:LessonStep[]=[];
   // A numbered list is a procedure only when the source labels it as one. A list alone does not prove dependency.
-  for(const passage of passages){
+  for(const passage of passages.filter(p=>p.role==='focus')){
     if(!/\b(?:procedure|steps|method|workflow|instructions)\b/i.test(passage.reference.quote))continue;
     const matches=[...passage.reference.quote.matchAll(/^\s*(\d{1,2})[.)][ \t]+(.+)$/gm)];
     if(matches.length<2||matches.length>6||matches.some((m,i)=>Number(m[1])!==i+1))continue;
@@ -141,12 +151,12 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
     kind='source-procedure';title='Walk through the source procedure';limitation='The order is quoted from the source. A cause or prerequisite is not inferred unless the source states it.';break;
   }
   if(!steps.length){
-    const example=passages.find(p=>/\b(?:worked example|for example|example\s*:)/i.test(p.reference.quote));
+    const example=[...passages.filter(p=>p.role==='focus'),...passages.filter(p=>p.role==='context')].find(p=>/\b(?:worked example|for example|example\s*:)/i.test(p.reference.quote));
     if(example){const units=fragments(example,notebook.sources);const reason=units.find(u=>/\b(?:because|therefore|so that|as a result|this means|consequently)\b/i.test(u.quote));
       if(reason){kind='source-example';title='Study a source-provided example';limitation='The example and explanation below are quoted. This does not establish that they generalize beyond the source conditions.';steps=units.slice(0,4).map((unit,i)=>({id:`step-${i}`,title:i===0?'Read the example in context':unit===reason?'Inspect the stated reasoning':'Track the next statement',instruction:unit===reason?'The source supplies a reasoning statement. Identify the conditions it depends on.':'Keep this statement connected to the surrounding example; do not supply unstated steps.',reference:unit,...(i===0?{reason}: {})}));}
     }
   }
-  if(!steps.length&&passages.length){const first=passages.find(p=>p.role==='focus')??passages[0];const units=fragments(first,notebook.sources);const other=passages.find(p=>p.id!==first.id);
+  if(!steps.length&&passages.length){const first=passages.find(p=>p.role==='focus')??passages[0];const units=fragments(first,notebook.sources);const firstUnitIds=new Set((blockCache.get(first.reference.sourceId)??[]).filter(b=>b.end>first.reference.start&&b.start<first.reference.end).map(b=>b.unitId));const other=passages.find(p=>p.id!==first.id&&p.reference.sourceId===first.reference.sourceId&&(blockCache.get(p.reference.sourceId)??[]).some(b=>firstUnitIds.has(b.unitId)&&b.start<=p.reference.start&&b.end>=p.reference.end));
     steps=[{id:'step-0',title:'Locate the subject and its scope',instruction:'Read the statement as a whole. Notice what it is describing and any words that restrict when it applies.',reference:units[0]},
       {id:'step-1',title:'Inspect the relationship',instruction:'Look for the source’s own definition, comparison, order or reason. If it does not state a reason, keep that question open.',reference:units[1]??units[0]},
       {id:'step-2',title:'Connect the surrounding context',instruction:other?'Compare this neighboring passage with the focus statement. Decide what connection the text supports and what would need more evidence.':'This is the extent of the supplied context. Identify a question the author would need to answer before you could apply it more broadly.',reference:other?.reference??first.reference}];}
@@ -160,7 +170,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   notebook.sources.filter(s=>mediaIds.has(s.id)).forEach(s=>{if(s.transcript)mediaIds.add(s.transcript.mediaSourceId);if(s.visualEvidence)mediaIds.add(s.visualEvidence.parentSourceId);});
   if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')mediaIds.add(activity.sceneSourceId);
   if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)mediaIds.add(r.narrationSourceId);});
-  const planData={version:1,scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
+  const planData={version:2,selection:'target-source-unit',scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
   const visualIds=new Set(mediaIds);if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')visualIds.add(activity.sceneSourceId);if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)visualIds.add(r.narrationSourceId);});
   const media=notebook.sources.filter(s=>visualIds.has(s.id)&&(s.status==='ready'||(s.kind==='audio'||s.kind==='video')&&s.status==='needs-transcript')).flatMap<LearningPlan['media'][number]>(s=>{if(s.kind==='image'&&isPictureRaster(s.dataUrl))return[{sourceId:s.id,title:s.title,kind:'image' as const,url:s.dataUrl,alt:`Original uploaded image: ${s.title}. The source annotation is quoted below.`}];if(s.kind==='audio'||s.kind==='video'){const url=mediaPlaybackUrl(s);if(url)return[{sourceId:s.id,title:s.title,kind:s.kind,url,alt:s.title}];}return[];}).slice(0,6);
   return{id:`lesson-${textDigest(canonical(planData))}`,version:1,scaffoldId:scaffold.id,title:activity?.title??notebook.title,theme:notebook.theme,story,ageGroup:notebook.ageGroup,status:!passages.length||uncoveredTargetIds.length?'blocked':sparse||warnings.some(w=>w.startsWith('Some mission'))?'limited':'grounded',warnings:[...new Set(warnings)],passages,walkthrough:{kind,title,limitation,steps},practice:{prompt:story.reflection,focusOptions,orderIds:kind==='source-procedure'?steps.map(s=>s.id):[],spokenAllowed:notebook.ageGroup==='3-5'||notebook.ageGroup==='6-8'},targets,reviewed,mission:{assignment,assignmentOrigin:activity?'author':'source-guide',sourceTitles:Array.from(new Set(passages.map(p=>p.title))),evidence:raw.flatMap(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);const start=source?.text.indexOf(ref.evidence)??-1;return source&&source.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&start>=0&&ref.evidence.trim()?[reference(source,start,start+ref.evidence.length)]:[]}).slice(0,3),handoff:story.transfer,actionGuide:buildLessonActionGuide(activity)},...(rehearsal?{rehearsal}:{}),coverage:{coveredTargetIds,uncoveredTargetIds},media};

@@ -465,7 +465,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
         assert(++rate.count <= 300,'Too many requests. Wait a minute and try again.',429,'RATE_LIMITED');
       }
       if(await media.handle(request,response,url))return;
-      if(request.method === 'GET' && url.pathname === '/api/health') return send(200,{ok:true,version:'0.6.0',capabilities,limits,storage:'local',multiplayer:'persistent-private-rooms'});
+      if(request.method === 'GET' && url.pathname === '/api/health') return send(200,{ok:true,version:'0.6.1',capabilities,limits,storage:'local',multiplayer:'persistent-private-rooms'});
       if(request.method === 'GET' && url.pathname === '/api/tor/status') return send(200,capabilities.tor);
       if(request.method === 'POST' && url.pathname === '/api/import-file') return send(200,await importFile(await readBody(request),{tesseract}));
       if(request.method === 'POST' && url.pathname === '/api/import-url') return send(200,await importUrl(await readBody(request)));

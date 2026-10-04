@@ -4,6 +4,8 @@ import { proposeSourceObjectives } from './objectives';
 import { reconcileObjectives } from './evidence';
 import { sourceLearningUnits } from './sourceUnits';
 import { extractStructuredActivities, type StructuredActivity } from './structuredEngine';
+import { sourceSupportedScaffoldIds } from './scaffoldSelection';
+import { isReadyLearningSource } from './scaffoldRuntime';
 
 function same(value:unknown):string {
   if(Array.isArray(value))return`[${value.map(same).join(',')}]`;
@@ -48,7 +50,7 @@ function priorExtraction(activity:StructuredActivity,notebook:Notebook):Structur
 
 /** Prepare from the entire readable collection. A focused passage selection is never an input requirement. */
 export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebook; warnings: string[] } {
-  const readable = notebook.sources.filter(source => source.status === 'ready' && source.text.trim());
+  const readable = notebook.sources.filter(source => isReadyLearningSource(source, notebook.sources) && source.text.trim());
   const compiled = compileNotebook(readable, { maxCards: 120, ageGroup: notebook.ageGroup, goal: notebook.goal });
   const units=readable.flatMap(sourceLearningUnits);
   // A document may contain unrelated category systems or rule sets. Parse each coherent source unit separately.
@@ -84,7 +86,8 @@ export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebo
   const authoredObjectives=(reconcileObjectives(notebook.learningObjectives,readable)??[]);
   const generatedObjectives=proposeSourceObjectives(readable).filter(objective=>!authoredObjectives.some(saved=>saved.id===objective.id)).map(({rationale:_r,supportedMechanics:_s,...objective})=>objective);
   const learningObjectives=[...authoredObjectives,...generatedObjectives].slice(0,100);
-  return { notebook: { ...notebook, generationVersion:2, cards, learningObjectives, activities:[...existing.values()].slice(0, 300), scaffoldIds:[...new Set([...notebook.scaffoldIds, ...(cards.length ? ['recall-escape-mission'] : [])])] }, warnings:[...new Set([...compiled.warnings, ...extracted.warnings])] };
+  const prepared = { ...notebook, generationVersion:2, cards, learningObjectives, activities:[...existing.values()].slice(0, 300) };
+  return { notebook: { ...prepared, scaffoldIds:sourceSupportedScaffoldIds(prepared) }, warnings:[...new Set([...compiled.warnings, ...extracted.warnings])] };
 }
 
 /** Upgrade only recognizably generated legacy work. Authored/sample notebooks are never silently recompiled. */

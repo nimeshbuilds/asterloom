@@ -1,9 +1,13 @@
 import { getPictureBuildCapabilities } from './pictureBuildEngine';
 import { SCAFFOLDS, scaffoldById } from '../data/scaffolds';
-import type { StructuredActivity } from './structuredEngine';
+import {validateActivity,type StructuredActivity} from './structuredEngine';
+import {canScoreRecallCard} from './utils';
+import {validateMediaTranscript} from './mediaTranscript';
+import {sourceMediaIdentity} from './mediaAssets';
+import {validateVisualEvidenceSource} from './visualEvidence';
 import { getScenarioCapabilities } from './scenarioEngine';
 import { getCompositionCapabilities } from './compositionEngine';
-import type { Notebook } from '../types';
+import type { Notebook,Source } from '../types';
 
 export interface ScaffoldRuntimeDefinition {
   scaffoldId: string;
@@ -63,7 +67,7 @@ export function getScaffoldRuntimeDefinition(scaffoldId: string): ScaffoldRuntim
 export function compatibleScaffoldsForActivity(activity: Pick<StructuredActivity, 'kind'>) {
   return SCAFFOLDS.filter(scaffold => { const runtime = getScaffoldRuntimeDefinition(scaffold.id); return runtime.engineReady && runtime.mode === 'structured' && runtime.activityKinds.includes(activity.kind); });
 }
-function fitsSpecificContract(scaffoldId: string, activity: StructuredActivity): boolean {
+export function fitsSpecificContract(scaffoldId: string, activity: StructuredActivity): boolean {
   if (['competing-explanations', 'prediction-and-experiment', 'experiment-predictor', 'hypothesis-casebook'].includes(scaffoldId)) return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('prediction');
   if (['strategy-campaign', 'capstone-campaign'].includes(scaffoldId)) return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('transfer-debrief');
   if (scaffoldId === 'perspective-switching-drama') return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('perspective');
@@ -79,19 +83,45 @@ function fitsSpecificContract(scaffoldId: string, activity: StructuredActivity):
   if (scaffoldId === 'word-and-picture-workshop') return activity.kind === 'picture' && activity.mode === 'word-picture';
   return true;
 }
-export function resolveScaffoldRuntime(scaffoldId: string, notebook: Pick<Notebook, 'activities' | 'cards' | 'ageGroup'>): ScaffoldRuntimeEligibility {
+/** Readiness and byte/text provenance, never a test of semantic entailment. */
+export function isReadyLearningSource(source:Source|undefined,sources:Source[]):boolean {
+  if(!source||source.status!=='ready'||!source.text.trim())return false;
+  try {
+    if(source.transcript){
+      validateMediaTranscript(source.transcript,source.text,sources);
+      const recording=sources.find(item=>item.id===source.transcript!.mediaSourceId);
+      if(sourceMediaIdentity(recording)!==`bytes:${source.transcript.mediaRevision}`)return false;
+    }
+    if(source.visualEvidence&&(source.visualEvidence.reviewStatus!=='reviewed'||validateVisualEvidenceSource(source,sources).length))return false;
+    return true;
+  }catch{return false;}
+}
+/** A draft may have current evidence without having an author-approved answer model. */
+export function hasCurrentActivityEvidence(activity:StructuredActivity,sources:Source[]):boolean {
+  if(!Array.isArray(sources)||!validateActivity(activity,sources).success)return false;
+  const ready=new Map<string,boolean>();
+  return activity.sourceRefs.every(reference=>{
+    const source=sources.find(item=>item.id===reference.sourceId);
+    if(!source||!reference.evidence.trim()||!source.text.includes(reference.evidence))return false;
+    if(!ready.has(source.id))ready.set(source.id,isReadyLearningSource(source,sources));
+    return ready.get(source.id)===true;
+  });
+}
+export function resolveScaffoldRuntime(scaffoldId: string, notebook: Pick<Notebook, 'activities' | 'cards' | 'ageGroup' | 'sources'>): ScaffoldRuntimeEligibility {
   const definition = getScaffoldRuntimeDefinition(scaffoldId), scaffold = scaffoldById(scaffoldId);
   const base = { ...definition, available: false, activityIds: [], requiresAuthorBinding: definition.mode === 'structured' };
   if (!scaffold) return { ...base, reason: definition.runtimeHint };
   if (!scaffold.ages.includes(notebook.ageGroup)) return { ...base, reason: `This recipe is not configured for the notebook’s age setting. Choose a compatible recipe or adjust the audience in the studio. ${definition.runtimeHint}` };
   if (!definition.engineReady) return { ...base, reason: definition.runtimeHint };
+  const sources=Array.isArray(notebook.sources)?notebook.sources:[];
   if (definition.mode === 'source-practice') {
-    const ready = notebook.cards.filter(card => card.reviewStatus !== 'needs-review').length;
-    return { ...base, available: ready > 0, requiresAuthorBinding: false, reason: ready ? `${ready} source-recall ${ready === 1 ? 'card is' : 'cards are'} ready. Draft questions stay out of scored sessions.` : notebook.cards.length ? 'These recall questions need author review. Check the wording, answer and evidence, then mark them reviewed in the studio.' : 'Add source-recall cards before starting this practice mode.' };
+    const ready = notebook.cards.filter(card => canScoreRecallCard(card,sources)&&isReadyLearningSource(sources.find(source=>source.id===card.sourceId),sources)).length;
+    return { ...base, available: ready > 0, requiresAuthorBinding: false, reason: ready ? `${ready} source-recall ${ready === 1 ? 'card is' : 'cards are'} ready. Draft questions stay out of scored sessions.` : notebook.cards.length ? 'These recall questions need ready source material, current exact evidence and author review of pending drafts before scored play.' : 'Add source-recall cards before starting this practice mode.' };
   }
   const bound = (notebook.activities ?? []).filter(activity => activity.scaffoldIds?.includes(scaffoldId) && definition.activityKinds.includes(activity.kind) && fitsSpecificContract(scaffoldId, activity));
-  const reviewed = bound.filter(activity => activity.reviewStatus === 'reviewed');
-  if (!reviewed.length) return { ...base, reason: bound.length ? 'A suitable activity is linked, but its answers and evidence still need author review.' : `Build or import a suitable ${definition.activityKinds.join(' / ')} activity, link it to this recipe and review its content. A recipe name alone does not prepare its learning model.` };
-  return { ...base, available: true, activityIds: reviewed.map(activity => activity.id), reason: `${reviewed.length} author-reviewed ${reviewed.length === 1 ? 'activity is' : 'activities are'} ready for this recipe.` };
+  const grounded=bound.filter(activity=>hasCurrentActivityEvidence(activity,sources));
+  const reviewed = grounded.filter(activity => activity.reviewStatus === 'reviewed');
+  if (!reviewed.length) return { ...base, reason: grounded.length ? 'A suitable activity is linked, but its answers and evidence still need author review.' : bound.length ? 'This activity’s source evidence is missing, changed or not ready. Repair its materials and model before selecting it for learning.' : `Build or import a suitable ${definition.activityKinds.join(' / ')} activity, link it to this recipe and review its content. A recipe name alone does not prepare its learning model.` };
+  return { ...base, available: true, activityIds: reviewed.map(activity => activity.id), reason: `${reviewed.length} author-reviewed ${reviewed.length === 1 ? 'activity is' : 'activities are'} linked to current source evidence. Exact citations do not replace content review.` };
 }
 export const getScaffoldRuntime = resolveScaffoldRuntime;

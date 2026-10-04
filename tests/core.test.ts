@@ -39,7 +39,7 @@ describe('deterministic source compiler', () => {
     expect(hasCurrentCardEvidence(card, changed)).toBe(false);
     expect(hasCurrentCardEvidence(card, [])).toBe(false);
     expect(hasCurrentCardEvidence({ ...card, evidence: '' }, notebook.sources)).toBe(false);
-    expect(hasCurrentCardEvidence({ ...card, sourceId: '', questionType: 'manual' }, [])).toBe(true);
+    expect(hasCurrentCardEvidence({ ...card, sourceId: '', questionType: 'manual' }, [])).toBe(false);
     expect(hasCurrentCardEvidence({ ...card, sourceId: '' }, [])).toBe(false);
     expect(hasCurrentCardEvidence({ ...card, questionType: 'manual' }, changed)).toBe(false);
   });

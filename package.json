@@ -1,6 +1,6 @@
 {
   "name": "asterloom",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "A local-first studio for turning your materials into portable learning adventures.",
   "main": "desktop/main.mjs",
   "directories": {

@@ -24,11 +24,11 @@ describe('whole-source factory and all-recipe boundaries',()=>{
  });
  it('does not unlock any of the 75 recipes from a name, a compatible kind or an unreviewed generated model',()=>{
   const corpus=prepareFactoryCorpus(),activities=corpus.flatMap(x=>x.notebook.activities??[]);expect(SCAFFOLDS).toHaveLength(75);
-  for(const scaffold of SCAFFOLDS){const base={ageGroup:scaffold.ages[0],cards:[],activities:[]};expect(resolveScaffoldRuntime(scaffold.id,base).available).toBe(false);expect(resolveScaffoldRuntime(scaffold.id,{...base,activities:activities.map(a=>({...a,scaffoldIds:[scaffold.id]}))}).available).toBe(false);expect(resolveScaffoldRuntime(scaffold.id,{...base,activities:activities.map(a=>({...a,reviewStatus:'reviewed' as const,scaffoldIds:[]}))}).available).toBe(false);}
+  for(const scaffold of SCAFFOLDS){const base={ageGroup:scaffold.ages[0],cards:[],activities:[],sources:corpus.flatMap(c=>c.notebook.sources)};expect(resolveScaffoldRuntime(scaffold.id,base).available).toBe(false);expect(resolveScaffoldRuntime(scaffold.id,{...base,activities:activities.map(a=>({...a,scaffoldIds:[scaffold.id]}))}).available).toBe(false);expect(resolveScaffoldRuntime(scaffold.id,{...base,activities:activities.map(a=>({...a,reviewStatus:'reviewed' as const,scaffoldIds:[]}))}).available).toBe(false);}
  });
  it('makes the existing source-picture models discoverable only through their actual recipe modes',()=>{
   for(const [activity,recipe,age] of [[pictureDiscoveryFixture,'discovery-scenes','3-5'],[pictureWordFixture,'word-and-picture-workshop','6-8']]as const){
-   expect(validateActivity(activity,pictureSources).success).toBe(true);expect(activity.scaffoldIds).toEqual([recipe]);expect(resolveScaffoldRuntime(recipe,{ageGroup:age,cards:[],activities:[activity]}).activityIds).toEqual([activity.id]);
+   expect(validateActivity(activity,pictureSources).success).toBe(true);expect(activity.scaffoldIds).toEqual([recipe]);expect(resolveScaffoldRuntime(recipe,{ageGroup:age,cards:[],activities:[activity],sources:pictureSources}).activityIds).toEqual([activity.id]);
   }
  });
  it('recompiling unchanged sources yields the same task identities and no duplicate generated models',()=>{

@@ -55,14 +55,14 @@ describe('composition samples bind only to supported source-specific recipes',()
   expect(GARDEN_CONSTRUCTION.scaffoldIds).toEqual(['build-to-specification']);
   for(const activity of COMPOSITION_EXAMPLES){
    expect(validateActivity(activity,[COMPOSITION_EXAMPLE_SOURCE]).success).toBe(true);
-   for(const scaffoldId of activity.scaffoldIds??[])expect(resolveScaffoldRuntime(scaffoldId,{ageGroup:'adult',cards:[],activities:[activity]}).activityIds).toEqual([activity.id]);
+   for(const scaffoldId of activity.scaffoldIds??[])expect(resolveScaffoldRuntime(scaffoldId,{ageGroup:'adult',sources:[COMPOSITION_EXAMPLE_SOURCE],cards:[],activities:[activity]}).activityIds).toEqual([activity.id]);
    const solutions=activity.kind==='construction'?activity.referenceBuilds:activity.arguments[0].alternatives.map((_,i)=>explanationSolution(activity,i));
    for(const response of solutions)expect(evaluateActivity(activity,response).correct).toBe(true);
   }
  });
  it('does not label a routing puzzle as cloud/agent execution or a generic argument as annotated code review',()=>{
-  for(const scaffoldId of ['cloud-architecture-builder','agent-workflow-studio','secure-code-review'])expect(resolveScaffoldRuntime(scaffoldId,{ageGroup:'adult',cards:[],activities:COMPOSITION_EXAMPLES}).available).toBe(false);
-  const draft={...CLEAN_DATA_CONSTRUCTION,reviewStatus:'needs-review' as const};expect(resolveScaffoldRuntime('data-pipeline-repair',{ageGroup:'adult',cards:[],activities:[draft]}).available).toBe(false);
+  for(const scaffoldId of ['cloud-architecture-builder','agent-workflow-studio','secure-code-review'])expect(resolveScaffoldRuntime(scaffoldId,{ageGroup:'adult',sources:[COMPOSITION_EXAMPLE_SOURCE],cards:[],activities:COMPOSITION_EXAMPLES}).available).toBe(false);
+  const draft={...CLEAN_DATA_CONSTRUCTION,reviewStatus:'needs-review' as const};expect(resolveScaffoldRuntime('data-pipeline-repair',{ageGroup:'adult',sources:[COMPOSITION_EXAMPLE_SOURCE],cards:[],activities:[draft]}).available).toBe(false);
   expect(validateActivity(CLEAN_DATA_CONSTRUCTION,[{...COMPOSITION_EXAMPLE_SOURCE,text:''}]).success).toBe(false);
  });
 });
