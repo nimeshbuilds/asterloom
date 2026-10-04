@@ -34,7 +34,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
   const executable=process.env.ASTERLOOM_SMOKE_APP;
   const args=executable?[]:[path.join(ROOT,'desktop','main.mjs')];
   const env={...process.env,ASTERLOOM_DATA_DIR:path.join(directory,'profiles')};delete env.ELECTRON_RUN_AS_NODE;
-  let application;
+  let application,primaryFailure;
   const errors=[],remoteRequests=[];let features={};
   const launch=async(binary=executable)=>{
     const selected=await nativeTestExecutable(binary,directory);
@@ -214,9 +214,22 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.match(remixedProfile,/games[/\\][a-f0-9]{24}$/);assert.notEqual(remixedProfile,profile,'Remixed content must start in its own game profile');
     assert.equal(await page.getByRole('button',{name:'Continue adventure',exact:true}).count(),0,'Original game progress must not travel in a remix');
     assert.deepEqual(errors,[]);
+    console.log('Native product workflow verified; closing the final application and removing isolated test files.');
   }catch(error){
+    primaryFailure=error;
     await fs.mkdir(path.join(ROOT,'.qa'),{recursive:true});
     await application?.windows()[0]?.screenshot({path:path.join(ROOT,'.qa',`native-failure-${process.platform}.png`),animations:'disabled',timeout:5000}).catch(()=>{});
     throw error;
-  }finally{if(application)await application.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}
+  }finally{
+    const cleanupErrors=[];
+    try{if(application)await application.close();}catch(error){cleanupErrors.push(error);}
+    // Windows can retain a short executable lock after Electron's main process
+    // exits (for example in a renderer/helper or virus scanner). Retry only
+    // Node's recognized transient filesystem errors, for a bounded 19.5 s.
+    try{await fs.rm(directory,{recursive:true,force:true,maxRetries:12,retryDelay:250});}catch(error){cleanupErrors.push(error);}
+    if(cleanupErrors.length){
+      const cleanupFailure=new AggregateError(cleanupErrors,'Native test cleanup failed after application shutdown.');
+      if(primaryFailure)console.error(cleanupFailure);else throw cleanupFailure;
+    }
+  }
 });
