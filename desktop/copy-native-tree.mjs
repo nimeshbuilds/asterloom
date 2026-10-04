@@ -49,7 +49,10 @@ export async function copyNativeTree(sourcePath,targetPath,{exclude=[]}={}){
   await fs.mkdir(target,{mode:0o700});
   try{
     if(process.platform!=='darwin'){
-      await fs.cp(source,target,{recursive:true,verbatimSymlinks:true,errorOnExist:true,force:false,preserveTimestamps:true,mode:constants.COPYFILE_FICLONE,filter:entry=>!omitted(entry)});
+      // Node 24 rejects errorOnExist when even the directory root exists.
+      // Keep our exclusive reservation and copy only absent children into it.
+      for(const entry of await fs.readdir(source))await fs.cp(path.join(source,entry),path.join(target,entry),{recursive:true,verbatimSymlinks:true,errorOnExist:true,force:false,preserveTimestamps:true,mode:constants.COPYFILE_FICLONE,filter:filename=>!omitted(filename)});
+      await fs.chmod(target,stat.mode&0o7777);await fs.utimes(target,stat.atime,stat.mtime);
       return {method:'portable-copy'};
     }
     async function copyDirectory(from,to){

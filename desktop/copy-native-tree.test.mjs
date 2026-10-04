@@ -55,3 +55,12 @@ test('macOS copies share APFS blocks, then destination edits detach without muta
  handle=await fs.open(copied,'r+');await handle.write(Buffer.from([bytes[0]^255]),0,1,0);await handle.sync();await handle.close();
  const after=await physical([file,copied]);assert.notEqual(after[0],after[1]);assert.equal(hash(await fs.readFile(file)),hash(bytes));assert.equal(hash(await fs.readFile(selected)),hash(bytes));
 }));
+
+// Exercise the portable implementation on a Mac host as well: only the isolated
+// child process's platform selector is overridden; actual filesystem APIs run.
+test('portable copying fills a reserved root, prunes media and preserves root metadata',async()=>temporary(async root=>{
+ const source=path.join(root,'source'),target=path.join(root,'portable'),empty=path.join(root,'empty');await fs.mkdir(path.join(source,'keep'),{recursive:true});await fs.mkdir(path.join(source,'omit'));await fs.writeFile(path.join(source,'keep','runtime'),'independent');await fs.writeFile(path.join(source,'omit','private'),'not selected');await fs.mkdir(empty);await fs.chmod(source,0o750);const date=new Date('2025-01-02T03:04:05Z');await fs.utimes(source,date,date);
+ const moduleUrl=new URL('./copy-native-tree.mjs',import.meta.url).href;
+ await run(process.execPath,['--input-type=module','-e',`Object.defineProperty(process,'platform',{value:'linux'});const {copyNativeTree}=await import(${JSON.stringify(moduleUrl)});await copyNativeTree(process.argv[1],process.argv[2],{exclude:['omit']});await copyNativeTree(process.argv[3],process.argv[4]);`,source,target,empty,path.join(root,'empty-copy')]);
+ assert.equal(await fs.readFile(path.join(target,'keep','runtime'),'utf8'),'independent');await assert.rejects(fs.lstat(path.join(target,'omit')),error=>error.code==='ENOENT');assert.deepEqual(await fs.readdir(path.join(root,'empty-copy')),[]);assert.equal((await fs.stat(target)).mtimeMs,date.getTime());if(process.platform!=='win32')assert.equal((await fs.stat(target)).mode&0o777,0o750);
+}));
