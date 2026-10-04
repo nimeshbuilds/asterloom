@@ -62,6 +62,8 @@ export interface NotebookArtwork {
 }
 
 export interface Notebook {
+  /** Version of deterministic preparation; older authored notebooks remain untouched. */
+  generationVersion?: number;
   id: string;
   title: string;
   description: string;
@@ -99,7 +101,13 @@ export interface CardProgress {
   lastCorrect: boolean;
 }
 export interface JournalEntry { id: string; text: string; at: string; cardId?: string }
+/** Source-bound field notes record participation, never assessed mastery. */
+export interface SourceStudyState {
+  unitId: string; sourceId: string; quote: string; note: string; question: string;
+  completed: boolean; updatedAt: string;
+}
 export interface Progress {
+  studies?: Record<string, SourceStudyState>;
   /** Content-bound lesson checkpoints, separate from assessed recall. */
   lessons?: Record<string, LessonState>;
   notebookId: string;
@@ -116,7 +124,7 @@ export interface Progress {
   revision: number;
   structured?: Record<string, { response: unknown; completed: boolean; score: number; maxScore: number; attempts: number; updatedAt: string; review?: ReviewState; reviewStartedAt?: string }>;
   /** Persist the current play position without assuming a particular scaffold. */
-  activeSession?: { scaffoldId: string; cardIds: string[]; index: number; seed: number; startedAt: string; state?: Record<string, unknown> };
+  activeSession?: { scaffoldId: string; chapterId?: string; cardIds: string[]; index: number; seed: number; startedAt: string; state?: Record<string, unknown> };
 }
 
 export interface LearnPackage {

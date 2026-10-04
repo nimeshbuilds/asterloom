@@ -5,7 +5,8 @@ import {textDigest} from '../src/lib/evidence';
 import {buildMediaLearningCandidates,replaceMediaDrafts} from '../src/lib/mediaLearning';
 import {detectTranscriptFormat,matchCompanionTranscript,normalizeMediaTranscript,prepareTranscriptSource,validateMediaTranscript} from '../src/lib/mediaTranscript';
 import {evaluateActivity,validateActivity} from '../src/lib/structuredEngine';
-import {initialMediaResponse} from '../src/lib/mediaEngine';
+import {initialMediaResponse,validateMediaFields} from '../src/lib/mediaEngine';
+import {reviewAfterEvaluation} from '../src/lib/structuredReview';
 import {canScoreRecallCard} from '../src/lib/utils';
 const digest=textDigest('actual recording fixture bytes');
 const recording:Source={id:'recording',title:'Network lesson.mp4',kind:'video',mime:'video/mp4',dataUrl:'data:video/mp4;base64,AAAA',text:'',status:'needs-transcript',addedAt:'2026-10-04T00:00:00.000Z'};
@@ -25,6 +26,33 @@ describe('media transcript normalization and provenance',()=>{
  it('keeps all Unicode cue slices and chronology invariant for generated transcript sequences',()=>{fc.assert(fc.property(fc.array(fc.record({text:fc.string({minLength:1,maxLength:120}).filter(value=>value.trim().length>0&&!/[\u0000-\u001f\r\n]/.test(value)),duration:fc.integer({min:1,max:20})}),{minLength:1,maxLength:50}),rows=>{let position=0;const segments=rows.map(row=>{const start=position;position+=row.duration;return{start,end:position,text:row.text};});const p=normalizeMediaTranscript({format:'asr',segments},{mediaSourceId:'recording',mediaRevision:digest,duration:position});expect(validateMediaTranscript(JSON.parse(JSON.stringify(p.transcript)),p.text)).toEqual(p.transcript);for(const segment of p.transcript.segments)expect(p.text.slice(segment.startOffset,segment.endOffset)).toBe(segment.text);}),{numRuns:100});});
 });
 describe('deterministic media learning candidates',()=>{
+ it('turns ordinary speech into an exact-source observation without inventing a scored quiz',()=>{
+  const speech='And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.';
+  const transcript=prepareTranscriptSource(recording,{format:'srt',text:`1\n00:00:00,000 --> 00:00:10,600\n${speech}`},{mediaRevision:digest,duration:11});
+  const result=buildMediaLearningCandidates(recording,transcript,{mediaRevision:digest});
+  expect(result.cards).toEqual([]);expect(result.activities.map(a=>a.kind)).toEqual(['media']);expect(result.checkpointCandidates).toHaveLength(1);
+  const candidate=result.checkpointCandidates[0];expect(candidate).toMatchObject({kind:'observation',at:10.6,answer:'',choices:[],correctIndex:-1,selectedByDefault:true});
+  expect(candidate.evidence[0]).toMatchObject({sourceId:transcript.id,start:0,end:speech.length,quote:speech});
+  expect(result.mediaActivity!.checkpoints[0]).toMatchObject({mode:'observation',choices:[],correctChoiceIds:[]});
+  expect(validateActivity(result.mediaActivity,[recording,transcript]).success).toBe(true);expect(buildMediaLearningCandidates(recording,transcript,{mediaRevision:digest})).toEqual(result);
+ });
+ it('saves bounded observation drafts and reflects without awarding independent credit even after approval',()=>{
+  const result=buildMediaLearningCandidates(recording,prepared('The speaker contrasts receiving help from a community with contributing help to that community.',12),{mediaRevision:digest});const draft=result.mediaActivity!,checkpoint=draft.checkpoints[0];
+  const response=initialMediaResponse(draft,{position:5.5,answers:{[checkpoint.id]:'The speaker contrasts receiving help and contributing help.'}});
+  expect(initialMediaResponse(draft,structuredClone(response))).toEqual(response);expect(response.position).toBe(5.5);
+  expect(evaluateActivity(draft,response)).toMatchObject({valid:false,correct:null,outcome:'draft-preview',score:0,maxScore:0});
+  const reviewed={...draft,reviewStatus:'reviewed' as const},evaluation=evaluateActivity(reviewed,response);
+  expect(evaluation).toMatchObject({valid:true,correct:null,outcome:'self-reviewed',score:0,maxScore:0});expect(reviewAfterEvaluation(reviewed.id,undefined,evaluation)).toBeUndefined();
+  expect(evaluateActivity(reviewed,{...response,answers:{[checkpoint.id]:'  '}}).valid).toBe(false);
+  expect(evaluateActivity(reviewed,{...response,answers:{[checkpoint.id]:'x'.repeat(4001)}}).valid).toBe(false);
+  expect(initialMediaResponse(reviewed,{answers:{[checkpoint.id]:{unsafe:true},stale:'old'}}).answers).toEqual({[checkpoint.id]:''});
+  expect(validateMediaFields({...reviewed,checkpoints:[{...checkpoint,correctChoiceIds:['fake'] }]})).toContain('media.checkpoints: an observation must not contain an answer key');
+  expect(validateMediaFields({...reviewed,checkpoints:[{...checkpoint,mode:'graded-observation'}]})).toContain('media.checkpoints: unsupported response mode');
+ });
+ it('does not turn numbered descriptive facts into a procedure through the media extractor',()=>{
+  const text='Network facts\n1. A router connects separate networks.\n2. A switch connects devices within one network.\n3. A packet carries a small unit of information.';
+  const result=buildMediaLearningCandidates(recording,prepared(text,40),{mediaRevision:digest});expect(result.activities.some(a=>a.kind==='sequence')).toBe(false);expect(result.mediaActivity?.checkpoints.every(c=>c.mode==='observation')).toBe(true);
+ });
  it('preserves creator-corrected estimated cue times when the measured duration changes',()=>{const source=prepareTranscriptSource(recording,{format:'edited',origin:{format:'plain',timing:'estimated'},segments:notes.split('\n').map((text,i)=>({start:i*10+.125,end:i*10+8,text}))},{mediaRevision:digest,duration:40});const changed=buildMediaLearningCandidates(recording,source,{mediaRevision:digest,duration:41});expect(changed.transcriptSource.transcript).toMatchObject({duration:41,format:'plain',timing:'estimated',edited:true});expect(changed.transcriptSource.transcript!.segments).toEqual(source.transcript!.segments);expect(changed.mediaActivity?.checkpoints.map(c=>c.at)).toEqual([8,18,28,38]);const shorter=buildMediaLearningCandidates(recording,source,{mediaRevision:digest,duration:37});expect(shorter.activities).toEqual([]);expect(shorter.warnings.join(' ')).toContain('edited transcript cue ends after');expect(shorter.transcriptSource.transcript!.segments).toEqual(source.transcript!.segments);});
 
  it('builds multiple timed checkpoints with only quoted answer alternatives and exact evidence',()=>{const transcript=prepareTranscriptSource(recording,{format:'vtt',text:timed},{mediaRevision:digest,duration:40});const result=buildMediaLearningCandidates(recording,transcript,{mediaRevision:digest});expect(result.mediaActivity?.checkpoints).toHaveLength(4);expect(validateActivity(result.mediaActivity,[recording,transcript]).success).toBe(true);for(const candidate of result.checkpointCandidates){expect(candidate.choices.every(choice=>transcript.text.includes(choice))).toBe(true);for(const ref of candidate.evidence)expect(transcript.text.slice(ref.start,ref.end)).toBe(ref.quote);}expect(result.mediaActivity?.checkpoints.map(c=>c.at)).toEqual([8,17,26,35]);expect(buildMediaLearningCandidates(recording,transcript,{mediaRevision:digest})).toEqual(result);});

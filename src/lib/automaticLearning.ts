@@ -1,5 +1,8 @@
 import type { LearningCard, Notebook } from '../types';
-import { compileNotebook } from './compiler';
+import { compileNotebook, isUnmodifiedCompilerCard } from './compiler';
+import { proposeSourceObjectives } from './objectives';
+import { reconcileObjectives } from './evidence';
+import { sourceLearningUnits } from './sourceUnits';
 import { extractStructuredActivities, type StructuredActivity } from './structuredEngine';
 
 function same(value:unknown):string {
@@ -23,9 +26,12 @@ function originalExtractedWording(card:LearningCard):boolean {
 }
 function authoredCard(card:LearningCard,baseline:LearningCard|undefined):boolean {
   if(card.questionType==='manual'||card.reviewStatus==='reviewed'||!card.tags.includes('source-recall')||card.tags.includes('ai-refined')||card.tags.includes('author-edited'))return true;
-  if(card.reviewStatus!=='needs-review')return false;
-  if(baseline&&(card.prompt!==baseline.prompt||card.explanation!==baseline.explanation)&&!originalExtractedWording(card))return true;
-  return !baseline&&!originalExtractedWording(card);
+  if(isUnmodifiedCompilerCard(card))return false;
+  if(card.tags.some(tag=>tag.startsWith('compiler-v2-')))return true;
+  if(originalExtractedWording(card))return false;
+  if(baseline&&same({...card,reviewStatus:undefined,tags:[]})===same({...baseline,reviewStatus:undefined,tags:[]}))return false;
+  // Unknown legacy text may contain a creator's changes even if an old UI did not update its review flag.
+  return true;
 }
 function comparableActivity(activity:StructuredActivity):string {
   // Recipe bindings and review state are independent of whether the author changed the generated teaching/model.
@@ -44,7 +50,13 @@ function priorExtraction(activity:StructuredActivity,notebook:Notebook):Structur
 export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebook; warnings: string[] } {
   const readable = notebook.sources.filter(source => source.status === 'ready' && source.text.trim());
   const compiled = compileNotebook(readable, { maxCards: 120, ageGroup: notebook.ageGroup, goal: notebook.goal });
-  const extracted = extractStructuredActivities(readable);
+  const units=readable.flatMap(sourceLearningUnits);
+  // A document may contain unrelated category systems or rule sets. Parse each coherent source unit separately.
+  const sourceById=new Map(readable.map(source=>[source.id,source]));
+  const extracted = extractStructuredActivities(units.flatMap(unit=>(unit.passages.some(p=>p.kind==='code')?unit.passages.filter(p=>p.kind!=='code').map(p=>p.quote):[unit.quote]).map(text=>({...sourceById.get(unit.sourceId)!,text}))));
+  const unsupportedSequences=extracted.activities.filter(activity=>activity.kind==='sequence'&&!activity.sourceRefs.some(ref=>units.some(unit=>unit.sourceId===ref.sourceId&&unit.kind==='procedure'&&unit.quote.includes(ref.evidence))));
+  if(unsupportedSequences.length)extracted.warnings.push(`${unsupportedSequences.length} numbered list${unsupportedSequences.length===1?' was':'s were'} kept for source study because the material did not identify a procedure. Numbering alone is not a process rule.`);
+  extracted.activities=extracted.activities.filter(activity=>!unsupportedSequences.includes(activity));
   const compiledById=new Map(compiled.cards.map(card=>[card.id,card]));
   const preservedCards = notebook.cards.filter(card=>authoredCard(card,compiledById.get(card.id))).map(card=>{
     // Mark recognized legacy edits so a later source revision cannot make them look disposable again.
@@ -69,5 +81,17 @@ export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebo
     const scaffoldId = defaults[activity.kind as keyof typeof defaults];
     existing.set(activity.id, { ...activity, ...(scaffoldId ? { scaffoldIds:[scaffoldId] } : {}) });
   }
-  return { notebook: { ...notebook, cards, activities:[...existing.values()].slice(0, 300), scaffoldIds:[...new Set([...notebook.scaffoldIds, ...(cards.length ? ['recall-escape-mission'] : [])])] }, warnings:[...new Set([...compiled.warnings, ...extracted.warnings])] };
+  const authoredObjectives=(reconcileObjectives(notebook.learningObjectives,readable)??[]);
+  const generatedObjectives=proposeSourceObjectives(readable).filter(objective=>!authoredObjectives.some(saved=>saved.id===objective.id)).map(({rationale:_r,supportedMechanics:_s,...objective})=>objective);
+  const learningObjectives=[...authoredObjectives,...generatedObjectives].slice(0,100);
+  return { notebook: { ...notebook, generationVersion:2, cards, learningObjectives, activities:[...existing.values()].slice(0, 300), scaffoldIds:[...new Set([...notebook.scaffoldIds, ...(cards.length ? ['recall-escape-mission'] : [])])] }, warnings:[...new Set([...compiled.warnings, ...extracted.warnings])] };
+}
+
+/** Upgrade only recognizably generated legacy work. Authored/sample notebooks are never silently recompiled. */
+export function migrateAutomaticLearning(notebook:Notebook):{notebook:Notebook;changed:boolean;warnings:string[]}{
+  if(notebook.generationVersion===2)return{notebook,changed:false,warnings:[]};
+  const legacy=notebook.cards.some(card=>card.tags.includes('source-recall')&&card.questionType!=='manual'&&card.reviewStatus!=='reviewed'&&!card.tags.some(tag=>['ai-refined','author-edited'].includes(tag)||tag.startsWith('compiler-v2-'))&&originalExtractedWording(card));
+  if(!legacy)return{notebook,changed:false,warnings:[]};
+  const prepared=prepareAutomaticLearning(notebook);
+  return{...prepared,changed:true,warnings:['Updated legacy word-blank practice into source concepts and complete study units. Authored and reviewed work was preserved.',...prepared.warnings]};
 }

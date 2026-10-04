@@ -1,27 +1,143 @@
 import {useEffect,useRef,useState} from 'react';
-import {ExternalLink,RefreshCw,ShieldCheck,KeyRound} from 'lucide-react';
+import {ExternalLink,RefreshCw,ShieldCheck,KeyRound,Download,Check,LoaderCircle} from 'lucide-react';
 import type {ProviderConfig} from '../lib/provider';
+import {subscriptionLoginUrl,subscriptionStatuses,providerModelCatalog,type SubscriptionEngineId,type SubscriptionEngineStatus} from '../lib/providerConnections';
 import {api} from '../lib/imports';
 import './provider-connection.css';
-type Connection={enabled:boolean;connected:boolean;email?:string;pending:boolean;reason?:string;error?:string;persistent?:boolean};
+type Model={id:string;name:string};
+const engineNames={codex:'Codex · ChatGPT plan',grok:'Grok · SuperGrok plan',claude:'Claude Code · your account'};
+const engineLabels={codex:'Codex',grok:'Grok',claude:'Claude Code'},loginLabels={codex:'ChatGPT',grok:'Grok',claude:'Claude'};
+const providerFor=(id:SubscriptionEngineId)=>id==='codex'?'chatgpt':id==='grok'?'grok':'claude-code';
+const isPlan=(provider:ProviderConfig['provider'])=>provider==='chatgpt'||provider==='grok'||provider==='claude-code';
 export default function ProviderConnection({config,onChange,disabled=false,images=false}:{config:ProviderConfig;onChange:(v:ProviderConfig)=>void;disabled?:boolean;images?:boolean}){
- const [connection,setConnection]=useState<Connection|null>(null),[models,setModels]=useState<{id:string;name:string}[]>([]),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[authUrl,setAuthUrl]=useState('');
- const epoch=useRef(0),latest=useRef(config);latest.current=config;
+ const [engines,setEngines]=useState<SubscriptionEngineStatus[]>([]),[connectionError,setConnectionError]=useState('');
+ const [models,setModels]=useState<Model[]>([]),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ type Login={id:SubscriptionEngineId;url:string;code?:string};
+ type ClaudeMethod='claudeai'|'console'|'sso';
+ const [claudeMethod,setClaudeMethod]=useState<ClaudeMethod>('claudeai');
+ type Flow={method?:ClaudeMethod;id:SubscriptionEngineId;token:number;selection:string;stage:'installing'|'starting'|'pending';opened?:boolean};
+ const [action,setAction]=useState<SubscriptionEngineId|null>(null),[login,setLogin]=useState<Login|null>(null),[ending,setEnding]=useState(false);
+ const epoch=useRef(0),latest=useRef(config),change=useRef(onChange),mounted=useRef(false),lifecycle=useRef(0);
+ const authEpoch=useRef(0),statusEpoch=useRef(0),flow=useRef<Flow|null>(null),loginRef=useRef<Login|null>(null);
+ const connectionFlight=useRef<{generation:number;life:number;promise:Promise<void>}|null>(null),pollFailures=useRef(0),nextPoll=useRef(0);
+ latest.current=config;change.current=onChange;
+ const signature=(value:ProviderConfig)=>JSON.stringify([value.provider,value.apiKey,value.baseUrl??'',value.model]);
  const identity=JSON.stringify([config.provider,config.apiKey,config.baseUrl]);
- useEffect(()=>{epoch.current++;setModels([]);setNotice('');},[identity]);
- useEffect(()=>{if(images||location.protocol==='file:')return;let live=true;void api('/api/ai/connection').then(s=>{if(live)setConnection(s);}).catch(()=>{});return()=>{live=false;};},[images]);
- useEffect(()=>{if(!connection?.pending)return;const timer=setInterval(()=>void api('/api/ai/connection').then(s=>{setConnection(s);if(s.connected){setAuthUrl('');onChange({...latest.current,provider:'chatgpt',apiKey:'',model:''});setNotice('Connected. Refresh the catalog to choose a model.');}}).catch(()=>setNotice('The local connection is unavailable.')),1500);return()=>clearInterval(timer);},[connection?.pending]);
- async function refresh(){const request=++epoch.current;setBusy(true);setNotice('Reading your provider’s current model catalog…');try{const result=await api('/api/models',config);if(request!==epoch.current)return;setModels(result.models);setNotice(result.models.length?`${result.models.length} models returned. ${result.truncated?'The catalog was limited to 10 pages. ':''}Choose a model that supports ${images?'image generation':'text generation'}.`:'No models returned. You can enter a model ID manually.');}catch(e){if(request===epoch.current)setNotice((e as Error).message);}finally{if(request===epoch.current)setBusy(false);}}
- async function signIn(){try{setNotice('Opening the provider’s secure sign-in page…');const result=await api('/api/ai/sign-in',{});const url=new URL(result.authUrl);if(url.protocol!=='https:'||url.hostname!=='auth.openai.com')throw new Error('The provider returned an unexpected sign-in address.');setAuthUrl(url.href);setConnection(await api('/api/ai/connection'));window.open(url.href,'_blank','noopener,noreferrer');}catch(e){setNotice((e as Error).message);}}
+ const alive=(life:number)=>mounted.current&&lifecycle.current===life;
+ const current=(token:number,life:number)=>alive(life)&&authEpoch.current===token;
+ function choose(selected:ProviderConfig){latest.current=selected;change.current(selected);}
+ function showLogin(value:Login|null){loginRef.current=value;setLogin(value);}
+ useEffect(()=>{mounted.current=true;lifecycle.current++;return()=>{mounted.current=false;lifecycle.current++;authEpoch.current++;statusEpoch.current++;epoch.current++;flow.current=null;};},[]);
+ useEffect(()=>{epoch.current++;setModels([]);setBusy(false);setNotice('');},[identity]);
+ async function refresh(selected=latest.current){
+  const request=++epoch.current,life=lifecycle.current,selectedIdentity=JSON.stringify([selected.provider,selected.apiKey,selected.baseUrl]);
+  setBusy(true);setNotice('Reading your provider’s current model catalog…');
+  const isCurrent=()=>alive(life)&&request===epoch.current&&selectedIdentity===JSON.stringify([latest.current.provider,latest.current.apiKey,latest.current.baseUrl]);
+  try{const result=await api('/api/models',selected);if(!isCurrent())return;const catalog=providerModelCatalog(result);setModels(catalog.models);setNotice(catalog.models.length?`${catalog.models.length} models returned. Choose one for ${images?'image creation':'your next draft'}. Access depends on your provider and plan. ${catalog.notice}`:'No models returned. Check your provider access or enter a supported model ID.');}
+  catch(e){if(isCurrent())setNotice((e as Error).message);}
+  finally{if(isCurrent())setBusy(false);}
+ }
+ function useConnection(id:SubscriptionEngineId){
+  const provider=providerFor(id),selected:ProviderConfig={provider,apiKey:'',model:latest.current.provider===provider?latest.current.model:'',baseUrl:''};
+  choose(selected);setNotice('Connected. Choose a model from the returned catalog for your next request.');
+ }
+ function finishFlow(active:Flow){
+  flow.current=null;showLogin(null);setAction(null);
+  if(signature(latest.current)===active.selection)useConnection(active.id);
+  else setNotice('Sign-in completed. Your current provider selection was kept; use the connected account whenever you are ready.');
+ }
+ function presentLogin(active:Flow,value:{authUrl?:unknown;verificationUrl?:unknown;userCode?:unknown}){
+  const address=value.authUrl??value.verificationUrl;if(!address)return;
+  const url=subscriptionLoginUrl(active.id,address);
+  showLogin({id:active.id,url,code:typeof value.userCode==='string'?value.userCode.slice(0,200):undefined});setAction(null);
+  if(!active.opened&&signature(latest.current)===active.selection){active.opened=true;window.open(url,'_blank','noopener,noreferrer');}
+ }
+ function acceptConnections(rows:SubscriptionEngineStatus[]){
+  setEngines(rows);setConnectionError('');
+  const active=flow.current;
+  if(active){const row=rows.find(item=>item.id===active.id);if(!row){flow.current=null;showLogin(null);setAction(null);setConnectionError('This provider is no longer available from the local service. Retry the connection check.');return;}
+   if(active.stage==='installing'){
+    if(row.error){flow.current=null;setAction(null);setConnectionError(row.error);}
+    else if(row.installed&&!row.installing){active.stage='starting';void beginLogin(active);}
+   }else if(active.stage==='pending'){
+    if(row.connected)finishFlow(active);
+    else if(row.pending){try{presentLogin(active,row);}catch(e){flow.current=null;showLogin(null);setAction(null);setConnectionError((e as Error).message);}}
+    else if(!row.pending&&!row.installing){flow.current=null;showLogin(null);setAction(null);setConnectionError(row.error||'Sign-in ended before the account connected. You can retry when ready.');}
+   }
+   return;
+  }
+  // A provider-owned login can outlive this panel. Restore its link, never its automatic selection.
+  const pending=rows.find(row=>row.pending&&!row.connected&&(row.authUrl||row.verificationUrl));
+  if(pending){try{showLogin({id:pending.id,url:subscriptionLoginUrl(pending.id,pending.authUrl??pending.verificationUrl),code:pending.userCode});}catch(e){showLogin(null);setConnectionError((e as Error).message);}}
+  else if(loginRef.current)showLogin(null);
+ }
+ function readConnections():Promise<void>{
+  const generation=statusEpoch.current,life=lifecycle.current;
+  const running=connectionFlight.current;if(running?.generation===generation&&running.life===life)return running.promise;
+  const promise=(async()=>{
+   try{const result=await api('/api/ai/engines');if(!alive(life)||generation!==statusEpoch.current)return;const rows=subscriptionStatuses(result);pollFailures.current=0;nextPoll.current=0;acceptConnections(rows);}
+   catch(e){if(alive(life)&&generation===statusEpoch.current){pollFailures.current++;nextPoll.current=Date.now()+Math.min(1500*2**pollFailures.current,15000);setConnectionError(`Connection check failed: ${(e as Error).message} Your notebook is safe; retry the connection check.`);}}
+  })();
+  const flight={generation,life,promise};connectionFlight.current=flight;void promise.finally(()=>{if(connectionFlight.current===flight)connectionFlight.current=null;});return promise;
+ }
+ useEffect(()=>{if(images||location.protocol==='file:')return;void readConnections();},[images]);
+ const polling=!images&&(engines.some(row=>row.installing||row.pending)||action!==null||login!==null);
+ useEffect(()=>{if(!polling)return;const timer=setInterval(()=>{if(Date.now()>=nextPoll.current)void readConnections();},1500);return()=>clearInterval(timer);},[polling]);
+ useEffect(()=>{if(!images&&isPlan(config.provider)&&engines.some(row=>row.connected&&providerFor(row.id)===config.provider))void refresh(config);},[config.provider,engines.map(row=>`${row.id}:${row.connected}`).join('|')]);
+ async function beginLogin(active:Flow){
+  const life=lifecycle.current;if(!current(active.token,life))return;
+  active.stage='starting';statusEpoch.current++;setAction(active.id);setConnectionError('');
+  try{
+   const result=await api(`/api/ai/engines/${active.id}/login`,active.id==='claude'?{method:active.method??'claudeai'}:{});if(!current(active.token,life))return;
+   if(result.connected===true){finishFlow(active);await readConnections();return;}
+   active.stage='pending';
+   if(result.pending!==true&&!result.authUrl&&!result.verificationUrl)throw new Error('The provider did not start sign-in. Retry when ready.');
+   presentLogin(active,result);
+   statusEpoch.current++;await readConnections();
+  }catch(e){if(current(active.token,life)){flow.current=null;showLogin(null);setAction(null);setConnectionError((e as Error).message);}}
+ }
+ async function connect(engine:SubscriptionEngineStatus){
+  const active:Flow={method:engine.id==='claude'?claudeMethod:undefined,id:engine.id,token:++authEpoch.current,selection:signature(latest.current),stage:engine.installed?'starting':'installing'},life=lifecycle.current;
+  flow.current=active;statusEpoch.current++;showLogin(null);setAction(engine.id);setConnectionError('');
+  if(engine.installed){await beginLogin(active);return;}
+  try{await api(`/api/ai/engines/${engine.id}/install`,{});if(!current(active.token,life))return;statusEpoch.current++;await readConnections();}
+  catch(e){if(current(active.token,life)){flow.current=null;setAction(null);setConnectionError((e as Error).message);}}
+ }
+ async function endConnection(id:SubscriptionEngineId,cancel=false){
+  const token=++authEpoch.current,life=lifecycle.current;flow.current=null;statusEpoch.current++;setAction(id);setEnding(true);setConnectionError('');
+  try{await api(`/api/ai/engines/${id}/${cancel?'cancel':'logout'}`,{});if(!current(token,life))return;showLogin(null);if(!cancel&&latest.current.provider===providerFor(id))choose({provider:'openai',apiKey:'',model:''});statusEpoch.current++;await readConnections();}
+  catch(e){if(current(token,life))setConnectionError((e as Error).message);}
+  finally{if(current(token,life)){setAction(null);setEnding(false);}}
+ }
  return <div className="provider-connection">
- {!images&&<details className="subscription-connections"><summary>Connect a subscription</summary><p>Provider sign-in opens in your browser. Passwords are handled by the provider.</p><div className="subscription-grid"><article><strong>ChatGPT / Codex models</strong><button type="button" className="button secondary" disabled={disabled||!connection?.enabled||connection?.pending} onClick={()=>void signIn()}>Continue with ChatGPT</button><small>{connection?.connected?`Connected${connection.email?` as ${connection.email}`:''}.`:connection?.reason||'Available in eligible desktop distributions. This build uses API keys or assistant transfer.'}</small>{connection?.connected&&<button type="button" className="text-button" onClick={()=>{onChange({...config,provider:'chatgpt',apiKey:'',model:''});setNotice('Refresh the catalog to select a ChatGPT model.');}}>Use this connection</button>}{(connection?.connected||connection?.pending)&&<button type="button" className="text-button" onClick={()=>void api('/api/ai/disconnect',{}).then(s=>{setConnection(s);setAuthUrl('');onChange({...config,provider:'openai',model:''});})}>Disconnect</button>}</article><article><strong>Claude subscription</strong><small>Third-party subscription login requires Anthropic approval. Use your Claude API key below or the prepared assistant prompt.</small><a href="https://code.claude.com/docs/en/agent-sdk/overview" target="_blank" rel="noreferrer">Provider integration policy <ExternalLink size={12}/></a></article><article><strong>Grok subscription</strong><small>A general third-party subscription sign-in integration has not been verified for this app. Use your xAI API key or assistant transfer.</small><a href="https://console.x.ai" target="_blank" rel="noreferrer">Open xAI console <ExternalLink size={12}/></a></article></div>{authUrl&&<a href={authUrl} target="_blank" rel="noreferrer">Continue sign-in in your browser <ExternalLink size={13}/></a>}{connection?.error&&<p role="status">{connection.error}</p>}</details>}
- <label>{images?'Image provider':'AI provider'}<select disabled={disabled} value={config.provider} onChange={e=>{onChange({provider:e.target.value as ProviderConfig['provider'],apiKey:'',model:'',baseUrl:''});setBusy(false);}}><option value="openai">OpenAI API</option>{!images&&<><option value="anthropic">Claude / Anthropic API</option><option value="xai">Grok / xAI API</option>{connection?.connected&&<option value="chatgpt">Connected ChatGPT plan</option>}</>}<option value="compatible">Compatible API / local endpoint</option></select></label>
- {config.provider!=='chatgpt'&&<label><span><KeyRound size={13}/> API key · this session only</span><input type="password" autoComplete="off" value={config.apiKey} disabled={disabled} onChange={e=>{onChange({...config,apiKey:e.target.value});setBusy(false);}}/></label>}
- {config.provider==='compatible'&&<label>Endpoint base URL<input disabled={disabled} value={config.baseUrl||''} onChange={e=>{onChange({...config,baseUrl:e.target.value});setBusy(false);}} placeholder="http://127.0.0.1:11434/v1"/></label>}
- <div className="model-discovery"><button type="button" className="button secondary" disabled={disabled||busy||(config.provider!=='chatgpt'&&config.provider!=='compatible'&&!config.apiKey.trim())} onClick={()=>void refresh()}><RefreshCw size={15} className={busy?'spin':''}/> {busy?'Reading models…':'Refresh available models'}</button><small>No generation is performed by discovery.</small></div>
- {models.length>0&&<label>Available models<select disabled={disabled} value={models.some(m=>m.id===config.model)?config.model:''} onChange={e=>onChange({...config,model:e.target.value})}><option value="">Choose a model</option>{models.map(m=><option key={m.id} value={m.id}>{m.name===m.id?m.id:`${m.name} · ${m.id}`}</option>)}</select></label>}
- <label>{images?'Image model ID':'Model ID'}<input value={config.model} disabled={disabled} onChange={e=>onChange({...config,model:e.target.value})} placeholder="Choose above or enter a provider model ID"/></label>
+ {!images&&<details className="subscription-connections" open><summary>Connect a subscription</summary>
+  <p>Install the official local engine and sign in in your browser. The engine manages its account; Asterloom never asks for your password.</p>
+  <div className="subscription-grid">
+   {(['codex','grok','claude'] as const).map(id=>{const engine=engines.find(row=>row.id===id);const pending=engine?.pending||engine?.installing||action===id;return <article key={id} className={engine?.connected?'provider-connected':''}>
+    <div className="provider-card-heading"><strong>{engineNames[id]}</strong><span className={`provider-badge ${engine?.connected?'connected':''}`}>{engine?.connected?<><Check size={12}/>{engine.connectionState==='saved'?'Saved sign-in':'Connected'}</>:engine?.installing?'Installing':engine?.pending?'Sign-in pending':engine?.installed?'Installed':'Setup needed'}</span></div>
+    <small>{engine?.connected?`${engine.email??'Your account'}${engine.planType?` · ${engine.planType}`:''}. Choose a model below.`:engine?.reason??(id==='codex'?'For this free, personal desktop edition. Commercial editions need a separately approved connection.':id==='grok'?'Uses the official Grok Build engine and your account’s available plan usage.':'Runs the unmodified official Claude Code tool on your computer. Sign in with a subscription, Console, or SSO; the tool owns the connection.')}</small>
+    {id==='claude'&&!engine?.connected&&<label className="provider-login-method">Claude sign-in method<select value={claudeMethod} disabled={disabled||!!action||!!login||engine?.pending} onChange={e=>setClaudeMethod(e.target.value as ClaudeMethod)}><option value="claudeai">Claude account / subscription</option><option value="console">Anthropic Console</option><option value="sso">Organization SSO</option></select></label>}
+    {engine?.connected?<div className="provider-actions"><button type="button" className="button secondary" disabled={disabled||!!action} onClick={()=>useConnection(id)}>Use {engineLabels[id]}</button><button type="button" className="text-button" disabled={disabled||!!action} onClick={()=>void endConnection(id)}>Sign out</button></div>:<button type="button" className="button secondary" disabled={disabled||!engine?.enabled||!!pending||!!action||!!login} onClick={()=>engine&&void connect(engine)}>{pending?<LoaderCircle size={15} className="spin"/>:!engine?.installed?<Download size={15}/>:<ExternalLink size={15}/>} {engine?.installing?'Installing official engine…':engine?.pending?'Waiting for your sign-in…':engine?.installed?`Continue with ${loginLabels[id]}`:`Install ${engineLabels[id]} & sign in`}</button>}
+    {(engine?.pending||login?.id===id||action===id&&!engine?.connected)&&<button type="button" className="text-button" disabled={disabled||ending} onClick={()=>void endConnection(id,true)}>Cancel sign-in</button>}
+    {engine?.connected&&engine.reason&&<small>{engine.reason}</small>}
+    {engine?.connected&&<a href={id==='codex'?'https://chatgpt.com/#settings/Usage':id==='grok'?'https://grok.com/':'https://claude.ai/'} target="_blank" rel="noreferrer">{id==='codex'?'Manage ChatGPT usage':id==='grok'?'Open Grok account':'Open Claude account'} <ExternalLink size={12}/></a>}
+    {engine?.version&&<small className="provider-version">Official engine {engine.version}</small>}
+    {engine?.error&&<p className="provider-error" role="status">{engine.error}</p>}
+   </article>;})}
+
+  </div>
+  {login&&<div className="provider-login" role="status"><strong>Finish sign-in with {loginLabels[login.id]}</strong>{login.code&&<p>Enter this one-time code: <code>{login.code}</code></p>}<a href={login.url} target="_blank" rel="noreferrer">Reopen the provider’s sign-in page <ExternalLink size={13}/></a><small>Return here after signing in. If you keep this selection, its model catalog will load automatically.</small></div>}
+  {connectionError&&<p className="provider-error" role="status">{connectionError}</p>}
+  <div className="provider-actions"><button type="button" className="text-button" disabled={disabled} onClick={()=>choose({provider:'anthropic',apiKey:'',model:''})}>Use an API key</button><a href="https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use" target="_blank" rel="noreferrer">Claude Code connection terms <ExternalLink size={12}/></a></div>
+  <button type="button" className="text-button" disabled={disabled} onClick={()=>void readConnections()}><RefreshCw size={13}/>Check connections</button>
+ </details>}
+ <label>{images?'Image provider':'AI provider'}<select disabled={disabled} value={config.provider} onChange={e=>choose({provider:e.target.value as ProviderConfig['provider'],apiKey:'',model:'',baseUrl:''})}><option value="openai">OpenAI API</option>{!images&&<><option value="anthropic">Claude / Anthropic API</option><option value="xai">Grok / xAI API</option>{(engines.some(e=>e.id==='codex'&&e.connected)||config.provider==='chatgpt')&&<option value="chatgpt">Codex · connected ChatGPT plan</option>}{(engines.some(e=>e.id==='grok'&&e.connected)||config.provider==='grok')&&<option value="grok">Grok · connected subscription</option>}{(engines.some(e=>e.id==='claude'&&e.connected)||config.provider==='claude-code')&&<option value="claude-code">Claude Code · connected local tool</option>}</>}<option value="compatible">Compatible API / local endpoint</option></select></label>
+ {!isPlan(config.provider)&&<label><span><KeyRound size={13}/> API key · this session only</span><input type="password" autoComplete="off" value={config.apiKey} disabled={disabled} onChange={e=>choose({...config,apiKey:e.target.value})}/></label>}
+ {config.provider==='compatible'&&<label>Endpoint base URL<input disabled={disabled} value={config.baseUrl||''} onChange={e=>choose({...config,baseUrl:e.target.value})} placeholder="http://127.0.0.1:11434/v1"/></label>}
+ <div className="model-discovery"><button type="button" className="button secondary" disabled={disabled||busy||(!isPlan(config.provider)&&config.provider!=='compatible'&&!config.apiKey.trim())} onClick={()=>void refresh()}><RefreshCw size={15} className={busy?'spin':''}/>{busy?'Reading models…':'Refresh available models'}</button><small>No generation is performed by discovery.</small></div>
+ {models.length>0&&<label>Available models<select disabled={disabled} value={models.some(m=>m.id===config.model)?config.model:''} onChange={e=>choose({...config,model:e.target.value})}><option value="">Choose a model</option>{models.map(m=><option key={m.id} value={m.id}>{m.name===m.id?m.id:`${m.name} · ${m.id}`}</option>)}</select></label>}
+ <label>{images?'Image model ID':'Model ID'}<input value={config.model} disabled={disabled} onChange={e=>choose({...config,model:e.target.value})} placeholder="Choose above or enter a provider model ID"/></label>
  {notice&&<p className="provider-status" role="status">{notice}</p>}
- <p className="small muted"><ShieldCheck size={13}/> API credentials stay in memory and out of notebooks. Desktop subscription credentials use the operating system’s encrypted storage. Your selected provider handles its own charges and limits.</p>
+ <p className="small muted"><ShieldCheck size={13}/> API keys stay in memory. Official engines store their own sign-in in Asterloom’s private local connection folder. Keys and accounts never travel with exported games. Providers apply their own usage limits and charges.</p>
  </div>;
 }

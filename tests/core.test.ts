@@ -10,7 +10,7 @@ import type { Notebook, NotebookArtwork } from '../src/types';
 import { ACTIVITY_EXAMPLES, EXAMPLE_ACTIVITY_SOURCE, extractStructuredActivities } from '../src/lib/structuredEngine';
 
 function fixture() {
-  const source = createSource('Retrieval: bringing an idea back from memory without looking at the answer.\nSpacing: revisiting material across separate sessions instead of one long block.\nFeedback: information that helps a learner identify and correct a misunderstanding.\n1. Read the source carefully.\n2. Close your notes and retrieve the idea.\n3. Compare your answer with the source.\n4. Plan a later review.\n\nMeaningful practice helps people connect new information with their existing knowledge.', 'Learning principles');
+  const source = createSource('Retrieval: bringing an idea back from memory without looking at the answer.\nSpacing: revisiting material across separate sessions instead of one long block.\nFeedback: information that helps a learner identify and correct a misunderstanding.\n\nSpacing helps learners revisit the material across separate days and compare their recall.\n\nProcedure for practice:\n1. Read the source carefully.\n2. Close your notes and retrieve the idea.\n3. Compare your answer with the source.\n4. Plan a later review.\n\nMeaningful practice helps people connect new information with their existing knowledge.', 'Learning principles');
   const compiled = compileNotebook([source]);
   return createNotebook({ id: 'notebook-test', title: 'Learning principles', sources: [source], cards: compiled.cards });
 }
@@ -51,7 +51,7 @@ describe('deterministic source compiler', () => {
   });
   it('balances a limited pass across several source files', () => {
     const first = createSource('Alpha: the first entry in this author-provided reference.\nBeta: the second entry in this author-provided reference.');
-    const second = createSource('Gamma: a different entry from the second author-provided source.');
+    const second = createSource('Gamma: a different entry from the second author-provided source.\nDelta: another entry with a distinct description in that source.');
     const result = compileNotebook([first, second], { maxCards: 2 });
     expect(result.cards.map(card => card.sourceId)).toEqual([first.id, second.id]);
   });

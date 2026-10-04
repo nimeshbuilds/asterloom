@@ -1,0 +1,28 @@
+{
+  "version": "2.1.285",
+  "manifestUrl": "https://downloads.claude.ai/claude-code-releases/2.1.285/manifest.json",
+  "source": "https://claude.ai/install.sh",
+  "artifacts": {
+    "darwin-arm64": {
+      "url": "https://downloads.claude.ai/claude-code-releases/2.1.285/darwin-arm64/claude",
+      "downloadBytes": 223821616,
+      "downloadSha256": "51f09bd1e021d9fa8a1864c179799bd37cb39962a937935c5cf6823398e86db4",
+      "bytes": 223821616,
+      "sha256": "51f09bd1e021d9fa8a1864c179799bd37cb39962a937935c5cf6823398e86db4"
+    },
+    "darwin-x64": {
+      "url": "https://downloads.claude.ai/claude-code-releases/2.1.285/darwin-x64/claude",
+      "downloadBytes": 232253440,
+      "downloadSha256": "24835f7ca4b4338c33ad21c98a3402d9c22f89b8055075d18828e97973844ec3",
+      "bytes": 232253440,
+      "sha256": "24835f7ca4b4338c33ad21c98a3402d9c22f89b8055075d18828e97973844ec3"
+    },
+    "win32-x64": {
+      "url": "https://downloads.claude.ai/claude-code-releases/2.1.285/win32-x64/claude.exe",
+      "downloadBytes": 243751072,
+      "downloadSha256": "121fc8151ed40bd9c144d68aa1cea23427803628ffab65e23da1cceda155697e",
+      "bytes": 243751072,
+      "sha256": "121fc8151ed40bd9c144d68aa1cea23427803628ffab65e23da1cceda155697e"
+    }
+  }
+}

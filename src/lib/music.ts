@@ -1,5 +1,6 @@
 import {RECORDINGS} from './musicRecordings';
 import prepared from '../data/interactiveScores.generated.json';
+import {actionCuePlan,type GameActionCue} from './actionFeedback';
 import {feedbackCuePlan} from '../data/reactionProfiles';
 import {createLayerMixer,scoreEvents,scheduleVoice,SCORE_LAYERS} from './musicSynthesis';
 import {PHASE_MIX} from './scoreTypes';
@@ -30,7 +31,7 @@ export function setSoundPreferences(patch:Partial<SoundPreferences>):SoundPrefer
  const previous=getSoundPreferences();preferences={enabled:typeof patch.enabled==='boolean'?patch.enabled:previous.enabled,volume:clamp(patch.volume,previous.volume)};
  try{localStorage.setItem(preferenceKey,JSON.stringify(preferences));}catch{}
  if(preferences.enabled)ensureContext(); // Called synchronously from the explicit sound opt-in gesture.
- if(!preferences.enabled)stopVoices(effectVoices);
+ if(!preferences.enabled){stopVoices(effectVoices);stopVoices(actionVoices);}
  refreshOutput();if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:{...preferences}}));return{...preferences};
 }
 export interface MusicRuntimeStatus {state:'stopped'|'playing'|'suspended'|'unavailable';source:'recording'|'interactive'|null;trackId:string|null;phase:MusicPhase;reason?:string}
@@ -40,18 +41,18 @@ function updateStatus(patch:Partial<MusicRuntimeStatus>){status={...status,...pa
 let context:AudioContext|undefined,musicBus:GainNode|undefined,effectBus:GainNode|undefined,limiter:DynamicsCompressorNode|undefined;
 let layers:Record<ScoreLayer,GainNode>|undefined,timer:ReturnType<typeof setInterval>|undefined,phaseTimer:ReturnType<typeof setTimeout>|undefined;
 let recording:HTMLAudioElement|undefined,recordingNode:MediaElementAudioSourceNode|undefined,currentVolume=.15,musicWanted=false,manualDuck=false;
-let currentScore:InteractiveScore|undefined,nextIndex=0,loopStart=0,generation=0,listening=false,lastCue=-Infinity;
-const musicVoices=new Set<OscillatorNode>(),effectVoices=new Set<OscillatorNode>(),speakingMedia=new Set<HTMLMediaElement>();
+let currentScore:InteractiveScore|undefined,nextIndex=0,loopStart=0,generation=0,listening=false,lastCue=-Infinity,lastAction=-Infinity;
+const musicVoices=new Set<OscillatorNode>(),effectVoices=new Set<OscillatorNode>(),actionVoices=new Set<OscillatorNode>(),speakingMedia=new Set<HTMLMediaElement>();
 const hidden=()=>typeof document!=='undefined'&&document.visibilityState==='hidden';
 const ducked=()=>manualDuck||speakingMedia.size>0||(typeof window!=='undefined'&&window.speechSynthesis?.speaking===true);
 function stopVoices(voices:Set<OscillatorNode>){for(const node of voices){try{node.stop();}catch{}}voices.clear();}
 function keepVoice(node:OscillatorNode,set:Set<OscillatorNode>){set.add(node);node.addEventListener('ended',()=>set.delete(node),{once:true});}
 function listen(){if(listening||typeof document==='undefined')return;listening=true;
  const prime=()=>{if(getSoundPreferences().enabled)ensureContext();};document.addEventListener('pointerdown',prime,{capture:true,passive:true});document.addEventListener('keydown',prime,{capture:true,passive:true});
- document.addEventListener('visibilitychange',()=>{if(hidden()){if(timer)clearInterval(timer);timer=undefined;recording?.pause();stopVoices(musicVoices);stopVoices(effectVoices);void context?.suspend().catch(()=>{});if(musicWanted)updateStatus({state:'suspended'});}else if(musicWanted||getSoundPreferences().enabled){ensureContext();if(musicWanted){if(recording)void recording.play().catch(()=>updateStatus({state:'suspended',reason:'Select play to enable audio.'}));else startSchedule();}}});
+ document.addEventListener('visibilitychange',()=>{if(hidden()){if(timer)clearInterval(timer);timer=undefined;recording?.pause();stopVoices(musicVoices);stopVoices(effectVoices);stopVoices(actionVoices);void context?.suspend().catch(()=>{});if(musicWanted)updateStatus({state:'suspended'});}else if(musicWanted||getSoundPreferences().enabled){ensureContext();if(musicWanted){if(recording)void recording.play().catch(()=>updateStatus({state:'suspended',reason:'Select play to enable audio.'}));else startSchedule();}}});
  const media=(event:Event)=>{const node=event.target;if(!(node instanceof HTMLMediaElement)||node===recording)return;if(!node.paused&&!node.ended&&!node.muted&&node.volume>0)speakingMedia.add(node);else speakingMedia.delete(node);refreshOutput();};
  for(const event of ['play','pause','ended','volumechange'])document.addEventListener(event,media,true);
- window.addEventListener('storage',event=>{if(event.key===preferenceKey){preferencesLoaded=false;getSoundPreferences();if(!preferences.enabled)stopVoices(effectVoices);refreshOutput();window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:getSoundPreferences()}));}});
+ window.addEventListener('storage',event=>{if(event.key===preferenceKey){preferencesLoaded=false;getSoundPreferences();if(!preferences.enabled){stopVoices(effectVoices);stopVoices(actionVoices);}refreshOutput();window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:getSoundPreferences()}));}});
 }
 function ensureContext():AudioContext|undefined {
  listen();if(typeof window==='undefined')return;
@@ -90,9 +91,27 @@ export function soundtrackForScaffold(scaffold:{id:string;family:string;visual?:
  const id=scaffold.family==='explain'?'ink-and-lantern':scaffold.family==='sequence'?'copper-lines':scaffold.visual?.scene==='ocean'?'river-notes':'quiet-orbit';return{trackId:`score-${id}`,reason:'A prepared original score with adjustable learning-phase layers.'};
 }
 export function musicFeedback(kind:'success'|'try-again'|'complete',scaffoldId?:string,ageGroup?:string):boolean {
- setLearningMusicPhase(kind==='try-again'?'retry':'success');if(!getSoundPreferences().enabled||ducked()||hidden())return false;const active=ensureContext();if(!active||!effectBus||active.state!=='running')return false;if(active.currentTime-lastCue<.14)return false;lastCue=active.currentTime;stopVoices(effectVoices);const plan=feedbackCuePlan(kind==='try-again'?'retry':kind,scaffoldId,ageGroup);refreshOutput();
+ try {
+ setLearningMusicPhase(kind==='try-again'?'retry':'success');if(!getSoundPreferences().enabled||ducked()||hidden())return false;const active=ensureContext();if(!active||!effectBus||active.state!=='running')return false;if(active.currentTime-lastCue<.14)return false;lastCue=active.currentTime;stopVoices(actionVoices);stopVoices(effectVoices);const plan=feedbackCuePlan(kind==='try-again'?'retry':kind,scaffoldId,ageGroup);refreshOutput();
  for(const note of [...plan.notes.map(n=>({...n,instrument:plan.instrument})),...plan.support])keepVoice(scheduleVoice(active,effectBus,{...note,at:active.currentTime+.015+note.at}),effectVoices);
  return true;
+ }catch{return feedbackUnavailable();}
 }
 /** Speech and source recordings always take priority; feedback cues are suppressed. */
-export function duckMusic(duck:boolean){manualDuck=duck;if(duck)stopVoices(effectVoices);refreshOutput();}
+export function duckMusic(duck:boolean){manualDuck=duck;if(duck){stopVoices(effectVoices);stopVoices(actionVoices);}refreshOutput();}
+
+/** Immediate action acknowledgment; grading cues have priority and no points are implied. */
+export function gameActionFeedback(kind:GameActionCue|null,scaffoldId?:string,ageGroup?:string):boolean {
+ try {
+ if(!kind||!getSoundPreferences().enabled||ducked()||hidden())return false;
+ const active=ensureContext();if(!active||!effectBus||active.state!=='running'||active.currentTime-lastCue<.85||active.currentTime-lastAction<.085)return false;
+ lastAction=active.currentTime;stopVoices(actionVoices);refreshOutput();const plan=actionCuePlan(kind,scaffoldId,ageGroup);
+ for(const note of plan.notes)keepVoice(scheduleVoice(active,effectBus,{...note,instrument:plan.instrument,at:active.currentTime+.008+note.at}),actionVoices);
+ return true;
+ }catch{return feedbackUnavailable();}
+}
+function feedbackUnavailable():false {
+ stopVoices(actionVoices);stopVoices(effectVoices);
+ // Optional presentation must never prevent a move or turn a committed result into a save error.
+ updateStatus({state:'unavailable',reason:'Game feedback audio is unavailable. Your game and progress still work.'});return false;
+}

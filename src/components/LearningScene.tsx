@@ -4,15 +4,16 @@ import {getAgePresentation,worldPalette,worldForScaffold} from '../data/worlds';
 import {worldBackdropMarkup,glyphMarkup} from '../lib/worldIllustration';
 import {sceneNodePositions,type SceneAction,type SceneSnapshot} from '../lib/worldScene';
 import './learning-scene.css';
-export interface LearningSceneProps {scaffoldId?:string;theme?:string;ageGroup?:string;snapshot:SceneSnapshot;selectedId?:string;onSelect?:(id:string)=>void;actions?:SceneAction[];onAction?:(action:SceneAction)=>void;compact?:boolean}
+export interface LearningSceneProps {scaffoldId?:string;theme?:string;ageGroup?:string;snapshot:SceneSnapshot;selectedId?:string;onSelect?:(id:string)=>void;actions?:SceneAction[];onAction?:(action:SceneAction)=>void;compact?:boolean;interaction?:'overview'|'workspace'}
 const empty=()=>{try{return localStorage.getItem('asterloom.scene.simple')==='true';}catch{return false;}};
-export default function LearningScene({scaffoldId,theme='islands',ageGroup='adult',snapshot,selectedId='',onSelect,actions=[],onAction,compact=false}:LearningSceneProps){
+export default function LearningScene({scaffoldId,theme='islands',ageGroup='adult',snapshot,selectedId='',onSelect,actions=[],onAction,compact=false,interaction='workspace'}:LearningSceneProps){
+ const overview=interaction==='overview';
  const world=worldForScaffold(scaffoldId),age=getAgePresentation(ageGroup),palette=worldPalette(theme,ageGroup);
  const [simple,setSimple]=useState(empty),[engine,setEngine]=useState<'loading'|'canvas'|'fallback'>('loading'),[motion,setMotion]=useState(false),[revision,setRevision]=useState(0);
  const animation=useRef<number>(0),previousPositions=useRef(new Map<string,{x:number;y:number}>());
  const host=useRef<HTMLDivElement>(null),runtime=useRef<{app:import('pixi.js').Application;pixi:typeof import('pixi.js')}|null>(null),draw=useRef<()=>void>(()=>{}),select=useRef(onSelect);select.current=onSelect;
  const selected=snapshot.nodes.find(n=>n.id===selectedId),page=Math.max(0,Math.floor(snapshot.nodes.findIndex(n=>n.id===selectedId)/8));
- const nodes=useMemo(()=>sceneNodePositions(snapshot.nodes.slice(page*8,page*8+8),snapshot.layout??world.layout),[JSON.stringify(snapshot.nodes),page,snapshot.layout,world.layout]);
+ const nodes=useMemo(()=>sceneNodePositions(overview?[]:snapshot.nodes.slice(page*8,page*8+8),snapshot.layout??world.layout),[JSON.stringify(snapshot.nodes),page,snapshot.layout,world.layout,overview]);
  const backdrop=useMemo(()=>worldBackdropMarkup(world,theme,ageGroup),[world,theme,ageGroup]);
  useEffect(()=>{const query=matchMedia('(prefers-reduced-motion: reduce)');const update=()=>setMotion(query.matches);update();query.addEventListener('change',update);return()=>query.removeEventListener('change',update);},[]);
  useEffect(()=>{
@@ -47,20 +48,20 @@ export default function LearningScene({scaffoldId,theme='islands',ageGroup='adul
   };draw.current=render;render();return()=>cancelAnimationFrame(animation.current);
  },[motion,revision,backdrop,JSON.stringify(nodes),JSON.stringify(snapshot.links),palette,selectedId,page,!!onSelect]);
  const toggle=(value:boolean)=>{setSimple(value);try{localStorage.setItem('asterloom.scene.simple',String(value));}catch{/* Preference is optional when storage is unavailable. */}};
- return <section className={`learning-scene ${compact?'scene-compact':''} scene-density-${age.density}`} data-scene-engine={engine} data-renderer={engine==='canvas'?'pixi-webgl':engine==='fallback'?'svg-dom':'initializing'} data-reduced-motion={motion} aria-label={`${world.name}: live workspace`} style={{'--scene-ink':palette.ink,'--scene-accent':palette.accent,'--scene-paper':palette.paper,'--scene-tint':palette.sky} as CSSProperties}>
+ return <section className={`learning-scene ${compact?'scene-compact':''} ${overview?'scene-overview':''} scene-density-${age.density}`} data-scene-engine={engine} data-renderer={engine==='canvas'?'pixi-webgl':engine==='fallback'?'svg-dom':'initializing'} data-reduced-motion={motion} aria-label={`${world.name}: ${overview?'quest context':'live workspace'}`} style={{'--scene-ink':palette.ink,'--scene-accent':palette.accent,'--scene-paper':palette.paper,'--scene-tint':palette.sky} as CSSProperties}>
   <div className="scene-title"><div><span><Leaf size={13}/>{age.label}</span><h3>{world.name}</h3></div><button type="button" className="scene-mode" aria-pressed={simple} onClick={()=>toggle(!simple)}><Layers size={14}/>{simple?'Illustrated view':'Simple view'}</button></div>
   {!simple&&<div className="scene-stage" data-world={world.id}>
    <svg className="scene-fallback" viewBox="0 0 800 360" aria-hidden="true"><g dangerouslySetInnerHTML={{__html:backdrop}}/>{snapshot.links.map((link,i)=>{const a=nodes.find(n=>n.id===link.from),b=nodes.find(n=>n.id===link.to);return a&&b?<line key={i} x1={a.x!*8} y1={a.y!*3.6} x2={b.x!*8} y2={b.y!*3.6} stroke={palette.accent} strokeWidth="3"/>:null;})}{nodes.map((node,i)=><g key={node.id} transform={`translate(${node.x!*8} ${node.y!*3.6})`}><circle r="24" fill={node.active?palette.accent:palette.paper} stroke={palette.accent} strokeWidth="2"/><text textAnchor="middle" dominantBaseline="middle" fontFamily="Arial" fontWeight="bold" fontSize="18" fill={node.active?palette.paper:palette.ink}>{page*8+i+1}</text></g>)}</svg>
    <div ref={host} className={`scene-canvas ${engine==='canvas'?'ready':''}`}/>
-   <span className="scene-setting-label">Illustrated setting · your work below</span>
+   {!overview&&<span className="scene-setting-label">Illustrated setting · your work below</span>}
   </div>}
   <div className="scene-workspace">
    <div className="scene-state-summary"><MousePointer2 size={16}/><p>{snapshot.summary}</p></div>
    {!!snapshot.metrics.length&&<dl className="scene-metrics">{snapshot.metrics.map((metric,index)=><div key={index}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}</dl>}
-   {snapshot.nodes.length>0&&<><div className="scene-object-tray" aria-label="Objects in your working model">{nodes.map((node,i)=><button type="button" key={node.id} aria-pressed={selectedId===node.id} disabled={!onSelect} onClick={()=>onSelect?.(node.id)}><span className={node.active?'is-active':''}>{page*8+i+1}</span><strong>{node.label}</strong>{node.quantity!==undefined&&<small>×{node.quantity}</small>}</button>)}</div>{snapshot.nodes.length>8&&<label className="scene-object-picker">Find a workspace object<select value={selectedId} onChange={event=>onSelect?.(event.target.value)}><option value="">Choose an object</option>{snapshot.nodes.map(node=><option key={node.id} value={node.id}>{node.label}</option>)}</select></label>}</>}
-   {selected&&<div className="scene-selected" aria-live="polite"><div><strong>{selected.label}</strong><p>{selected.detail}</p></div>{!!actions.length&&<div className="scene-actions">{actions.map((action,i)=><button type="button" key={i} disabled={action.disabled} onClick={()=>onAction?.(action)}>{action.label}</button>)}</div>}</div>}
-   {!snapshot.nodes.length&&<p className="scene-empty">Add a part in the workspace to bring this model to life.</p>}
+   {!overview&&snapshot.nodes.length>0&&<><div className="scene-object-tray" aria-label="Objects in your working model">{nodes.map((node,i)=><button type="button" key={node.id} aria-pressed={selectedId===node.id} disabled={!onSelect} onClick={()=>onSelect?.(node.id)}><span className={node.active?'is-active':''}>{page*8+i+1}</span><strong>{node.label}</strong>{node.quantity!==undefined&&<small>×{node.quantity}</small>}</button>)}</div>{snapshot.nodes.length>8&&<label className="scene-object-picker">Find a workspace object<select value={selectedId} onChange={event=>onSelect?.(event.target.value)}><option value="">Choose an object</option>{snapshot.nodes.map(node=><option key={node.id} value={node.id}>{node.label}</option>)}</select></label>}</>}
+   {!overview&&selected&&<div className="scene-selected" aria-live="polite"><div><strong>{selected.label}</strong><p>{selected.detail}</p></div>{!!actions.length&&<div className="scene-actions">{actions.map((action,i)=><button type="button" key={i} disabled={action.disabled} onClick={()=>onAction?.(action)}>{action.label}</button>)}</div>}</div>}
+   {!overview&&!snapshot.nodes.length&&<p className="scene-empty">Add a part in the workspace to bring this model to life.</p>}
   </div>
-  <details className="scene-setting-note"><summary>About this scene <ChevronDown size={12}/></summary><p>{world.settingNote} Highlighted objects show selections or available actions. They do not indicate a correct answer.</p></details>
+  <details className="scene-setting-note"><summary>About this scene <ChevronDown size={12}/></summary><p>{world.settingNote} {overview?'The task below contains the controls and evidence.':'Highlighted objects show selections or available actions. They do not indicate a correct answer.'}</p></details>
  </section>;
 }

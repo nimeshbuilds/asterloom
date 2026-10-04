@@ -23,6 +23,7 @@ const cleanBuild = (processor: string): ConstructionBuild => ({instances: [insta
 export const CLEAN_DATA_CONSTRUCTION: ConstructionActivity = {
   ...base('example-build-data', 'Build a clean-data route', 'Build a working route from raw records to a clean archive. Choose a transformation station, connect compatible ports, and stay within five credits.', 0,
     'Your model carries raw records through an allowed transformation and delivers clean records to the archive within the workshop budget.', 'Read the type beside each port. An output connects to an input with the same type.'),
+  scaffoldIds: ['build-to-specification', 'data-pipeline-repair'],
   kind: 'construction', allowCycles: false, requireAllConnected: true,
   components: [
     {id: 'intake', label: 'Record intake', description: 'Supplies raw records.', maxInstances: 1, ports: [port('out', 'out', 'raw')], costs: {credits: 1}, ...ref},
@@ -41,6 +42,7 @@ export const CLEAN_DATA_CONSTRUCTION: ConstructionActivity = {
 export const GARDEN_CONSTRUCTION: ConstructionActivity = {
   ...base('example-build-garden', 'Route water to both gardens', 'Plan a connected routing network for two garden beds. Compare a shared branching pump with two smaller pumps. Both solutions must respect the source’s connection and energy limits.', 1,
     'Both beds have a directed route from the reservoir through a pump, every port stays within its connection limit, and the model uses no more than two energy units.', 'A branching pump can send its output to two beds. Each small pump can send its output to only one bed.'),
+  scaffoldIds: ['build-to-specification'],
   kind: 'construction', allowCycles: false, requireAllConnected: true,
   components: [
     {id: 'reservoir', label: 'Reservoir', description: 'Supplies a water output with room for two connections.', maxInstances: 1, ports: [port('out', 'out', 'water', 2)], costs: {}, ...ref},
@@ -61,6 +63,7 @@ export const GARDEN_CONSTRUCTION: ConstructionActivity = {
 export const PLANT_EXPLANATION: ExplanationActivity = {
   ...base('example-explain-plants', 'Build an explanation that holds', 'Connect a defensible claim to the observations and a warrant that explains the connection. The prepared investigation supports two different focused explanations.', 2,
     'Your claim, selected observations, and warrant form one complete explanation supported by this investigation. The conclusion keeps the source’s limits.', 'The evidence is what was observed. The warrant explains why those observations support your specific claim.'),
+  scaffoldIds: ['argument-construction'],
   kind: 'explanation', pieces: [
     {id: 'claim-height', role: 'claim', text: 'The regular-water treatment produced a larger mean height in this investigation.', ...ref},
     {id: 'claim-controls', role: 'claim', text: 'Light and soil were held constant between the two groups.', ...ref},
@@ -79,6 +82,7 @@ export const PLANT_EXPLANATION: ExplanationActivity = {
 export const SECURITY_EXPLANATION: ExplanationActivity = {
   ...base('example-explain-security', 'Defend the safer query design', 'Assemble a source-backed review: a claim, the relevant evidence, its warrant, an objection, and a response. Keep the conclusion within the stated review criterion.', 3,
     'Your review connects the prepared-statement design to the stated command-structure criterion and answers the output-context objection without claiming a complete security audit.', 'The warrant must connect parameterization to the exact review criterion. A response should address the objection’s context.'),
+  scaffoldIds: ['argument-construction'],
   kind: 'explanation', pieces: [
     {id: 'claim-b', role: 'claim', text: 'Version B meets the stated criterion of preventing the name value from changing command structure.', ...ref},
     {id: 'claim-all', role: 'claim', text: 'Version B is secure against every possible attack.', ...ref},

@@ -30,3 +30,22 @@
  .learning-scene:not(.scene-compact):has(.scene-mode[aria-pressed=true])>.scene-workspace{border-left:0}
  .structured-board .structured-workspace>.structured-sequence ol{gap:9px}
 }
+
+/* Context is a small orientation band; the activity board owns the decisions. */
+.learning-scene.scene-overview{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:0;margin:16px 0 22px;box-shadow:none}
+.learning-scene.scene-overview>.scene-title{grid-column:2;grid-row:1;padding:12px 16px 0;background:transparent}
+.learning-scene.scene-overview .scene-title h3{font-size:17px;margin:2px 0}
+.learning-scene.scene-overview .scene-title>div>span{font-size:9px;letter-spacing:.7px}
+.learning-scene.scene-overview>.scene-stage{grid-column:1;grid-row:1/3;align-self:stretch;margin:0;min-height:104px;max-height:none;aspect-ratio:auto;overflow:hidden}
+.learning-scene.scene-overview .scene-stage .scene-fallback,.learning-scene.scene-overview .scene-stage .scene-canvas{height:100%;object-fit:cover}
+.learning-scene.scene-overview>.scene-workspace{grid-column:2;grid-row:2;padding:5px 16px 12px;border:0;min-width:0}
+.learning-scene.scene-overview .scene-state-summary{font-size:12px;line-height:1.5}
+.learning-scene.scene-overview .scene-state-summary>svg{display:none}
+.learning-scene.scene-overview .scene-metrics{gap:14px;margin:8px 0 0}
+.learning-scene.scene-overview .scene-metrics>div{display:flex;gap:6px;align-items:baseline;min-width:0;padding:0;background:transparent}
+.learning-scene.scene-overview .scene-metrics dt{font-size:11px;margin:0}
+.learning-scene.scene-overview .scene-metrics dd{font-size:12px}
+.learning-scene.scene-overview>.scene-setting-note{grid-column:1/-1;padding:5px 16px}
+.learning-scene.scene-overview:has(.scene-mode[aria-pressed=true]){grid-template-columns:1fr}
+.learning-scene.scene-overview:has(.scene-mode[aria-pressed=true])>.scene-title,.learning-scene.scene-overview:has(.scene-mode[aria-pressed=true])>.scene-workspace{grid-column:1}
+@media(max-width:650px){.learning-scene.scene-overview{grid-template-columns:82px minmax(0,1fr)}.learning-scene.scene-overview .scene-title h3{font-size:15px}.learning-scene.scene-overview .scene-mode{padding:6px}.learning-scene.scene-overview>.scene-title{gap:6px;padding:10px 10px 0}.learning-scene.scene-overview>.scene-workspace{padding:4px 10px 10px}.learning-scene.scene-overview .scene-metrics{gap:6px}}

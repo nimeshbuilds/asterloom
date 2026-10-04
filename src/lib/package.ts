@@ -161,7 +161,7 @@ export function validateNotebook(input: unknown): Notebook {
     return checked.value;
   });
   if (activities) unique(activities.map(activity => activity.id), 'Structured activities');
-  return { id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), ...(value.learningObjectives!==undefined?{learningObjectives:validateLearningObjectives(value.learningObjectives,sources)}:{}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
+  return { ...(value.generationVersion !== undefined ? {generationVersion:integer(value.generationVersion,'Preparation version',1,1000)} : {}), id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), ...(value.learningObjectives!==undefined?{learningObjectives:validateLearningObjectives(value.learningObjectives,sources)}:{}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
 }
 
 function parseJson(text: string, maximum = MAX_PACKAGE_BYTES): unknown {
@@ -224,6 +224,16 @@ export function validateProgress(input: unknown): Progress {
     if (cards[id].correct > cards[id].attempts) throw new Error('Correct attempts cannot exceed all attempts.');
   }
   const progress: Progress = { cards, notebookId: identifier(value.notebookId, 'Progress notebook ID'), completedCardIds: array(value.completedCardIds, 'Completed challenges', 2000).map(id => identifier(id, 'Completed challenge ID')), attempts: array(value.attempts, 'Attempts', 10_000).map(raw => { const item = object(raw, 'Attempt'); const confidence = item.confidence; if (!['guessing', 'unsure', 'confident'].includes(String(confidence))) throw new Error('Invalid confidence level.'); return { id: identifier(item.id, 'Attempt ID'), cardId: identifier(item.cardId, 'Attempt challenge'), correct: boolean(item.correct, 'Attempt result'), at: date(item.at, 'Attempt time'), confidence: confidence as 'guessing' | 'unsure' | 'confident', xp: integer(item.xp, 'Attempt XP', 0, 1000) }; }), xp: integer(value.xp, 'XP', 0, 1_000_000_000), mastery: number(value.mastery, 'Recall progress', 0, 100), streak: integer(value.streak, 'Streak', 0, 1_000_000), bestStreak: integer(value.bestStreak, 'Best streak', 0, 1_000_000), sessions: integer(value.sessions, 'Session count', 0, 1_000_000), journal: array(value.journal, 'Journal entries', 2000).map(raw => { const item = object(raw, 'Journal entry'); return { id: identifier(item.id, 'Journal entry ID'), text: string(item.text, 'Journal entry', 10_000, true), at: date(item.at, 'Journal date'), ...(item.cardId ? { cardId: identifier(item.cardId, 'Journal challenge') } : {}) }; }), updatedAt: date(value.updatedAt, 'Progress date'), revision: integer(value.revision, 'Progress revision', 1, 1_000_000) };
+  if (value.studies !== undefined) {
+    const studies = object(value.studies, 'Source field notes');
+    if (Object.keys(studies).length > 2000) throw new Error('Too many source field notes.');
+    progress.studies = Object.fromEntries(Object.entries(studies).map(([id, raw]) => {
+      identifier(id, 'Source chapter');
+      const item = object(raw, 'Source field note');
+      if (item.unitId !== id) throw new Error('A field note must identify its source chapter.');
+      return [id, { unitId: id, sourceId: identifier(item.sourceId, 'Field note source'), quote: string(item.quote, 'Pinned passage', 12000, true), note: string(item.note, 'Observation', 6000, true), question: string(item.question, 'Open question', 3000, true), completed: boolean(item.completed, 'Exploration completion'), updatedAt: date(item.updatedAt, 'Field note date') }];
+    }));
+  }
   if (value.lessons !== undefined) {
     const lessons = object(value.lessons, 'Lesson checkpoints');
     if (Object.keys(lessons).length > 300) throw new Error('Too many lesson checkpoints.');
@@ -237,7 +247,7 @@ export function validateProgress(input: unknown): Progress {
   if (value.activeSession) {
     const session = object(value.activeSession, 'Current session');
     const cardIds = array(session.cardIds, 'Session challenges', 2000).map(id => identifier(id, 'Session challenge ID'));
-    progress.activeSession = { scaffoldId: identifier(session.scaffoldId, 'Session scaffold'), cardIds, index: integer(session.index, 'Session position', 0, cardIds.length), seed: integer(session.seed, 'Session seed', 0, 4_294_967_295), startedAt: date(session.startedAt, 'Session start'), ...(session.state ? { state: cleanSessionState(session.state) as Record<string, unknown> } : {}) };
+    progress.activeSession = { scaffoldId: identifier(session.scaffoldId, 'Session scaffold'), ...(session.chapterId ? { chapterId: identifier(session.chapterId, 'Session chapter') } : {}), cardIds, index: integer(session.index, 'Session position', 0, cardIds.length), seed: integer(session.seed, 'Session seed', 0, 4_294_967_295), startedAt: date(session.startedAt, 'Session start'), ...(session.state ? { state: cleanSessionState(session.state) as Record<string, unknown> } : {}) };
   }
   if (value.structured !== undefined) {
     const raw = object(value.structured, 'Structured activity progress');

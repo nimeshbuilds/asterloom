@@ -1,4 +1,4 @@
-import {app,BrowserWindow,dialog,ipcMain,Menu,protocol,shell,safeStorage,session as electronSession} from 'electron';
+import {app,BrowserWindow,dialog,ipcMain,Menu,protocol,shell,session as electronSession} from 'electron';
 import {promises as fs} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -7,7 +7,7 @@ import {createService} from '../server/index.mjs';
 import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,normalizeTarget} from './bundles.mjs';
 import {isUniversalMacApp} from './architectures.mjs';
 import {exportNotebookArchive,importNotebookArchive} from './media-archive.mjs';
-import {createCredentialStore} from './credential-store.mjs';
+
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
 const ROOT=path.resolve(HERE,'..');
@@ -71,7 +71,8 @@ app.whenReady().then(async()=>{try{
   let savedTor=false;try{savedTor=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'tor-settings.json'),'utf8')).enabled===true;}catch{}
   // Native requests to a friend's onion relay originate from this fixed app origin.
   process.env.LEARN_ALLOWED_ORIGINS=[...(process.env.LEARN_ALLOWED_ORIGINS||'').split(',').filter(Boolean),APP_URL].join(',');
-  service=await createService({port:0,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),mediaAssetDir:path.join(resources,'media-assets'),mediaModelDir:process.env.ASTERLOOM_MEDIA_MODELS||path.join(storageBase,'speech-models'),credentialStore:createCredentialStore({filename:path.join(app.getPath('userData'),'ai-account.enc'),safeStorage}),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
+  let distributionMode='disabled';try{const distribution=JSON.parse(await fs.readFile(path.join(HERE,'distribution.json'),'utf8'));if(distribution.mode==='personal-local')distributionMode=distribution.mode;}catch{}
+  service=await createService({port:0,distributionMode,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),mediaAssetDir:path.join(resources,'media-assets'),mediaModelDir:process.env.ASTERLOOM_MEDIA_MODELS||path.join(storageBase,'speech-models'),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
   await configureTorProxy(service.torStatus());
   ipcMain.handle('asterloom:tor-status',event=>ownFrame(event)?{...service.torStatus(),proxyConfigured}:{error:'This action is unavailable.'});
   ipcMain.handle('asterloom:set-tor',async(event,enabled)=>{

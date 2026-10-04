@@ -1,0 +1,28 @@
+{
+  "version": "1.0.46",
+  "source": "https://x.ai/cli/install.sh",
+  "channel": "https://x.ai/cli/stable",
+  "artifacts": {
+    "macos-aarch64": {
+      "url": "https://x.ai/cli/grok-1.0.46-macos-aarch64.gz",
+      "downloadBytes": 63868229,
+      "downloadSha256": "0ed0be8365665339e9f04212431b66cb158041843ecc9dccd85a89a47e0900cc",
+      "bytes": 150374256,
+      "sha256": "e8daa302364c9c3b6a5546d511cfbd1ab5e5d407a9b04282f660665ea405f9f3"
+    },
+    "macos-x86_64": {
+      "url": "https://x.ai/cli/grok-1.0.46-macos-x86_64.gz",
+      "downloadBytes": 71012488,
+      "downloadSha256": "f03bcf6414c66beec13b4152b2b77b87c8013562a4d312545c57687e1eb8a735",
+      "bytes": 168364816,
+      "sha256": "5bfc1251b1a7307b9366d0cb5a1fd3f2563b5b319df49f9a9b09b4efe557fea8"
+    },
+    "windows-x86_64": {
+      "url": "https://x.ai/cli/grok-1.0.46-windows-x86_64.exe",
+      "downloadBytes": 159032648,
+      "downloadSha256": "e09c0893cee4850a569bd90e7aed956ea503b34f551637d58187ca4dfb931611",
+      "bytes": 159032648,
+      "sha256": "e09c0893cee4850a569bd90e7aed956ea503b34f551637d58187ca4dfb931611"
+    }
+  }
+}

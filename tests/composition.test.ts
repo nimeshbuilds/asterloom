@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { evaluateComposition, initialCompositionResponse, validateCompositionFields } from '../src/lib/compositionEngine';
 import type { ConstructionActivity, ConstructionBuild, ConstructionResponse, ExplanationActivity, ExplanationResponse } from '../src/lib/compositionEngine';
 import { CLEAN_DATA_CONSTRUCTION, GARDEN_CONSTRUCTION, PLANT_EXPLANATION, SECURITY_EXPLANATION, COMPOSITION_EXAMPLES, COMPOSITION_EXAMPLE_SOURCE, INVALID_COMPOSITION_FIXTURES, explanationSolution } from '../src/lib/compositionExamples';
+import {resolveScaffoldRuntime} from '../src/lib/scaffoldRuntime';
+import {validateActivity,evaluateActivity} from '../src/lib/structuredEngine';
 const clone = <T>(value: T): T => structuredClone(value);
 const fields = (activity: unknown) => validateCompositionFields(activity as Record<string, unknown>);
 
@@ -44,6 +46,25 @@ describe('bounded source-backed composition models', () => {
     const duplicate = clone(PLANT_EXPLANATION); duplicate.arguments[0].alternatives.push({...duplicate.arguments[0].alternatives[0], id: 'same-solution'});
     expect(fields(duplicate).join(' ')).toContain('Duplicate explanation');
   });
+});
+
+describe('composition samples bind only to supported source-specific recipes',()=>{
+ it('exposes the existing specification builds and arguments without multiplying the fixture count',()=>{
+  expect(COMPOSITION_EXAMPLES).toHaveLength(4);
+  expect(CLEAN_DATA_CONSTRUCTION.scaffoldIds).toEqual(['build-to-specification','data-pipeline-repair']);
+  expect(GARDEN_CONSTRUCTION.scaffoldIds).toEqual(['build-to-specification']);
+  for(const activity of COMPOSITION_EXAMPLES){
+   expect(validateActivity(activity,[COMPOSITION_EXAMPLE_SOURCE]).success).toBe(true);
+   for(const scaffoldId of activity.scaffoldIds??[])expect(resolveScaffoldRuntime(scaffoldId,{ageGroup:'adult',cards:[],activities:[activity]}).activityIds).toEqual([activity.id]);
+   const solutions=activity.kind==='construction'?activity.referenceBuilds:activity.arguments[0].alternatives.map((_,i)=>explanationSolution(activity,i));
+   for(const response of solutions)expect(evaluateActivity(activity,response).correct).toBe(true);
+  }
+ });
+ it('does not label a routing puzzle as cloud/agent execution or a generic argument as annotated code review',()=>{
+  for(const scaffoldId of ['cloud-architecture-builder','agent-workflow-studio','secure-code-review'])expect(resolveScaffoldRuntime(scaffoldId,{ageGroup:'adult',cards:[],activities:COMPOSITION_EXAMPLES}).available).toBe(false);
+  const draft={...CLEAN_DATA_CONSTRUCTION,reviewStatus:'needs-review' as const};expect(resolveScaffoldRuntime('data-pipeline-repair',{ageGroup:'adult',cards:[],activities:[draft]}).available).toBe(false);
+  expect(validateActivity(CLEAN_DATA_CONSTRUCTION,[{...COMPOSITION_EXAMPLE_SOURCE,text:''}]).success).toBe(false);
+ });
 });
 
 describe('construction evaluates the built system, not a memorized layout', () => {

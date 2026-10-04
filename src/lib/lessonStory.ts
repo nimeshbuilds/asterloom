@@ -3,6 +3,7 @@ import type { Scaffold } from '../data/scaffolds';
 export interface LessonStory {
   title: string; role: string; setting: string; mission: string; payoff: string;
   fictional: true; boundary: string; domain: string; guidance: string; reflection: string;
+  transfer: string; recovery: string;
 }
 type Frame = readonly [role: string, setting: string, mission: string, payoff: string];
 /** Authored narrative frames, not subject-matter claims. Every catalog recipe has an explicit frame. */
@@ -95,12 +96,66 @@ const LENSES: Record<Scaffold['family'], [string, string]> = {
   connect: ['Trace each connection to a statement that can support it.', 'Describe a relationship supported by the source and explain why your chosen passage is relevant.'],
   timed: ['Use the surrounding recording context, not isolated words.', 'Connect an observation from one part of the recording to a related source idea. Note what remains uncertain.'],
 };
+/** Mechanics-specific story beats describe learner actions, never invented subject outcomes. */
+const TRANSFER:Record<Scaffold['family'],readonly [string,string]>={
+ recall:['Close your guide and recover the distinctions that matter in the mission.','Reopen one source line, rebuild that connection, then try it without the guide.'],
+ match:['Use the relationships you prepared to connect the right pieces in the mission.','Find the two source statements behind this connection before moving the pieces again.'],
+ sequence:['Use the source route to decide what belongs before and after each step.','Compare the neighboring steps with their stated source order; do not invent a missing dependency.'],
+ sort:['Use the stated category rules to give each item a defensible place.','Inspect the source rule for this boundary before moving the item.'],
+ cloze:['Rebuild the source idea so that its surrounding meaning stays intact.','Read the complete source statement, then choose the piece that keeps its conditions intact.'],
+ scenario:['Use the supplied observations and rules to choose your next action.','Compare the observed state with the cited rule before choosing a different action.'],
+ diagram:['Build relationships that the supplied model can support, and inspect the result.','Trace the unmatched part or connection back to its source requirement.'],
+ explain:['Build an explanation whose evidence supports the claim you make.','Check what the evidence actually establishes before connecting it to a claim.'],
+ connect:['Make each connection answerable to a specific source statement.','Find the missing or conflicting source relationship before reconnecting the model.'],
+ timed:['Use the recording context to locate the observation your mission needs.','Replay the cited moment with its surrounding context before trying again.'],
+};
 export function buildLessonStory(scaffold: Scaffold, ageGroup: string): LessonStory {
   const frame=LESSON_STORY_FRAMES[scaffold.id];
   if(!frame) throw new Error(`No teaching story is authored for scaffold ${scaffold.id}.`);
   const young=ageGroup==='3-5', early=ageGroup==='6-8';
-  return {title:scaffold.name,role:frame[0],setting:frame[1],mission:frame[2],payoff:frame[3],fictional:true,
+  return {title:scaffold.name,role:frame[0],setting:frame[1],mission:frame[2],payoff:frame[3],fictional:true,transfer:TRANSFER[scaffold.family][0],recovery:TRANSFER[scaffold.family][1],
     boundary:'The setting and role are fictional. Subject facts come from the cited material; the game does not create missing evidence.',domain:scaffold.domain,
     guidance:young?'A grown-up reads the source aloud. Look, point, play and talk together, one step at a time.':early?'Read or listen together if helpful. Take one step, then explain what you noticed.':LENSES[scaffold.family][0],
     reflection:young?'Show or tell your grown-up something you noticed. Ask them to help you point to where it appears in the source.':LENSES[scaffold.family][1]};
+}
+
+/** Instructions describe the implemented interaction, not a solution or an invented source fact. */
+export interface LessonActionGuide {id:string;prepare:string;act:string;inspect:string}
+type GuideActivity={kind:import('./structuredEngine').StructuredActivity['kind'];partner?:unknown;codeReview?:unknown;pattern?:unknown;mode?:string;scenarioPresentation?:{prediction?:unknown;campaign?:unknown;dialogue?:unknown;promptComparison?:unknown}};
+const ACTION_GUIDES:Record<GuideActivity['kind']|'recall',readonly [string,string,string]>={
+ recall:['Build a distinction from the cited material.','Close the guide and choose the idea that fits.','Use feedback to repair the connection; revisit it later.'],
+ sequence:['Find the order or prerequisites actually stated.','Arrange the steps into a route and trace your arrangement.','Check the source constraints, then revise the route.'],
+ classification:['Inspect each category’s source-defined boundary.','Move the supplied objects into defensible groups.','Check memberships and revisit the boundaries that need work.'],
+ decision:['Read the case observations and supplied policy.','Commit to an action for this case.','Compare the policy’s explanation with your decision.'],
+ dependency:['Find the relationships the source explicitly supports.','Connect nodes with the correct direction and relationship.','Inspect the network for missing or conflicting links.'],
+ budget:['Identify required capacity and the supplied costs.','Allocate quantities while watching costs and capacity.','Test all constraints; revise a feasible allocation.'],
+ rubric:['Read the supplied criteria and sample.','Inspect the work and choose a level for each criterion.','Compare against the reviewed rubric; reflection has no automatic correctness grade.'],
+ diagram:['Study the actual source figure or its text equivalent.','Place each label at a supplied target.','Check the mapping and revisit misplaced labels.'],
+ completion:['Read the whole worked context around each gap.','Choose a source token and place it into a slot.','Read the assembled result and check its source constraints.'],
+ data:['Inspect the supplied records, units and question.','Filter the data and select records to support a finding.','Check the quantity and the evidence behind it.'],
+ media:['Watch or listen to the original recording in context.','Respond at the prepared checkpoints.','Revisit the cited moment and compare your response.'],
+ scenario:['Read observations, available actions and resource limits.','Choose an action and inspect its prepared consequence.','Use the new observations to revise your next decision.'],
+ construction:['Inspect the specification, components and typed ports.','Build a network while managing capacity and resource limits.','Test paths and constraints, then revise your design.'],
+ explanation:['Distinguish the source claim, evidence and reasoning.','Assemble the prepared pieces into a supported argument.','Check that the pieces belong to a reviewed valid alternative.'],
+ picture:['Look together at the supplied picture.','Point or choose the part named by the prompt.','Look again and talk about the source annotation.'],
+ 'rule-switch':['Notice the sorting rule that is active now.','Sort the objects, then regroup when the rule changes.','Compare your two rounds using their different rules.'],
+ 'child-play':['Listen together to the supplied story and play rule.','Move the props and help the character make a choice.','See the prepared consequence, then talk about what changed.'],
+ 'picture-build':['Look together at the source-linked shapes and picture rules.','Move the parts to build your own allowed arrangement.','Check the picture, then tell a grown-up about it. Telling is human reviewed.'],
+};
+const SPECIAL_ACTION_GUIDES:Record<string,readonly [string,string,string]>={
+ partner:['Agree who explains first and who reviews.','Take the prepared turns, hand over the device, and build an explanation.','Compare and revise together. This records collaboration, not independent mastery.'],
+ 'code-review':['Read the supplied code and the source-defined review criteria.','Mark exact code spans and connect a finding, evidence and prepared repair.','Check that the annotation and argument support the same reviewed alternative.'],
+ prediction:['Read the supplied test and commit a prediction.','Reveal the prepared observation after committing.','Compare the observation with your prediction and record a revision.'],
+ campaign:['Plan the next actions using the current case and limits.','Carry out your plan, then revise it with a reason as evidence changes.','Debrief the stages and apply the learning to the changed final case.'],
+ dialogue:['Read the current role and what that role can observe.','Choose a prepared reply and follow the authored turn or handoff.','Compare the resulting dialogue with the supplied language or role evidence.'],
+ 'prompt-comparison':['Read the supplied prompt variants and evaluation criteria.','Predict, then inspect the recorded outputs and compare them.','Support your comparison with the supplied examples; no live model is run.'],
+ pattern:['Look at the declared repeating cycle.','Place the prepared pieces to extend the pattern.','Check the extension against the declared rule, not a guessed pattern.'],
+};
+export function buildLessonActionGuide(activity?:GuideActivity):LessonActionGuide {
+ let id:string=activity?.kind??'recall';
+ if(activity?.kind==='explanation')id=activity.codeReview?'code-review':activity.partner?'partner':id;
+ if(activity?.kind==='completion'&&activity.pattern)id='pattern';
+ if(activity?.kind==='scenario'){const p=activity.scenarioPresentation;id=p?.dialogue?'dialogue':p?.promptComparison?'prompt-comparison':p?.prediction?'prediction':p?.campaign?'campaign':id;}
+ const steps=SPECIAL_ACTION_GUIDES[id]??ACTION_GUIDES[id as keyof typeof ACTION_GUIDES];
+ return{id,prepare:steps[0],act:steps[1],inspect:steps[2]};
 }

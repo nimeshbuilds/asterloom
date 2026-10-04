@@ -8,7 +8,7 @@ export interface CompletionActivity extends ActivityBase {
   /** A declared repeating cycle, never an inferred rule for an arbitrary finite sequence. */
   pattern?: { cycle: string[]; shown: string[]; offset: number };
 }
-export interface CompletionResponse { slotTokens: Record<string, string> }
+export interface CompletionResponse { slotTokens: Record<string, string>; selectedTokenId?:string }
 const BASE = ['version', 'id', 'title', 'instruction', 'sourceRefs', 'reviewStatus', 'explanation', 'hint', 'kind', 'scaffoldIds', 'extractedFrom'];
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v) && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 const id = (v: unknown): v is string => typeof v === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(v) && !['__proto__', 'prototype', 'constructor'].includes(v);
@@ -45,7 +45,8 @@ export function validateCompletionFields(input: Record<string, unknown>): string
 }
 export function initialCompletionResponse(activity: CompletionActivity, saved?: unknown): CompletionResponse {
   const data = object(saved) && object(saved.slotTokens) ? saved.slotTokens : {};
-  return { slotTokens: Object.fromEntries(activity.slots.map(slot => [slot.id, typeof data[slot.id] === 'string' && activity.tokens.some(t => t.id === data[slot.id]) ? data[slot.id] as string : ''])) };
+  const selectedTokenId=object(saved)&&typeof saved.selectedTokenId==='string'&&activity.tokens.some(token=>token.id===saved.selectedTokenId)?saved.selectedTokenId:undefined;
+  return { ...(selectedTokenId?{selectedTokenId}:{}),slotTokens: Object.fromEntries(activity.slots.map(slot => [slot.id, typeof data[slot.id] === 'string' && activity.tokens.some(t => t.id === data[slot.id]) ? data[slot.id] as string : ''])) };
 }
 export function evaluateCompletion(activity: CompletionActivity, response: unknown): Evaluation {
   const invalid = (feedback: string): Evaluation => ({ valid: false, correct: false, outcome: 'invalid', score: 0, maxScore: activity.slots.length, feedback, details: [] });

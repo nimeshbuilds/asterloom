@@ -1,71 +1,48 @@
 # Provider connections, checked 4 October 2026
 
-AI is optional authoring assistance. The app can send a selected exact passage
-for one structured activity draft, prepared recall cards for wording refinement,
-or a constrained image brief. Structural, evidence and solvability checks run
-locally; every generative output still needs author review. The downloaded
-semantic encoder finds relevant evidence locally and is not a generative model.
+AI is optional authoring assistance. Asterloom supplies selected exact source passages for activity drafts, wording refinement or an illustration brief. It validates structure, evidence references and bounded model rules locally; generative content remains subject to author review. The bundled semantic encoder retrieves evidence locally and does not generate answers.
 
-## Working API path
+## Official local tools
 
-OpenAI, Claude/Anthropic, xAI and compatible endpoints have request-scoped keys,
-current `/models` discovery, explicit model selection and manual-ID fallback.
-Claude pagination is bounded and validated. Discovery performs no generation.
-Models returned by a catalog are not a guarantee that every model supports every
-operation or that a paid inference request will succeed. Provider errors are
-redacted; credentials never enter notebooks, exports or progress backups.
+The personal desktop preview installs and runs the unmodified official tools in app-managed directories. Each tool owns its own sign-in, account credentials and subscription access. Asterloom does not extract an existing tool's credentials or ask for the provider password. The sign-in opens the official provider page. Installation verifies pinned artifact bytes before activation, requires no system Node/npm setup, and leaves system PATH unchanged.
 
-OpenAI API text generation uses Responses; compatible/xAI uses chat completions;
-Anthropic uses Messages. Existing image generation uses the image API and a
-separate model selection. No external CLI dependencies are required for these
-API paths. Local compatible servers must already expose a supported endpoint;
-Asterloom does not silently install or operate an arbitrary model server.
+| Tool | Pinned version | Integration | Model selection |
+| --- | --- | --- | --- |
+| Codex | 0.160.0 | Official app-server authentication and constrained turns | Official `model/list` catalog |
+| Claude Code | 2.1.285 | Official native auth commands and a noninteractive, tool-disabled turn | Documented CLI aliases, explicitly labeled as aliases |
+| Grok Build | 1.0.46 | Official device sign-in and Agent Client Protocol | Installed engine's current catalog |
 
-## Subscription readiness and external prerequisites
+Model discovery does not establish account entitlement. Claude's aliases resolve through its executable; Asterloom does not present them as a live account catalog. Grok's saved connection marker indicates a previous completed login, not newly verified subscription access. A completed provider turn is required to verify inference for a particular account/model.
 
-The app contains the documented Sign in with ChatGPT OAuth flow: loopback
-127.0.0.1 callback, PKCE S256, per-attempt state/nonce, dynamically issued client
-ID, signed ID-token validation against OpenAI JWKS, required granted scope,
-stable local host ID, refresh and disconnect. Desktop storage uses Electron
-safeStorage encryption and rejects plaintext fallback. The browser companion
-uses session memory. In-flight sign-ins cannot reconnect after disconnect.
+The official engines keep private, separate account directories. Claude also uses its own configuration-specific macOS Keychain entry. These engine credentials are provider-managed, not encrypted by Asterloom's legacy OAuth store. They never enter notebooks, game packages or progress backups. Disconnect affects only the Asterloom-managed account. Auth callbacks, installation polls and model requests are invalidated on cancellation, disconnect, unmount or provider changes; stale results cannot silently reconnect or overwrite an API selection.
 
-The route is **disabled by default**. Only an eligible/approved distribution may
-set `ASTERLOOM_CHATGPT_PLAN_ENABLED=1`. No provider approval was obtained in this
-build. OpenAI's documentation describes an available local/open-source flow and
-selected commercial/private integrations; a paid Asterloom release must obtain
-its appropriate approval. Legacy Codex app-server authentication is explicitly
-not permitted for commercial/hosted services, so it is not used as a workaround.
+Drafts use bounded input/output, a single turn, no automatic inference retries, a private working directory, no filesystem/terminal/client tools, and no MCP servers. Provider token-limit behavior varies. Installation and browser authentication require network access; offline creation and play do not require these tools. Generated images remain on supported API routes rather than being promised for every subscription engine.
 
-Subscription inference uses the public `/v1/responses` endpoint with `store:false`
-and `stream:true`, succeeds only at `response.completed`, and does not enable
-agent tools. Its current preview forbids `max_output_tokens`; the UI therefore
-states that the output limit is controlled by the provider. Input and response
-sizes, timeout and lack of automatic retries bound app behavior, not billed token
-usage. Image generation is not supported through this subscription route.
+### Distribution conditions
 
-Claude documentation still states third-party `claude.ai` login/rate-limit offers
-need prior approval, despite a support article discussing ongoing Agent SDK
-subscription usage. This build follows the integration policy and offers API or
-explicit assistant transfer. Grok CLI browser sign-in exists, but no general
-third-party subscription authorization for Asterloom was verified; xAI API keys
-and transfer are supported. There are no pretend login buttons, scraped cookies,
-borrowed official-client identifiers or imported credentials from other apps.
+The desktop manifest declares `personal-local`. OpenAI explicitly permits the documented app-server authentication for local/open-source applications and prohibits it in commercial/hosted services. A paid/hosted edition needs an approved Sign in with ChatGPT integration; this preview is not evidence of that approval. Asterloom retains its separate, disabled-by-default approved OAuth route for eligible distributions.
 
-## Sources
+Anthropic's current hosting guidance explicitly permits an end user to sign in to an **unmodified Claude Code binary** with their own subscription, including on a hosted platform, subject to its applicable terms. This differs from using extracted Claude.ai credentials or implementing third-party Claude.ai authentication. Asterloom follows the unmodified-tool path and offers the CLI's subscription, Console and organization SSO methods.
 
-- https://developers.openai.com/siwc/quickstart
-- https://developers.openai.com/siwc/token-sharing-open-source
-- https://developers.openai.com/siwc/token-sharing-open-source/sign-in
-- https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference
-- https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations
-- https://developers.openai.com/siwc/website
-- https://learn.chatgpt.com/docs/app-server (Auth endpoints)
-- https://code.claude.com/docs/en/agent-sdk/overview
-- https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan
-- https://platform.claude.com/docs/en/api/http/models
-- https://docs.x.ai/developers/rest-api-reference/inference
-- https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md
+Grok Build documents headless/ACP integration. Plan eligibility and limits remain with the user's xAI account. Asterloom does not promise that every Grok subscription has identical capabilities.
 
-Mocked protocol and end-to-end UI tests establish implementation behavior, not
-successful sign-in, account eligibility, paid inference, or provider approval.
+See [Claude implementation and provenance](../server/CLAUDE-ENGINE.md), [Grok implementation and provenance](../server/GROK-ENGINE.md) and the pinned Codex artifacts/licenses in `server/`.
+
+## API keys and compatible servers
+
+OpenAI, Anthropic, xAI and compatible endpoints use request-scoped keys, model discovery, explicit selection and manual-ID fallback. Anthropic pagination is bounded and validated. OpenAI uses Responses; compatible/xAI uses chat completions; Anthropic uses Messages. API credentials remain out of saved notebooks and exports. API access is separately billed by the provider and is not assumed to follow from a chat subscription. A compatible local model server must already expose a supported endpoint.
+
+## Verification limits
+
+Actual Mac binaries were installed and integrity-checked in isolated profiles. Verification exercised official version/protocol initialization, private unauthenticated status, provider-owned login URLs/device codes, cancellation, and Codex/Grok catalogs. A local fixture model also confirmed that Codex receives an empty tool set. Mocked service/UI tests exercise authenticated completion, denied tools, failure recovery, invalid catalogs and lifecycle races. These tests **do not establish successful account sign-in, subscription entitlement or live provider inference**. No account credentials or billable model calls were used for those checks.
+
+## Primary sources
+
+- [Codex app-server and authentication conditions](https://learn.chatgpt.com/docs/app-server)
+- [Commercial Sign in with ChatGPT integration](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt)
+- [Claude Code hosting and authentication conditions](https://code.claude.com/docs/en/legal-and-compliance)
+- [Claude Code authentication](https://code.claude.com/docs/en/authentication)
+- [Claude Code model configuration](https://code.claude.com/docs/en/model-config)
+- [Grok Build integration](https://docs.x.ai/build/overview)
+- [Grok CLI device login](https://docs.x.ai/build/cli/reference)
+- [Grok headless/ACP integration](https://docs.x.ai/build/cli/headless-scripting)

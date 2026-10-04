@@ -22,6 +22,11 @@ fixtureNotebook.sources.push({id:'native-semantic-source',title:'Water and netwo
 fixtureNotebook.activities=[{version:1,id:'native-data-lab',kind:'data',title:'Investigate the native observations',instruction:'Explore the two observations and calculate their total.',sourceRefs:[{sourceId:'native-data-source',evidence:dataEvidence}],reviewStatus:'reviewed',explanation:'The total describes only the two supplied observations.',hint:'Use both data rows.',datasetTitle:'Recorded observations',limitations:'Two prepared test records; no wider inference.',columns:[{id:'reading',label:'Reading',type:'number',unit:'units'}],rows:[{id:'site-a',label:'Site A',values:{reading:4},evidenceRefs:[0]},{id:'site-b',label:'Site B',values:{reading:8},evidenceRefs:[0]}],chartColumnId:'reading',questions:[{id:'total',prompt:'What is the total recorded value?',operation:'sum',columnId:'reading',filters:[],tolerance:0,requireEvidenceRows:true,reason:'Both observed records contribute to the total.',evidenceRefs:[0]}]}];
 fixtureNotebook.activities.push({...structuredClone(fixtureNotebook.activities[0]),id:'native-unreviewed-lab',title:'Preview an unreviewed native model',reviewStatus:'needs-review'});
 const fixturePackage=JSON.stringify({format:'learnpack',version:1,exportedAt:'2026-10-03T12:00:00.000Z',notebook:fixtureNotebook});
+async function pinDataRecord(page,name){
+  await page.getByRole('button',{name:new RegExp('^Inspect '+name+':')}).click();
+  const pin=page.getByRole('complementary',{name:'Record inspector'}).getByRole('button',{name:'Pin to this question',exact:true});
+  if(await pin.count())await pin.click();
+}
 function fixturePdf(){
   const stream='BT /F1 12 Tf 50 750 Td (DNS resolves names to addresses.) Tj ET';
   const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`];
@@ -100,7 +105,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(await page.getByRole('button',{name:'Native continuity test',exact:true}).count(),0);
     // A generated draft remains explorable, but an author must approve it
     // before correct-looking answers can become scored independent progress.
-    await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click();
+    await page.locator('[data-activity-id]').filter({hasText:'Preview an unreviewed native model'}).click();
     await page.getByRole('region',{name:'Learning briefing',exact:true}).waitFor();
     assert.equal(await page.getByLabel('Your numerical result',{exact:true}).count(),0,'Teaching must precede the native quest controls');
     await page.getByRole('button',{name:'Explore the source',exact:true}).click();
@@ -108,14 +113,14 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:fixtureNotebook.title,exact:true}).waitFor({timeout:20000});
-    await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click();
+    await page.locator('[data-activity-id]').filter({hasText:'Preview an unreviewed native model'}).click();
     await page.locator('.lesson-context').waitFor();
     assert.equal(await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).count(),0,'Explored source context must survive a native application restart');
     await page.getByRole('button',{name:'Passage explored',exact:true}).first().waitFor();
     await learnBeforeQuest(page);features.lessonPersistence={nativeRestart:true,sourcePassageRestored:true,teachingPrecedesQuest:true};
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
-    await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
-    await page.getByRole('checkbox',{name:'Site B',exact:true}).check();
+    await pinDataRecord(page,'Site A');
+    await pinDataRecord(page,'Site B');
     const draftCheck=page.getByRole('button',{name:'Check my work',exact:true});
     assert.equal(await draftCheck.isEnabled(),true,'An unreviewed model remains available for author preview');
     await draftCheck.click();
@@ -129,7 +134,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const unreviewedRecord=unreviewedProgress.structured['native-unreviewed-lab'];
     assert.equal(unreviewedRecord.completed,false,'Unreviewed completion must remain blocked after restart');
     assert.equal(unreviewedRecord.score,0);assert.equal(unreviewedRecord.review?.independentSuccesses??0,0);
-    await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
+    await page.locator('[data-activity-id]').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
     await page.waitForFunction(()=>{const scene=document.querySelector('.learning-scene');return scene&&['pixi-webgl','svg-dom'].includes(scene.getAttribute('data-renderer'));},{},{timeout:30000});
     const sceneRenderer=await page.locator('.learning-scene').first().getAttribute('data-renderer');
     if(process.env.ASTERLOOM_REQUIRE_PIXI==='1')assert.equal(sceneRenderer,'pixi-webgl','The native learning scene must initialize Pixi under its production CSP');
@@ -137,20 +142,20 @@ test('native studio saves across launches, exports a standalone game, and opens 
     features.sceneRenderer=sceneRenderer;
     console.log(`Native learning scene renderer: ${sceneRenderer}`);
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
-    await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
+    await pinDataRecord(page,'Site A');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    await page.locator('.mission-card:not(.system-mission)').click(); await learnBeforeQuest(page);
+    await page.locator('.campaign-chapter .campaign-task').filter({hasText:'Retrieve the key ideas'}).first().click(); await learnBeforeQuest(page);
     await page.locator('.answer-option').filter({hasText:'DNS'}).click();
     await page.getByRole('button',{name:'Save & exit',exact:true}).click();
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
-    await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
+    await page.locator('[data-activity-id]').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
     assert.equal(await page.getByLabel('Your numerical result',{exact:true}).inputValue(),'12');
-    assert.equal(await page.getByRole('checkbox',{name:'Site A',exact:true}).isChecked(),true);
-    await page.getByRole('checkbox',{name:'Site B',exact:true}).check();
+    assert.equal(await page.locator('.data-case-file .data-evidence-record').filter({hasText:'Site A'}).count(),1,'Pinned evidence must survive a native restart');
+    await pinDataRecord(page,'Site B');
     await page.getByRole('button',{name:'Check my work',exact:true}).click();
     await page.locator('.structured-feedback.correct').waitFor();
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    await page.locator('.mission-card:not(.system-mission)').click(); await learnBeforeQuest(page);
+    await page.locator('.campaign-chapter .campaign-task').filter({hasText:'Retrieve the key ideas'}).first().click(); await learnBeforeQuest(page);
     assert.match(await page.locator('.answer-option.selected').innerText(),/DNS/);
     await page.getByRole('button',{name:'Check my answer',exact:true}).click();
     await page.locator('.answer-feedback.success').waitFor();
@@ -184,10 +189,10 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:/Save & (exit|return)/}).waitFor();
     if(await page.getByRole('button',{name:'Save & exit',exact:true}).count())await page.getByRole('button',{name:'Save & exit',exact:true}).click();
     else await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click(); await learnBeforeQuest(page);
+    await page.locator('[data-activity-id]').filter({hasText:'Preview an unreviewed native model'}).click(); await learnBeforeQuest(page);
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
-    await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
-    await page.getByRole('checkbox',{name:'Site B',exact:true}).check();
+    await pinDataRecord(page,'Site A');
+    await pinDataRecord(page,'Site B');
     await page.getByRole('button',{name:'Check my work',exact:true}).click();
     await page.locator('.structured-feedback.correct').waitFor();
     assert.match(await page.locator('.structured-review-banner').innerText(),/0 independent attempts/,'Preserved draft feedback remains supported after author approval');

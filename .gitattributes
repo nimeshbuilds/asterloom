@@ -9,3 +9,4 @@ scripts/licenses/*.txt -text
 public/assets/licenses/* -text
 desktop/verification-keys/*.asc -text
 desktop/fixtures/tor/* -text
+server/fixtures/claude-release/* -text

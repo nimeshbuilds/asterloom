@@ -7,7 +7,7 @@ import { applyRefinementResponse } from '../src/lib/provider';
 import { parsePackage, serializePackage } from '../src/lib/package';
 
 function definitions(prefix: string, count = 20) {
-  return createSource(Array.from({ length: count }, (_, i) => `${prefix}${i}: A supplied description for unique reference entry ${prefix}${i}.`).join('\n'), `${prefix} source`);
+  return createSource(Array.from({ length: count }, (_, i) => `${prefix}${i}: A supplied description for unique reference entry number ${i}.`).join('\n'), `${prefix} source`);
 }
 
 describe('automatic preparation from the readable collection', () => {
@@ -54,7 +54,7 @@ describe('automatic preparation from the readable collection', () => {
     expect(compileNotebook(sources, { maxCards: 3 }).cards.map(c => c.sourceId)).toEqual([sources[0].id, sources[4].id, sources[8].id]);
   });
   it('extracts explicit models beyond the former fifty-source cutoff and warns at the model limit', () => {
-    const sources = Array.from({ length: 55 }, (_, i) => createSource(`1. Inspect the provided observation ${i}.\n2. Compare it with the supplied rule ${i}.\n3. Record the supported conclusion ${i}.`, `Procedure ${i}`));
+    const sources = Array.from({ length: 55 }, (_, i) => createSource(`Procedure:\n1. Inspect the provided observation ${i}.\n2. Compare it with the supplied rule ${i}.\n3. Record the supported conclusion ${i}.`, `Procedure ${i}`));
     const result = extractStructuredActivities(sources);
     expect(new Set(result.activities.map(a => a.extractedFrom))).toEqual(new Set(sources.map(s => s.id)));
     expect(result.activities).toHaveLength(55);
@@ -74,7 +74,8 @@ describe('automatic preparation from the readable collection', () => {
     const compiled = compileNotebook([definitionSource]).cards;
     const manual = createManualCard({ prompt: 'Explain the supplied model.', answer: 'The supplied rule', options: ['An unrelated guess'], explanation: 'Review the provided model.' });
     const reviewedCard = { ...compiled[0], reviewStatus: 'reviewed' as const, explanation: 'Author-reviewed feedback.' };
-    const staleCard = { ...compiled[1], id: 'old-extractive-card', evidence: 'A previously extracted statement.' };
+    const evidence='A previously extracted statement described the historical comparison.';
+    const staleCard = { ...compiled[1], id: 'old-extractive-card', answer:'comparison', evidence, prompt:'Recall the exact missing word from “Old notes”.\n\n'+evidence.replace('comparison','________'), explanation:`The source states: “${evidence}”`, tags:['source-recall','cloze'], questionType:'cloze' as const };
     const notebook = createNotebook({ sources: [source, definitionSource, reference], cards: [manual, reviewedCard, staleCard], activities: [previous, reviewed, authored] });
     const snapshot = structuredClone(notebook);
     const result = prepareAutomaticLearning(notebook);

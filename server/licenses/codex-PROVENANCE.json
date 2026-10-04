@@ -1,0 +1,8 @@
+{
+  "version": "0.160.0",
+  "sourceTag": "https://github.com/openai/codex/tree/rust-v0.160.0",
+  "license": {"file":"codex-LICENSE.txt","sha256":"d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc"},
+  "notice": {"file":"codex-NOTICE.txt","sha256":"9d71575ecfd9a843fc1677b0efb08053c6ba9fd686a0de1a6f5382fd3c220915"},
+  "delivery": "Official pinned npm archives installed on user request. Entire archive retained after extraction, including its component notices. No binary modifications.",
+  "authenticationPolicy": "Managed app-server authentication is restricted to local personal use; commercial or hosted services require an approved Sign in with ChatGPT integration."
+}

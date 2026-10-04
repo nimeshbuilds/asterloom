@@ -28,7 +28,7 @@ test('OAuth gating, PKCE, state, issued client, encrypted-store contract and log
 });
 test('live model catalog supports provider schemas, pagination and hides tokens',async()=>{
  let count=0;const request=async(url,options)=>{assert.equal(options.headers['x-api-key'],'private-key');count++;return {status:200,body:Buffer.from(JSON.stringify(count===1?{data:[{id:'one',display_name:'One'}],has_more:true,last_id:'one'}:{data:[{id:'two'}],has_more:false}))};};const result=await listProviderModels({provider:'anthropic',apiKey:'private-key'},{request});assert.equal(count,2);assert.deepEqual(result.models.map(x=>x.id),['one','two']);assert.ok(!JSON.stringify(result).includes('private-key'));
- const chat=await listProviderModels({provider:'chatgpt'},{connection:{accessToken:async()=>'oauth'},request:async()=>({status:200,body:Buffer.from(JSON.stringify({models:[{slug:'shown',display_name:'Shown',visibility:'list'},{slug:'hidden',visibility:'hide'}]}))})});assert.deepEqual(chat.models,[{id:'shown',name:'Shown'}]);
+ const chat=await listProviderModels({provider:'chatgpt'},{connection:{models:async()=>({models:[{id:'shown',name:'Shown'}]})}});assert.deepEqual(chat.models,[{id:'shown',name:'Shown'}]);
 });
 test('model discovery rejects unsafe custom endpoints and redacts provider diagnostics',async()=>{
  await assert.rejects(listProviderModels({provider:'compatible',baseUrl:'http://169.254.169.254'}),/HTTPS/);

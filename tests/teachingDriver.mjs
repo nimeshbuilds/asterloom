@@ -4,6 +4,28 @@ import {expect} from '@playwright/test';
 export async function learnBeforeQuest(page) {
  const briefing=page.getByRole('region',{name:'Learning briefing',exact:true});
  if(!await briefing.count())return;
+ const buildKit=briefing.getByRole('button',{name:'Build my mission kit',exact:true});
+ if(await buildKit.count()){await buildKit.click();await expect(briefing.locator('.lesson-workbench')).toBeVisible();}
+ const kit=briefing.locator('.lesson-workbench');
+ if(await kit.count()){
+  // Read the displayed source line for each move, just as a learner can. No hidden answer data.
+  const kind=await kit.getAttribute('data-kit'),slots=kit.locator('.lesson-kit-slot');
+  for(let i=0;i<await slots.count();i++){
+   const slot=slots.nth(i),quote=slot.locator('blockquote');
+   if(!await quote.count())await slot.getByRole('button',{name:'Inspect source line',exact:true}).click();
+   const sourceLine=(await quote.innerText()).trim();
+   const buttons=kit.locator('.lesson-kit-piece');
+   const choices=[];for(let j=0;j<await buttons.count();j++)choices.push({index:j,label:(await buttons.nth(j).locator('span').first().innerText()).trim()});
+   const cleanLine=sourceLine.replace(/^[-*•]\s+/, '').replace(/\*\*/g,'');
+   const found=choices.sort((a,b)=>b.label.length-a.label.length).find(({label})=>kind==='route-kit'?cleanLine===label:cleanLine.startsWith(label)&&/^(?:[:：]|\s+(?:is|are|means|refers to)\b)/i.test(cleanLine.slice(label.length)))?.index??-1;
+   if(found<0)throw Error('The visible source line did not identify an available kit piece: '+sourceLine);
+   await buttons.nth(found).click();await slot.getByRole('button',{name:`Place selected piece in slot ${i+1}`,exact:true}).click();
+  }
+  await kit.getByRole('button',{name:'Check my kit against the source',exact:true}).click();
+  await expect(kit.getByText('Your kit is ready to carry into the quest.',{exact:false})).toBeVisible();
+  await briefing.getByRole('button',{name:'Save briefing & start quest',exact:true}).click();
+  await expect(briefing).toHaveCount(0);return;
+ }
  const explore=briefing.getByRole('button',{name:'Explore the source',exact:true});
  if(await explore.count()){await explore.click();await expect(briefing.locator('.lesson-context')).toBeVisible();}
  const context=briefing.locator('.lesson-context');
@@ -28,8 +50,12 @@ export async function learnBeforeQuest(page) {
    let position=texts.findIndex(text=>text.trim()===quotedSteps[target]);
    while(position>target){await rows.nth(position).getByRole('button',{name:/Move practice step \d+ up/}).click();position--;}
   }
-  await briefing.getByRole('textbox',{name:'Explain it in your own words',exact:true}).fill('I will keep the source conditions attached to the idea and separate observations from my own explanation.');
-  await briefing.getByRole('textbox',{name:'Connect it or name a question',exact:true}).fill('What other evidence would I need before applying this idea in a different situation?');
+  const spoken=briefing.getByRole('checkbox',{name:'Talk or point with a grown-up instead of typing',exact:true});
+  if(await spoken.count()&&await spoken.isChecked())await briefing.getByRole('checkbox',{name:'We talked or pointed through the idea and its source together',exact:true}).check();
+  else{
+   await briefing.getByRole('textbox',{name:'Explain it in your own words',exact:true}).fill('I will keep the source conditions attached to the idea and separate observations from my own explanation.');
+   await briefing.getByRole('textbox',{name:'Connect it or name a question',exact:true}).fill('What other evidence would I need before applying this idea in a different situation?');
+  }
   await briefing.getByLabel('I compared my note with the source',{exact:true}).check();
   await briefing.getByRole('button',{name:'Save briefing & start quest',exact:true}).click();
  }

@@ -14,7 +14,7 @@ const sourceRefs = [
   { sourceId: 'picnic-picture', evidence: 'The cup is blue, has an open top and a handle, and can hold a drink.' },
 ];
 export const pictureDiscoveryFixture: PictureActivity = {
-  version: 1, id: 'picnic-picture-discovery', kind: 'picture', mode: 'discovery', title: 'A little picnic discovery',
+  version: 1, id: 'picnic-picture-discovery', kind: 'picture', mode: 'discovery', scaffoldIds: ['discovery-scenes'], title: 'A little picnic discovery',
   instruction: 'Explore the picture. Then choose a picture for each clue.',
   explanation: 'You used the shapes and meanings in the picnic picture.',
   hint: 'Look closely at the whole object, including its shape and any handle or stem.',
@@ -33,7 +33,7 @@ export const pictureDiscoveryFixture: PictureActivity = {
   ],
 };
 export const pictureWordFixture: PictureActivity = {
-  ...pictureDiscoveryFixture, id: 'picnic-word-pictures', mode: 'word-picture', title: 'Words at the picnic',
+  ...pictureDiscoveryFixture, id: 'picnic-word-pictures', mode: 'word-picture', scaffoldIds: ['word-and-picture-workshop'], title: 'Words at the picnic',
   instruction: 'Look at each word and choose the matching picture.', explanation: 'You connected written words with the objects in the source picture.',
   rounds: [
     { id: 'word-apple', prompt: 'apple', tokenIds: ['cup', 'apple', 'pear'], correctTokenIds: ['apple'], reason: 'This picture shows the apple from the source illustration.', evidenceRefs: [0] },

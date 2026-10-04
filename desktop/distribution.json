@@ -1,0 +1,6 @@
+{
+  "mode": "personal-local",
+  "name": "Asterloom Personal Learning Preview",
+  "managedCodexAuthentication": "Local personal use only. Not permitted for commercial or hosted distributions; those require an approved Sign in with ChatGPT integration.",
+  "policySource": "https://learn.chatgpt.com/docs/app-server#auth-endpoints"
+}

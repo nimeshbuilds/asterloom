@@ -2,7 +2,7 @@ import type { ActivityBase, Evaluation } from './structuredEngine';
 export interface MediaActivity extends ActivityBase {
   kind: 'media'; mediaSourceId: string; duration: number;
   cues: { id: string; start: number; end: number; text: string; evidenceRefs: number[] }[];
-  checkpoints: { id: string; at: number; prompt: string; choices: { id: string; label: string }[]; correctChoiceIds: string[]; reason: string; evidenceRefs: number[] }[];
+  checkpoints: { mode?: 'observation'; id: string; at: number; prompt: string; choices: { id: string; label: string }[]; correctChoiceIds: string[]; reason: string; evidenceRefs: number[] }[];
 }
 export interface MediaResponse { position: number; activeCheckpointId: string; answers: Record<string, string>; visitedCheckpointIds: string[] }
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v) && [Object.prototype, null].includes(Object.getPrototypeOf(v));
@@ -32,11 +32,13 @@ export function validateMediaFields(input: Record<string, unknown>): string[] {
   if (!checkpoints.length) errors.push('media.checkpoints: expected 1–40 prepared checkpoints');
   const checkIds = new Set<string>(); let previousAt = -1;
   checkpoints.forEach(c => {
-    if (!object(c) || !fields(c, ['id', 'at', 'prompt', 'choices', 'correctChoiceIds', 'reason', 'evidenceRefs']) || !id(c.id) || checkIds.has(c.id)) { errors.push('media.checkpoints: invalid checkpoint'); return; }
+    if (!object(c) || !fields(c, ['mode', 'id', 'at', 'prompt', 'choices', 'correctChoiceIds', 'reason', 'evidenceRefs']) || !id(c.id) || checkIds.has(c.id)) { errors.push('media.checkpoints: invalid checkpoint'); return; }
     checkIds.add(c.id);
     if (typeof c.at !== 'number' || !Number.isFinite(c.at) || c.at <= previousAt || c.at < 0 || c.at > duration) errors.push('media.checkpoints: distinct increasing times within the recording are required');
     if (typeof c.at === 'number') previousAt = c.at;
     if (!text(c.prompt) || !text(c.reason) || !evidence(c.evidenceRefs)) errors.push('media.checkpoints: source-backed prompts and feedback are required');
+    if(c.mode!==undefined&&c.mode!=='observation')errors.push('media.checkpoints: unsupported response mode');
+    if(c.mode==='observation'){if(!Array.isArray(c.choices)||c.choices.length||!Array.isArray(c.correctChoiceIds)||c.correctChoiceIds.length)errors.push('media.checkpoints: an observation must not contain an answer key');return;}
     const choices = Array.isArray(c.choices) && c.choices.length >= 2 && c.choices.length <= 8 ? c.choices : [], ids = new Set<string>();
     if (!choices.length) errors.push('media.checkpoints: expected 2–8 choices');
     choices.forEach(v => { if (!object(v) || !fields(v, ['id', 'label']) || !id(v.id) || ids.has(v.id) || !text(v.label)) errors.push('media.checkpoints: invalid choice'); else ids.add(v.id); });
@@ -46,14 +48,15 @@ export function validateMediaFields(input: Record<string, unknown>): string[] {
 }
 export function initialMediaResponse(activity: MediaActivity, saved?: unknown): MediaResponse {
   const value = object(saved) ? saved : {}, answers = object(value.answers) ? value.answers : {};
-  return { position: typeof value.position === 'number' && Number.isFinite(value.position) ? Math.max(0, Math.min(activity.duration, value.position)) : 0, activeCheckpointId: activity.checkpoints.some(c => c.id === value.activeCheckpointId) ? value.activeCheckpointId as string : activity.checkpoints[0].id, answers: Object.fromEntries(activity.checkpoints.map(c => [c.id, c.choices.some(v => v.id === answers[c.id]) ? answers[c.id] as string : ''])), visitedCheckpointIds: Array.isArray(value.visitedCheckpointIds) ? [...new Set(value.visitedCheckpointIds.filter((id): id is string => typeof id === 'string' && activity.checkpoints.some(c => c.id === id)))] : [] };
+  return { position: typeof value.position === 'number' && Number.isFinite(value.position) ? Math.max(0, Math.min(activity.duration, value.position)) : 0, activeCheckpointId: activity.checkpoints.some(c => c.id === value.activeCheckpointId) ? value.activeCheckpointId as string : activity.checkpoints[0].id, answers: Object.fromEntries(activity.checkpoints.map(c => [c.id, c.mode==='observation' ? typeof answers[c.id]==='string'?(answers[c.id] as string).slice(0,4000):'' : c.choices.some(v => v.id === answers[c.id]) ? answers[c.id] as string : ''])), visitedCheckpointIds: Array.isArray(value.visitedCheckpointIds) ? [...new Set(value.visitedCheckpointIds.filter((id): id is string => typeof id === 'string' && activity.checkpoints.some(c => c.id === id)))] : [] };
 }
 export function evaluateMedia(activity: MediaActivity, response: unknown): Evaluation {
   const invalid = (feedback: string): Evaluation => ({ valid: false, correct: false, outcome: 'invalid', score: 0, maxScore: activity.checkpoints.length, feedback, details: [] });
   if (validateMediaFields(activity as unknown as Record<string, unknown>).length) return invalid('This timed media model needs author review.');
   if (!object(response) || !object(response.answers) || Object.keys(response.answers).length !== activity.checkpoints.length) return invalid('Respond to every checkpoint.');
   const answers = response.answers;
-  if (activity.checkpoints.some(c => !c.choices.some(v => v.id === answers[c.id]))) return invalid('Choose a response at every checkpoint; you may use the transcript and timeline.');
+  if (activity.checkpoints.some(c => c.mode==='observation' ? typeof answers[c.id]!=='string'||(answers[c.id] as string).trim().length<8||(answers[c.id] as string).length>4000 : !c.choices.some(v => v.id === answers[c.id]))) return invalid('Complete each checkpoint. For an observation, write a field note of 8–4,000 characters; you may replay the recording and use its transcript.');
+  if(activity.checkpoints.some(c=>c.mode==='observation'))return {valid:true,correct:null,outcome:'self-reviewed',score:0,maxScore:0,feedback:'Your recording field notes are saved. Compare each observation with its source passage, or discuss it with another learner. These reflections are not automatically graded and do not establish independent mastery.',details:activity.checkpoints.map(c=>({id:c.id,correct:c.mode==='observation'?null:c.correctChoiceIds.includes(answers[c.id] as string),message:c.mode==='observation'?'Observation saved for your own or a mentor’s review.':c.reason}))};
   const details = activity.checkpoints.map(c => ({ id: c.id, correct: c.correctChoiceIds.includes(answers[c.id] as string), message: c.reason })), score = details.filter(d => d.correct).length, correct = score === details.length;
   return { valid: true, correct, outcome: correct ? 'correct' : 'retry', score, maxScore: details.length, feedback: `${correct ? 'Your responses match the reviewed recording.' : 'Revisit the relevant recording segments and revise.'} ${activity.explanation}`, details };
 }
