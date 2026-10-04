@@ -6,6 +6,20 @@ import {promisify} from 'node:util';
 
 const variants={'darwin-arm64':'canvas-darwin-arm64','darwin-x64':'canvas-darwin-x64','win32-x64':'canvas-win32-x64-msvc'};
 
+/** tar-stream selects Node's built-in fs in Electron. Bare addon binaries are
+ * alternative-runtime payloads, not Node bindings. Prune only disposable app
+ * copies; retain JavaScript, package metadata, and license files. */
+export async function pruneBareRuntimePrebuilds(buildPath){
+  const removed=[];
+  for(const name of ['bare-fs','bare-path','bare-url']){
+    const folder=path.join(buildPath,'node_modules',name);
+    let manifest;try{manifest=JSON.parse(await fs.readFile(path.join(folder,'package.json'),'utf8'));}catch(error){if(error.code==='ENOENT')continue;throw error;}
+    if(manifest.name!==name)throw new Error('Unexpected package at an alternate-runtime prebuild path.');
+    await fs.rm(path.join(folder,'prebuilds'),{recursive:true,force:true});removed.push(name);
+  }
+  return removed;
+}
+
 /** Cross-packaging must use the target platform's N-API binary, not whatever
  * npm installed on the build host. Every archive is pinned by package-lock. */
 export async function prepareNativeDependencies(root,target){
@@ -32,6 +46,7 @@ export async function prepareNativeDependencies(root,target){
 }
 
 export async function installNativeDependencies(buildPath,dependency){
+  await pruneBareRuntimePrebuilds(buildPath);
   const scope=path.join(buildPath,'node_modules','@napi-rs');await fs.mkdir(scope,{recursive:true});
   for(const entry of await fs.readdir(scope))if(entry.startsWith('canvas-'))await fs.rm(path.join(scope,entry),{recursive:true,force:true});
   await fs.cp(dependency.directory,path.join(scope,dependency.name),{recursive:true});
