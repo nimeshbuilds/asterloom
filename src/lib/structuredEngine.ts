@@ -1,4 +1,23 @@
+import { validatePictureBuildFields, evaluatePictureBuild } from './pictureBuildEngine';
+import type { PictureBuildActivity, PictureBuildResponse } from './pictureBuildEngine';
+import { validateChildPlayFields, validateChildPlaySources, evaluateChildPlay } from './childPlayEngine';
+import type { ChildPlayActivity, ChildPlayResponse } from './childPlayEngine';
 import type { Source } from '../types';
+import { validateCompletionFields, evaluateCompletion } from './completionEngine';
+import type { CompletionActivity, CompletionResponse } from './completionEngine';
+import { validateDataFields, evaluateData } from './dataEngine';
+import type { DataActivity, DataResponse } from './dataEngine';
+import { validateMediaFields, evaluateMedia } from './mediaEngine';
+import type { MediaActivity, MediaResponse } from './mediaEngine';
+import { validateScenarioFields, evaluateScenario } from './scenarioEngine';
+import type { ScenarioActivity, ScenarioResponse } from './scenarioEngine';
+import { validateCompositionFields, evaluateComposition } from './compositionEngine';
+import type { ConstructionActivity, ExplanationActivity, CompositionResponse } from './compositionEngine';
+import { validatePictureFields, validatePictureSources, evaluatePicture } from './pictureEngine';
+import type { PictureActivity, PictureResponse } from './pictureEngine';
+import { validateRuleSwitchFields, evaluateRuleSwitch } from './ruleSwitchEngine';
+import type { RuleSwitchActivity, RuleSwitchResponse } from './ruleSwitchEngine';
+import { extractTableActivities } from './tableExtraction';
 
 export type Primitive = string | number | boolean | null;
 export type Rule =
@@ -38,7 +57,7 @@ export interface DiagramActivity extends ActivityBase {
   kind: 'diagram'; targets: { id: string; label: string; x: number; y: number }[];
   labels: ActivityItem[]; mapping: { labelId: string; targetId: string }[];
 }
-export type StructuredActivity = SequenceActivity | ClassificationActivity | DecisionActivity | DependencyActivity | BudgetActivity | RubricActivity | DiagramActivity;
+export type StructuredActivity = SequenceActivity | ClassificationActivity | DecisionActivity | DependencyActivity | BudgetActivity | RubricActivity | DiagramActivity | CompletionActivity | DataActivity | MediaActivity | ScenarioActivity | ConstructionActivity | ExplanationActivity | PictureActivity | RuleSwitchActivity | ChildPlayActivity | PictureBuildActivity;
 export type ActivityValidation = { success: true; value: StructuredActivity } | { success: false; errors: string[] };
 export type ActivityResponse =
   | { order: string[] }
@@ -47,7 +66,8 @@ export type ActivityResponse =
   | { edges: { from: string; to: string; relation: string }[] }
   | { quantities: Record<string, number> }
   | { ratings: Record<string, number> }
-  | { placements: Record<string, string> };
+  | { placements: Record<string, string> }
+  | CompletionResponse | DataResponse | MediaResponse | ScenarioResponse | CompositionResponse | PictureResponse | RuleSwitchResponse | ChildPlayResponse | PictureBuildResponse;
 export interface Evaluation {
   /** Added by the player; a supported attempt is distinct from independent performance. */
   hintUsed?: boolean;
@@ -275,6 +295,26 @@ export function validateActivity(input: unknown, sources?: Pick<Source, 'id' | '
       if ([...labelIds].some(id => !seen.has(id))) errors.push('mapping: every label needs a target');
       break;
     }
+    case 'completion': errors.push(...validateCompletionFields(input)); break;
+    case 'data': errors.push(...validateDataFields(input)); break;
+    case 'media':
+      errors.push(...validateMediaFields(input));
+      if (sources) { const recording = sources.find(s => s.id === input.mediaSourceId) as Partial<Source> | undefined; if (!recording || typeof recording.dataUrl !== 'string' || !/^data:(?:audio|video)\/[a-z0-9.+-]+;base64,/i.test(recording.dataUrl)) errors.push('mediaSourceId: attach the audio/video recording for offline playback'); }
+      break;
+    case 'scenario': errors.push(...validateScenarioFields(input)); break;
+    case 'rule-switch': errors.push(...validateRuleSwitchFields(input)); break;
+    case 'construction': case 'explanation': errors.push(...validateCompositionFields(input)); break;
+    case 'picture-build': errors.push(...validatePictureBuildFields(input, sources as Source[] | undefined)); break;
+    case 'child-play': {
+      const problems = validateChildPlayFields(input); errors.push(...problems);
+      if (!problems.length && sources) errors.push(...validateChildPlaySources(input as unknown as ChildPlayActivity, sources));
+      break;
+    }
+    case 'picture': {
+      const problems = validatePictureFields(input); errors.push(...problems);
+      if (!problems.length && sources) errors.push(...validatePictureSources(input as unknown as PictureActivity, sources));
+      break;
+    }
     default: errors.push('kind: unsupported activity primitive');
   }
   return errors.length ? { success: false, errors } : { success: true, value: JSON.parse(JSON.stringify(input)) as StructuredActivity };
@@ -285,6 +325,15 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && new Set(a
 export function evaluateActivity(activity: StructuredActivity, response: unknown): Evaluation {
   const valid = validateActivity(activity); if (!valid.success) return invalid(valid.errors.join('; '));
   if (!plain(response)) return invalid('Submit a response object.');
+  if (activity.kind === 'completion') return evaluateCompletion(activity, response);
+  if (activity.kind === 'data') return evaluateData(activity, response);
+  if (activity.kind === 'media') return evaluateMedia(activity, response);
+  if (activity.kind === 'scenario') return evaluateScenario(activity, response);
+  if (activity.kind === 'construction' || activity.kind === 'explanation') return evaluateComposition(activity, response);
+  if (activity.kind === 'picture-build') return evaluatePictureBuild(activity, response);
+  if (activity.kind === 'child-play') return evaluateChildPlay(activity, response);
+  if (activity.kind === 'picture') return evaluatePicture(activity, response);
+  if (activity.kind === 'rule-switch') return evaluateRuleSwitch(activity, response);
   const details: Evaluation['details'] = [];
   let selfAssessed = false;
   switch (activity.kind) {
@@ -370,6 +419,7 @@ export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title'
     const text = source.text.slice(0, 500_000); const lines = text.split(/\r?\n/);
     const base = (kind: string, evidence: string): ActivityBase => ({ version: 1, extractedFrom: source.id, id: `activity-${hash(source.id + kind + evidence)}`, title: `${source.title}: ${kind}`, instruction: 'Reconstruct the structure explicitly stated in the source.', sourceRefs: [{ sourceId: source.id, evidence }], reviewStatus: 'needs-review', explanation: 'This answer follows the supplied source structure. Review factual accuracy before publishing.', hint: 'Use the exact relationships, categories or order stated in the source.' });
     const add = (activity: StructuredActivity) => { if (activities.length < 150) { const check = validateActivity(activity, [source]); if (check.success) activities.push(check.value); else warnings.push(`${source.title}: ${check.errors[0]}`); } };
+    extractTableActivities(source).forEach(add);
     let run: { ordinal: number; label: string; line: string }[] = [];
     const flush = () => {
       if (run.length >= 2 && run.length <= 40 && new Set(run.map(item => item.label)).size === run.length) {
@@ -426,7 +476,7 @@ export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title'
     }
   }
   if (activities.length) warnings.push('Explicit source structures were parsed without AI. Review them before publication; ordinary prose was not converted into invented rules or simulations.');
-  if (!activities.length) warnings.push('No explicit structures found. Use numbered steps, Category > item, A -> relation -> B, If ... then ..., or import an authored activity JSON.');
+  if (!activities.length) warnings.push('No explicit structures found. Use numbered steps, a numeric CSV/TSV/Markdown table, Category > item, A -> relation -> B, If ... then ..., or prepare a source-backed model in the activity studio.');
   if (activities.length >= 150) warnings.push('The extraction limit is 150 activities per pass. Split materials into smaller sets for full coverage.');
   return { activities, warnings };
 }

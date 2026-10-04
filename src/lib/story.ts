@@ -64,6 +64,16 @@ const OBJECTIVES: Record<StructuredActivity['kind'], string> = {
   budget: 'Allocate resources while meeting the authored budget and capacity constraints.',
   rubric: 'Examine the prepared work against the stated criteria.',
   diagram: 'Place labels on the targets established by the source and reviewed model.',
+  completion: 'Complete a worked model using the relationships or repeating rule established by the source.',
+  data: 'Investigate supplied observations and support calculations with the relevant records.',
+  media: 'Use the recording and timed transcript to respond to reviewed checkpoints.',
+  scenario: 'Investigate the situation, apply the reviewed rules and justify actions with the discovered evidence.',
+  construction: 'Build and test a design against the source-backed constraints, accepting every valid solution.',
+  explanation: 'Assemble a supported explanation by connecting claims, evidence and the reasoning between them.',
+  picture: 'Explore annotated source pictures and connect the reviewed clues with their objects.',
+  'picture-build': 'Arrange source-linked picture parts and describe the result with a caregiver.',
+  'child-play': 'Give the documented characters a turn and explore the supplied story through actions and props.',
+  'rule-switch': 'Regroup the same source objects when the governing rule changes.',
 };
 function hash(text: string): string { let value = 2166136261; for (let i = 0; i < text.length; i++) { value ^= text.charCodeAt(i); value = Math.imul(value, 16777619); } return (value >>> 0).toString(36); }
 function claimsFrom(refs: SourceReference[]): StoryClaim[] {

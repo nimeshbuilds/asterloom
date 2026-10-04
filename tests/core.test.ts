@@ -217,9 +217,9 @@ describe('durable practice state and review scheduling', () => {
     expect(parseProgress(serializeProgress(progress)).structured).toEqual(progress.structured);
     const withResponse = (response: unknown) => ({ ...progress, structured: { 'example-budget': { ...result, response } } });
     expect(() => serializeProgress(withResponse(JSON.parse('{"__proto__":{"polluted":true}}')))).toThrow('unsafe object key');
-    expect(() => serializeProgress(withResponse({ values: Array(501).fill(1) }))).toThrow('complexity');
+    expect(() => serializeProgress(withResponse({ values: Array(4097).fill(1) }))).toThrow('complexity');
     expect(() => serializeProgress(withResponse({ text: 'a'.repeat(10_241) }))).toThrow('size limit');
-    expect(() => serializeProgress(withResponse({ text: 'é'.repeat(6000) }))).toThrow('10 KB');
+    expect(() => serializeProgress(withResponse({ text: Array.from({ length: 12 }, () => 'é'.repeat(6000)) }))).toThrow('128 KB');
     expect(() => serializeProgress(withResponse({ value: Infinity }))).toThrow('JSON data');
     expect(() => serializeProgress({ ...progress, structured: { 'example-budget': { ...result, score: 3 } } })).toThrow('maximum');
   });

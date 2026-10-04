@@ -32,7 +32,7 @@ Built applications are placed under `release/desktop/`:
 - `Asterloom-darwin-x64/Asterloom.app` — Intel Mac.
 - `Asterloom-win32-x64/Asterloom.exe` — Windows x64; keep its entire folder together.
 
-Development applications are unsigned/unnotarized. Normal OS trust protections remain in effect. Signed, notarized releases require the publisher's signing identities; no bypass of those protections is included.
+The default packager creates development applications. A publisher can sign a prepared macOS bundle with `node scripts/sign-desktop.mjs --identity "Developer ID Application: …" --app source.app --output signed.app`; notarization remains a separate distribution step. CI artifacts are unsigned. Modified game exports require their own publisher signature/notarization for trusted distribution; they cannot inherit the original publisher seal. Normal OS trust protections remain in effect.
 
 In the desktop studio, open a notebook → **Export** → choose a platform. The export contains exactly that notebook and the complete studio. The same-platform runtime can be copied from the running application. Cross-platform exports need the corresponding runtime template installed alongside the other releases. Notebook recipient profiles are isolated from the creator's profile. No provider keys, room secrets or personal progress are embedded.
 
@@ -43,22 +43,22 @@ In the desktop studio, open a notebook → **Export** → choose a platform. The
 - Local PDF, DOCX, PPTX, XLSX and EPUB extraction; ordinary website text import with network restrictions.
 - MP3/MP4 and supported media attachments. Supply transcripts/descriptions where automatic extraction is unavailable.
 - Deterministic source extraction, local keyword retrieval, source evidence checks and author review.
-- Ten reusable practice interaction families; **seven structured activity engines**: sequences, classification, policy decisions, relationship graphs, budgets, rubrics and diagram labels.
-- A versioned catalog of **75 scaffold specifications**: 25 general, 25 domain/professional and 25 age-adapted recipes. Explicit content prerequisites govern what can be built reliably.
+- **Seventeen bounded activity engines**: sequences, classification, policy decisions, relationship graphs, budgets, rubrics, diagram labels, worked completion, data investigation, media checkpoints, stateful scenarios, construction, explanation, source-picture exploration, changing-rule sorting, puppet/pretend play and picture build-and-tell. Specialized scenario interfaces include prediction, multi-case planning, role perspectives, dialogue and supplied prompt/output comparison.
+- A versioned catalog of **75 scaffold specifications**: 25 general, 25 domain/professional and 25 age-adapted recipes. Each recipe has a runtime contract and content prerequisites. A suitable, author-reviewed model must be explicitly linked before the recipe is playable. These recipes reuse engines; they are not 75 independently validated simulations.
 - Structured activity authoring, examples, strict JSON import/export, validation and live interactive boards. Source changes invalidate dependent evidence; rebuilding refreshes extracted structures.
 - A deterministic chapter outline with verbatim evidence and separately identified fictional scenery.
 - Source-linked visual authoring: upload an illustration or optionally generate one through an image API. Drafts require author review and never become factual source material. Reviewed figures remain attached through export/remix.
 - Six illustrated world themes, a logo/icon system and 75 prepared scaffold illustrations.
 - Ten offline CC0 music recordings, prepared scaffold pairings, volume/mute, optional synthesized fallback and interaction sounds.
-- Durable local notebook/progress storage, interrupted-session recovery and separate progress backups.
+- Durable local notebook/progress storage, interrupted-session recovery and separate progress backups. Structured attempts use transparent spaced-review intervals; assisted, collaborative and caregiver-reviewed work earns no independent-learning credit.
 - Portable `.learnpack` and self-contained HTML exports with create/remix/re-export capability.
 - Private asynchronous challenge rooms, compatible-content fingerprints, persisted results, retry queues and deduplicated standings. Scores are friendly, self-reported competition.
-- Optional wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. A copy/paste prompt-and-JSON workflow also works with an existing assistant subscription. Provider credentials remain ephemeral. A chat subscription is not assumed to grant third-party API access.
+- Optional excerpt-only game-model drafting and wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. A copy/paste prompt-and-JSON workflow also works with an existing assistant subscription. Provider credentials remain ephemeral. A chat subscription is not assumed to grant third-party API access.
 - Opt-in Tor rooms with a verified bundled runtime, onion-only proxy routing, saved outboxes and restricted peer endpoints. Separate-process and native-renderer peer tests have passed locally; the host must remain open for synchronization.
 
 ## Sources are the game material
 
-The engine extracts only structures it can support. Clear definitions and factual prose yield recall practice. Numbered steps and explicit structured relationships can yield process and model activities. The author can prepare source-backed decision rules, resource constraints and visual targets with the activity builder. The engine does not invent scientific consequences or treat an arbitrary text as a validated simulation.
+The engine extracts only structures it can support. Clear definitions and factual prose yield recall practice. Numbered steps and explicit structured relationships can yield process and model activities. Well-formed numeric CSV/TSV/Markdown tables can produce data investigations with exact row evidence. Guided creators prepare source-backed decision rules, resource constraints, visual targets, bounded scenarios, construction models, reasoning chains, recordings and children’s scenes. Other specialized contracts can be edited as validated JSON. Optional AI receives only a creator-selected passage for a model draft; its response must pass local validation and still needs author review. The engine does not invent scientific consequences or treat an arbitrary text as a validated simulation.
 
 NotebookLM and YouTube URLs use an assisted source/transcript workflow. A share URL alone is not a guaranteed full export interface. Rights to reuse original content remain the creator's responsibility.
 
@@ -101,7 +101,7 @@ GitHub Actions runs web/source/service checks and native application export/repl
 ## Release work that remains
 
 - Validate fun, age appropriateness, retention and transfer with representative learners.
-- Complete specialized fixtures/engines and interaction polish for recipes whose prerequisites go beyond the existing engines.
+- Expand authoring convenience and professionally reviewed domain fixture libraries. Bounded prepared models do not establish the behavior of live cloud platforms, professional systems or arbitrary source content.
 - Ship validated local audio transcription/OCR models if automatic media understanding is advertised.
 - Broaden Tor reliability testing across real networks and platforms, and finish redistribution review for every bundled dependency.
 - Complete signing/notarization, distribution/update processes, support and any paid checkout offering.
@@ -114,3 +114,5 @@ Composer credits and original notices are in [`public/assets/licenses/`](public/
 ## Playable example
 
 After building, run `npx tsx scripts/build-showcase.ts`. `release/examples/The-Systems-Expedition.html` is a complete offline game with eight structured activities and a remixable studio. Its `.learnpack` can also be opened or exported as a native game from Asterloom.
+
+Build `npx tsx scripts/build-laboratories.ts` for two more complete offline notebooks: **The Learning Laboratories** and **The Little Explorers**. They include original teaching sources, editable models and prepared assets, and make no model calls during play.

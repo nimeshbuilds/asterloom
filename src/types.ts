@@ -1,4 +1,5 @@
 import type { StructuredActivity } from './lib/structuredEngine';
+import type { ReviewState } from './data/learningScience';
 
 export type SourceKind = 'text' | 'document' | 'website' | 'youtube' | 'notebooklm' | 'audio' | 'video' | 'image' | 'transcript';
 export type SourceStatus = 'ready' | 'needs-transcript' | 'error';
@@ -93,7 +94,7 @@ export interface Progress {
   journal: JournalEntry[];
   updatedAt: string;
   revision: number;
-  structured?: Record<string, { response: unknown; completed: boolean; score: number; maxScore: number; attempts: number; updatedAt: string }>;
+  structured?: Record<string, { response: unknown; completed: boolean; score: number; maxScore: number; attempts: number; updatedAt: string; review?: ReviewState; reviewStartedAt?: string }>;
   /** Persist the current play position without assuming a particular scaffold. */
   activeSession?: { scaffoldId: string; cardIds: string[]; index: number; seed: number; startedAt: string; state?: Record<string, unknown> };
 }

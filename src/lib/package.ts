@@ -155,7 +155,7 @@ function cleanSessionState(input: unknown, depth = 0): unknown {
 function validateStructuredResponse(input: unknown): unknown {
   let count = 0;
   function visit(value: unknown, depth: number): unknown {
-    if (++count > 500 || depth > 10) throw new Error('A structured activity response exceeds its complexity limit.');
+    if (++count > 4096 || depth > 12) throw new Error('A structured activity response exceeds its complexity limit.');
     if (value === null || typeof value === 'boolean') return value;
     if (typeof value === 'number' && Number.isFinite(value)) return value;
     if (typeof value === 'string') return string(value, 'Activity response value', 10_240, true);
@@ -169,7 +169,7 @@ function validateStructuredResponse(input: unknown): unknown {
     }));
   }
   const response = visit(input, 0);
-  if (new TextEncoder().encode(JSON.stringify(response)).byteLength > 10_240) throw new Error('An activity response exceeds the 10 KB save limit.');
+  if (new TextEncoder().encode(JSON.stringify(response)).byteLength > 131_072) throw new Error('An activity response exceeds the 128 KB save limit.');
   return response;
 }
 
@@ -199,15 +199,26 @@ export function validateProgress(input: unknown): Progress {
       const score = number(item.score, 'Activity score', 0, 1_000_000);
       const maxScore = number(item.maxScore, 'Activity maximum score', 0, 1_000_000);
       if (score > maxScore) throw new Error('An activity score exceeds its maximum.');
-      return [id, { response: validateStructuredResponse(item.response), completed: boolean(item.completed, 'Activity completion'), score, maxScore, attempts: integer(item.attempts, 'Activity attempts', 0, 1_000_000), updatedAt: date(item.updatedAt, 'Activity progress date') }];
+      let review;
+      if (item.review !== undefined) {
+        const r = object(item.review, 'Activity review schedule');
+        if (r.objectiveId !== id) throw new Error('A review schedule must identify its activity.');
+        review = { objectiveId: id, intervalDays: number(r.intervalDays, 'Activity review interval', 0, 60), level: integer(r.level, 'Activity review level', 0, 5), independentSuccesses: integer(r.independentSuccesses, 'Independent reviews', 0, 1_000_000), lapses: integer(r.lapses, 'Review lapses', 0, 1_000_000), dueAt: date(r.dueAt, 'Activity review date'), ...(r.lastReviewedAt ? { lastReviewedAt: date(r.lastReviewedAt, 'Activity last review date') } : {}) };
+      }
+      return [id, { response: validateStructuredResponse(item.response), completed: boolean(item.completed, 'Activity completion'), score, maxScore, attempts: integer(item.attempts, 'Activity attempts', 0, 1_000_000), updatedAt: date(item.updatedAt, 'Activity progress date'), ...(review ? { review } : {}), ...(item.reviewStartedAt ? { reviewStartedAt: date(item.reviewStartedAt, 'Activity fresh attempt date') } : {}) }];
     }));
   }
   return progress;
 }
 
-export function serializeProgress(progress: Progress): string { return JSON.stringify({ format: 'asterloom-progress', version: 1, progress: validateProgress(progress) }, null, 2); }
+const MAX_PROGRESS_BYTES = 64 * 1024 * 1024;
+export function serializeProgress(progress: Progress): string {
+  const text = JSON.stringify({ format: 'asterloom-progress', version: 1, progress: validateProgress(progress) }, null, 2);
+  if (new TextEncoder().encode(text).byteLength > MAX_PROGRESS_BYTES) throw new Error('This progress backup exceeds the 64 MB portable limit.');
+  return text;
+}
 export function parseProgress(text: string): Progress {
-  const value = object(parseJson(text, 16 * 1024 * 1024), 'Progress backup');
+  const value = object(parseJson(text, MAX_PROGRESS_BYTES), 'Progress backup');
   if (value.format !== 'asterloom-progress' || value.version !== 1) throw new Error('This is not an Asterloom progress backup.');
   return validateProgress(value.progress);
 }

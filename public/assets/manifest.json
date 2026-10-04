@@ -99,8 +99,8 @@
     },
     {
       "id": "constrained-action-planning",
-      "family": "sequence",
-      "scene": "ocean",
+      "family": "scenario",
+      "scene": "islands",
       "motif": "constrained-action-planning",
       "file": "scaffolds/constrained-action-planning.svg"
     },
@@ -512,8 +512,8 @@
     },
     {
       "id": "version-control-recovery",
-      "family": "sequence",
-      "scene": "ocean",
+      "family": "scenario",
+      "scene": "islands",
       "motif": "version-control-recovery",
       "file": "scaffolds/version-control-recovery.svg"
     },
