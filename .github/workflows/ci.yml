@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   web:
-    name: Web, source engine, and service
+    name: Desktop renderer, source engine, and service
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -35,9 +35,9 @@ jobs:
         run: npm run test:desktop
       - name: Generate included visual and music assets
         run: npm run assets
-      - name: Build the complete portable studio
+      - name: Build the desktop renderer
         run: npm run build
-      - name: Build and validate the portable example worlds
+      - name: Build and validate editable example notebooks
         run: |
           npx tsx scripts/build-showcase.ts
           npx tsx scripts/build-laboratories.ts
@@ -47,7 +47,7 @@ jobs:
         run: node --test --test-name-pattern="actual Chromium" desktop/transcription-poll.test.mjs
         env:
           ASTERLOOM_BROWSER_POLL_TEST: '1'
-      - name: Exercise creation, offline export, progress, and multiplayer
+      - name: Exercise creation, learning, progress, and multiplayer
         run: npm run test:e2e
       - name: Keep browser diagnostics
         if: always()
@@ -61,13 +61,11 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
-      - name: Keep the verified portable web build
+      - name: Keep the verified example notebooks
         uses: actions/upload-artifact@v6
         with:
-          name: portable-web-studio
+          name: example-notebooks
           path: |
-            release/Asterloom-Studio.html
-            release/examples/*.html
             release/examples/*.learnpack
           if-no-files-found: error
           retention-days: 7

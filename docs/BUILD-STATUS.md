@@ -1,6 +1,6 @@
 # Build status and evidence
 
-Asterloom 0.4.0 is a working development preview. It implements a local creator and player, selected-notebook offline/native exports with the full remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+Asterloom 0.5.0 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
 
 ## Activity production
 
@@ -14,7 +14,7 @@ AI is optional. The assistant sends only a selected excerpt for a bounded draft,
 
 ## Included in the 0.3 upgrade
 
-- Exact evidence offsets, revision checks, objective selection and bundled local MiniLM semantic retrieval with WASM/WebGPU fallback; the English-focused encoder does not generate answers. Offline HTML retains lexical retrieval.
+- Exact evidence offsets, revision checks, objective selection and bundled local MiniLM semantic retrieval with WASM/WebGPU fallback; the English-focused encoder does not generate answers. Exact lexical retrieval remains available as a local fallback.
 - Seventy-five explicit world compositions, age-aware presentation, PixiJS scenes with accessible controls and reduced-motion/SVG fallbacks.
 - Original source attachments with checksums; Mozilla Readability and structured public-page extraction preserve code, tables, headings and source links. Persistent import receipts disclose partial pages and assisted imports. Embedded web assets are not automatically downloaded.
 - One Universal Mac target for Intel and Apple Silicon, plus Windows x64; signing and notarization are separately verified distribution properties.
@@ -26,12 +26,18 @@ AI is optional. The assistant sends only a selected excerpt for a bounded draft,
 - Pinned, locally built FFmpeg 9.0.2 LGPL decoding and whisper.cpp 1.9.4 speech recognition for up to two-hour recordings. The default Small and optional Base model download once with exact size/SHA-256 verification, then run offline. The complete app includes native decoders and corresponding sources; model weights use first-use download to keep the installer smaller.
 - Editable timestamped captions, retained caption/ASR provenance, uncertain speech flags, explicit correction review, saved cue edits/playhead and checkpoint choices. Deterministic source-based checkpoint and structure drafts remain unscored until approved; rebuilding cannot bypass review.
 - Bundled local Tesseract 7/WASM OCR in four languages, retained image/video-frame evidence, bounded frame selection and explicit correction review. Raw recognition confidence is separate from factual review. Browser-provided approximate frame positions are disclosed.
-- `.learnzip` large-recording archives with streamed verification and bounded ZIP64 handling. Native exported games carry the selected recordings and remix studio; compact HTML/JSON exports hydrate eligible media into verified bytes. Missing external file references fail clearly instead of producing incomplete games.
+- `.learnzip` large-recording archives with streamed verification and bounded ZIP64 handling. Native exported games carry the selected recordings and remix studio; compact `.learnpack` backups hydrate eligible media into verified bytes. Missing external file references fail clearly instead of producing incomplete games.
 - Source media identity participates in progress restoration and room matching. Durable background room delivery survives closing the dialog and retries uncertain acknowledgments idempotently; explicit Tor off remains respected.
+
+## Current teaching and presentation additions
+
+The desktop studio prepares a bounded practice set from the full readable collection, without requiring a manually selected excerpt. Imported sources remain intact; a finite practice set is not an assessment of every statement. Source-grounded teaching and review remain distinct from fictional scenery and decorative effects.
+
+The soundtrack library contains 100 choices: ten independently licensed CC0 recordings plus 90 original modular interactive scores, with shared synthesized instruments and compositional grammar. Seventy-five recipes have prepared score assignments and supportive cue profiles. Background music and feedback are independently controlled, quieted around narration, and optional. Visual reactions use eight presentation grammars and the recipe’s authored objects, with reduced-motion alternatives.
 
 ## Evidence and limits
 
-Use the current commit’s GitHub Actions checks and local release verification files as the source of truth for executed tests. CI runs web/source/service tests plus actual Windows and macOS save/restart/export/play/remix tests. The expanded native test now exercises a data-investigation answer across real application restart as well as recall and recipient editing. Browser tests exercise offline HTML exports with separate learner profiles, accessible controls, source integrity and room synchronization. No paid model request is required by the automated tests.
+Use the current commit’s GitHub Actions checks and local release verification files as the source of truth for executed tests. CI runs web/source/service tests plus actual Windows and macOS save/restart/export/play/remix tests. The expanded native test now exercises a data-investigation answer across real application restart as well as recall and recipient editing. Renderer tests exercise imported notebooks, separate learner profiles, accessible controls, source integrity and room synchronization. The renderer harness is development/test infrastructure; the product distributes native apps and editable notebook/archive files, not standalone HTML games. No paid model request is required by the automated tests.
 
 Prior baseline cbf1414 passed all three CI jobs in run 37177456590. Local baseline evidence includes Apple Silicon and Intel/Rosetta launches, Developer ID macOS signatures, and real Tor peer connectivity. New versioned artifacts require their own verification; an older green run does not certify changed code.
 

@@ -1,0 +1,28 @@
+.aster-reaction{--reaction-accent:#676396;--reaction-secondary:#bf884b;--reaction-ink:#343b47;position:relative;isolation:isolate;overflow:hidden;width:100%;max-width:760px;margin:4px auto 10px;border-radius:22px;background:linear-gradient(110deg,color-mix(in srgb,var(--reaction-accent) 5%,transparent),color-mix(in srgb,var(--reaction-accent) 11%,white),color-mix(in srgb,var(--reaction-secondary) 6%,transparent));pointer-events:none;contain:paint}
+.aster-reaction svg{display:block;width:100%;height:clamp(100px,15vw,156px);overflow:visible;fill:none;stroke:var(--reaction-accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.aster-reaction.ae-compact svg{height:94px}.aster-reaction.ae-young svg{height:150px;stroke-width:2.6}
+.aster-reaction .ae-horizon{stroke:var(--reaction-accent);opacity:.1}.aster-reaction .ae-ground{fill:var(--reaction-accent);opacity:.055;stroke:none}
+.aster-reaction .ae-frame,.aster-reaction .ae-center-disc{fill:#fffcf8;stroke:var(--reaction-accent);stroke-width:2}.aster-reaction .ae-center-disc{filter:drop-shadow(0 3px 5px #25364014)}
+.aster-reaction .ae-emblem{stroke:var(--reaction-ink);stroke-width:3;animation:ae-emblem-arrive .65s cubic-bezier(.17,.7,.24,1) both;transform-origin:300px 79px}
+.aster-reaction .ae-core-check{stroke-width:2}.aster-reaction .ae-node{fill:var(--reaction-accent);stroke:#fffcf8;stroke-width:2;animation:ae-node-arrive .55s both}.aster-reaction .ae-node-core{fill:#fffcf8;stroke:none}
+.aster-reaction .ae-connection{stroke-dasharray:800;stroke-dashoffset:800;animation:ae-connect 1.2s ease-out forwards;opacity:.65}.aster-reaction .ae-orbit{stroke-dasharray:3 8;opacity:.2}.aster-reaction .ae-sweep{stroke:var(--reaction-secondary);stroke-dasharray:300;stroke-dashoffset:300;animation:ae-connect 1.3s ease-out forwards;opacity:.5}
+.aster-reaction .ae-mote{fill:var(--reaction-secondary);stroke:none;animation:ae-mote-drift 1.55s cubic-bezier(.18,.65,.22,1) both;transform-box:fill-box;transform-origin:center}
+.aster-reaction .ae-piece rect,.aster-reaction .ae-page rect{fill:#fffcf8}.aster-reaction .ae-piece,.aster-reaction .ae-page{animation:ae-piece-place .85s cubic-bezier(.2,.75,.3,1) both;transform-box:fill-box;transform-origin:center}.aster-reaction .ae-piece path,.aster-reaction .ae-page path{opacity:.45}
+.aster-reaction .ae-route-shadow{stroke:var(--reaction-accent);stroke-width:10;opacity:.065}.aster-reaction .ae-flag{stroke:var(--reaction-secondary);fill:color-mix(in srgb,var(--reaction-secondary) 12%,transparent)}
+.aster-reaction .ae-leaf{fill:color-mix(in srgb,var(--reaction-accent) 14%,white);stroke-width:1.5}.aster-reaction .ae-petal{fill:color-mix(in srgb,var(--reaction-secondary) 14%,white);stroke:var(--reaction-secondary);stroke-width:1;opacity:.65}.aster-reaction .ae-sprout{animation:ae-sprout-grow 1s ease-out both;transform-box:fill-box;transform-origin:bottom}
+.aster-reaction .ae-ripple{opacity:.2;animation:ae-water-spread 1.3s ease-out both;transform-origin:300px 95px}.aster-reaction .ae-drop{fill:color-mix(in srgb,var(--reaction-accent) 9%,white);stroke:var(--reaction-accent);opacity:.7}.aster-reaction .ae-wave{stroke:var(--reaction-secondary);opacity:.35}.aster-reaction .ae-lens-handle{stroke-width:7;opacity:.45}
+.aster-reaction .ae-ribbon-band{fill:color-mix(in srgb,var(--reaction-accent) 7%,white);stroke-width:1;opacity:.65}.aster-reaction .ae-retry-thread{stroke:var(--reaction-secondary);stroke-width:3;opacity:.35}
+.aster-reaction.ae-retry .ae-field{opacity:.5}.aster-reaction.ae-retry .ae-connection{stroke-dasharray:5 8;stroke-dashoffset:0;animation:ae-reconsider 1.15s ease-out both}.aster-reaction.ae-retry .ae-piece,.aster-reaction.ae-retry .ae-page{animation:ae-reconsider 1.15s ease-out both}.aster-reaction.ae-complete .ae-center-disc{stroke-width:2.5}.aster-reaction.ae-complete .ae-emblem{fill:color-mix(in srgb,var(--reaction-secondary) 24%,white)}
+@keyframes ae-emblem-arrive{from{opacity:0;scale:.85}to{opacity:1;scale:1}}
+@keyframes ae-node-arrive{from{opacity:0}to{opacity:1}}
+@keyframes ae-connect{to{stroke-dashoffset:0}}
+@keyframes ae-mote-drift{0%{opacity:0;translate:0 8px}30%{opacity:.65}100%{opacity:.2;translate:var(--reaction-shift) -10px}}
+@keyframes ae-piece-place{from{opacity:0;translate:0 -10px}to{opacity:1;translate:0 0}}
+@keyframes ae-sprout-grow{from{opacity:0;scale:.85}to{opacity:1;scale:1}}
+@keyframes ae-water-spread{from{opacity:0;scale:.8}50%{opacity:.3}to{opacity:.18;scale:1}}
+@keyframes ae-reconsider{from{opacity:.1}to{opacity:.65}}
+.aster-reaction[data-motion=reduced] *,:root[data-reduced=true] .aster-reaction *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.aster-reaction[data-motion=reduced] .ae-mote,:root[data-reduced=true] .aster-reaction .ae-mote{opacity:.3}
+@media(prefers-reduced-motion:reduce){.aster-reaction *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.aster-reaction .ae-mote{opacity:.3}}
+@media(max-width:520px){.aster-reaction{border-radius:16px}.aster-reaction svg{height:105px}.aster-reaction.ae-young svg{height:120px}.aster-reaction.ae-compact svg{height:80px}}
+
+.aster-reaction .ae-world-mark{opacity:.45}.aster-reaction.ae-young .ae-world-mark{opacity:.65}

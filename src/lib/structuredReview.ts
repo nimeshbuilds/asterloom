@@ -13,7 +13,9 @@ export function reviewAfterEvaluation(id: string, previous: SavedActivity | unde
 export function beginStructuredReview(progress: Progress, id: string, now = new Date().toISOString()): Progress {
   const prior = progress.structured?.[id];
   if (!prior || !Number.isFinite(Date.parse(now))) return progress;
-  return { ...progress, structured: { ...progress.structured, [id]: { ...prior, response: {}, reviewStartedAt: now, updatedAt: now } } };
+  const response = prior.response && typeof prior.response === 'object' ? prior.response as Record<string,unknown> : {};
+  const draft = response._draft && typeof response._draft === 'object' ? response._draft as Record<string,unknown> : {};
+  return { ...progress, structured: { ...progress.structured, [id]: { ...prior, response: draft.lesson ? {_draft:{lesson:draft.lesson}} : {}, reviewStartedAt: now, updatedAt: now } } };
 }
 export function structuredReviewsDue(progress: Progress, now = new Date().toISOString()): string[] {
   return Object.entries(progress.structured ?? {}).filter(([, value]) => value.review && Number.isFinite(Date.parse(value.review.dueAt)) && isReviewDue(value.review, now)).map(([id]) => id);

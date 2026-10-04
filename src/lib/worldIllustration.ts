@@ -1,4 +1,4 @@
-import {getAgePresentation,WORLD_PALETTES,type SceneGlyph,type WorldComposition} from '../data/worlds';
+import {getAgePresentation,worldPalette,type SceneGlyph,type WorldComposition} from '../data/worlds';
 /** Project-authored vector primitives. No source text, remote URL, or generated markup is evaluated. */
 export function glyphMarkup(glyph:SceneGlyph,ink:string,fill:string):string{
  const paths:Record<SceneGlyph,string>={
@@ -35,7 +35,21 @@ export function glyphMarkup(glyph:SceneGlyph,ink:string,fill:string):string{
  };return `<g stroke="${ink}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="${fill}">${paths[glyph]}</g>`;
 }
 export function worldBackdropMarkup(world:WorldComposition,theme='islands',age='adult',includeObjects=true):string{
- const p=WORLD_PALETTES[theme]??WORLD_PALETTES.islands,young=getAgePresentation(age).largeControls;
+ const p=worldPalette(theme,age),young=getAgePresentation(age).largeControls;
+ if(getAgePresentation(age).density==='studio') {
+  const grid=Array.from({length:17},(_,i)=>`<path d="M${i*50} 0V360"/>`).join('')+Array.from({length:9},(_,i)=>`<path d="M0 ${i*45}H800"/>`).join('');
+  const contours:Record<WorldComposition['layout'],string>={
+   trail:'<path d="M72 263H212V147H425V230H566V97H737"/><path d="M72 278H228V162H409V245H582V112H737" opacity=".4"/>',
+   network:'<path d="M105 250L253 87L410 262L558 93L709 260M253 87H558M410 262V62"/><circle cx="410" cy="180" r="113"/>',
+   workbench:'<path d="M121 105H680V270H121ZM121 143H680M465 105V270M151 170H419M151 192H379M151 214H394M494 171H646M494 195H611M494 219H632"/>',
+   stage:'<path d="M139 79H661V287H139ZM159 99H641V267H159M139 305H661M183 79V55H617V79"/>',
+   garden:'<path d="M92 270L217 129L354 264L479 128L614 260L720 144M92 285H720M217 129V69M479 128V69"/><circle cx="355" cy="172" r="71"/>',
+   archive:'<path d="M137 80H663V285H137ZM137 145H663M137 216H663M318 80V285M493 80V285"/>',
+   console:'<path d="M138 82H662V269H138ZM168 113H476V233H168M504 115H630M504 140H595M504 169H630M504 194H610M504 222H630M105 293H695"/>',
+  };
+  const markers=world.objects.map((o,i)=>`<g transform="translate(${o.x*8} ${o.y*3.6})"><circle r="${o.size+12}" fill="${p.sky}" stroke="${p.accent}" stroke-opacity=".35"/><circle r="${o.size+21}" fill="none" stroke="${p.accent}" stroke-opacity=".16" stroke-dasharray="2 8"/>${includeObjects?`<g transform="scale(${o.size/43})">${glyphMarkup(o.glyph,p.accent,p.paper)}</g>`:''}<path d="M-9 ${o.size+31}H9" stroke="${p.secondary}" stroke-width="2"/><text y="${o.size+45}" fill="${p.ink}" text-anchor="middle" font-family="monospace" font-size="9" opacity=".7">0${i+1}</text></g>`).join('');
+  return `<rect width="800" height="360" fill="${p.sky}"/><g stroke="${p.accent}" stroke-opacity=".055" fill="none">${grid}</g><circle cx="650" cy="55" r="185" fill="${p.ground}" opacity=".25"/><g stroke="${p.accent}" stroke-width="1.5" stroke-opacity=".25" fill="none">${contours[world.layout]}</g>${markers}<path d="M25 53V25H53M747 25H775V53M25 307V335H53M747 335H775V307" stroke="${p.accent}" stroke-width="2" fill="none" opacity=".65"/><path d="M44 318H141" stroke="${p.secondary}" stroke-width="3"/><path d="M152 318H203" stroke="${p.accent}" stroke-width="3" opacity=".35"/>`;
+ }
  const bases:Record<WorldComposition['layout'],string>={
  trail:`<path d="M70 268Q170 80 320 199T710 90" stroke="${p.paper}" stroke-width="58" fill="none"/><path d="M70 268Q170 80 320 199T710 90" stroke="${p.secondary}" stroke-width="2" stroke-dasharray="3 13" fill="none"/>`,
  network:`<path d="M130 278L228 87H567L683 278Z" fill="${p.paper}"/><path d="M172 244L272 132L397 259L551 132L640 248M272 132L551 132M397 259L397 94" stroke="${p.accent}" opacity=".18" stroke-width="5" fill="none"/>`,

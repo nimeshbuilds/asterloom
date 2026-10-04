@@ -16,7 +16,7 @@ function canonical(value: unknown): string {
   return JSON.stringify(value) ?? 'null';
 }
 async function digest(value: unknown): Promise<string> {
-  if (!globalThis.crypto?.subtle) throw new Error('Content-bound progress backups need Web Crypto. Open Asterloom as a local HTML file, on localhost, or in the desktop app.');
+  if (!globalThis.crypto?.subtle) throw new Error('Content-bound progress backups need the desktop application’s secure storage environment. Reopen the notebook in Asterloom.');
   const result = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(value)));
   return Array.from(new Uint8Array(result), byte => byte.toString(16).padStart(2, '0')).join('');
 }

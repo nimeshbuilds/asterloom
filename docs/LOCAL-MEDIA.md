@@ -12,7 +12,7 @@ Native games include the selected notebook's referenced original recordings as f
 
 A `.learnzip` recording archive is a streamed ZIP64 containing `notebook.learnpack`, `manifest.json`, and `assets/<SHA256>`. It is a portable authoring backup, not a runnable application. Import verifies the entire archive before changing the media library, rejects duplicate/unexpected paths, links, encrypted entries, oversized content, missing recordings and hash mismatches, then streams assets into the local library. The archive limit is 8 GiB, with at most 200 recordings, 2 GiB per recording, and a 64 MiB notebook document. A selected existing output may be replaced only through the native Save dialog. Neither format includes credentials.
 
-Compact browser games and `.learnpack` files embed originals only within the UI's stated size caps. Larger recordings require a native game or recording archive. A standalone browser file has no native transcription service.
+Compact `.learnpack` backups embed originals only within the UI's stated size caps (20 MiB per recording, 48 MiB combined media). Larger recordings require a native game or `.learnzip` recording archive. Recipients import these notebook formats in the desktop studio; standalone HTML games are not distributed.
 
 ## Service contract
 

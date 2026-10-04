@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import '../learning-journey.css';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Check, CheckCircle2, ChevronRight, Flag, Lightbulb, Pause, Sparkles, Volume2, X } from 'lucide-react';
 import type { LearningCard, Notebook, Progress } from '../types';
 import type { Scaffold } from '../data/scaffolds';
@@ -9,15 +10,20 @@ import WorldPreview from './WorldPreview';
 import LearningScene from './LearningScene';
 import {getAgePresentation} from '../data/worlds';
 import LearningFigures from './LearningFigures';
-import {musicFeedback,duckMusic} from '../lib/music';
+import {musicFeedback,duckMusic,setLearningMusicPhase} from '../lib/music';
+import LearningBriefing from './LearningBriefing';
+import ReactionEffects from './ReactionEffects';
+import {buildLearningBriefing,initialLessonState,lessonReady,lessonQuestSupport,type LessonState} from '../lib/learningBriefing';
 import '../player.css';
 
 interface Props {
   notebook: Notebook; scaffold: Scaffold; progress: Progress;
   onProgress: (progress: Progress) => Promise<boolean>; onExit: () => void; onError: (message: string) => void;
   onComplete?: (score: number, total: number) => void;
+  audioControls?: ReactNode;
 }
 interface PlayState {
+  lesson?: LessonState;
   input: string; selection: string; pairs: Record<string, string>; order: string[];
   submitted: boolean; correct: boolean; assisted: boolean; figures: boolean; hint: boolean; evidence: boolean; reflectionRevealed: boolean;
   correctCount: number; independentCount: number; answeredCount: number; confidence: 'guessing' | 'unsure' | 'confident';
@@ -61,7 +67,7 @@ function chunksFor(card: LearningCard, notebook: Notebook): { items: string[]; i
   return { items, isProcedure: false };
 }
 
-export default function Player({ notebook, scaffold, progress, onProgress, onExit, onError, onComplete }: Props) {
+export default function Player({ notebook, scaffold, progress, onProgress, onExit, onError, onComplete, audioControls }: Props) {
   const eligibleCards = notebook.cards.filter(item => canScoreRecallCard(item, notebook.sources));
   const awaitingReview = notebook.cards.filter(item => item.reviewStatus === 'needs-review').length;
   const [session] = useState(() => {
@@ -70,8 +76,9 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     const seed = stableHash(`${notebook.id}:${Date.now()}`);
     return { scaffoldId: scaffold.id, cardIds: selectDueCards(eligibleCards, progress, Math.min(8, eligibleCards.length)).map(card => card.id), index: 0, seed, startedAt: new Date().toISOString(), state: undefined };
   });
+  const lessonPlan = useMemo(() => buildLearningBriefing({ notebook, scaffold, cardIds: session.cardIds }), [notebook, scaffold, session.cardIds]);
   const [index, setIndex] = useState(Math.min(session.index, session.cardIds.length));
-  const [state, setState] = useState<PlayState>(() => restoreState(session.state));
+  const [state, setState] = useState<PlayState>(() => ({...restoreState(session.state), lesson: initialLessonState(lessonPlan, session.state?.lesson ?? progress.lessons?.[lessonPlan.id])}));
   const [elapsed, setElapsed] = useState(Math.max(0, Math.floor((Date.now() - Date.parse(session.startedAt)) / 1000)));
   const latestProgress = useRef(progress); latestProgress.current = progress;
   const currentState = useRef(state); currentState.current = state;
@@ -80,7 +87,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   const [savingCritical, setSavingCritical] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [writeFailed, setWriteFailed] = useState(false);
-  type Transition = { next: PlayState; nextIndex: number; progress: Progress; kind: 'answer' | 'advance' | 'exit' };
+  type Transition = { next: PlayState; nextIndex: number; progress: Progress; kind: 'answer' | 'advance' | 'exit' | 'lesson' };
   const pendingTransition = useRef<Transition | null>(null);
   const criticalInFlight = useRef(false);
   const initialized = useRef(false);
@@ -121,25 +128,40 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     const next = { ...previous, ...patch, assisted: previous.assisted || patch.figures === true || patch.hint === true || patch.evidence === true || patch.reflectionRevealed === true };
     currentState.current = next; setState(next); void persist(next);
   }
-  async function commitTransition(operation: Transition) {
-    if (criticalInFlight.current) return;
+  async function commitTransition(operation: Transition): Promise<boolean> {
+    if (criticalInFlight.current) return false;
     criticalInFlight.current = true; setSavingCritical(true); setSaveError('');
     const saved = await writeProgress(operation.progress);
-    if (!mounted.current) { criticalInFlight.current = false; return; }
+    if (!mounted.current) { criticalInFlight.current = false; return false; }
     if (saved) {
       pendingTransition.current = null;
       currentState.current = operation.next; setState(operation.next); setIndex(operation.nextIndex);
-      if (operation.kind === 'answer') musicFeedback(operation.next.correct ? 'success' : 'try-again');
+      if (operation.kind === 'answer') musicFeedback(operation.next.correct ? 'success' : 'try-again', scaffold.id, notebook.ageGroup);
       if (operation.kind === 'advance') window.setTimeout(() => heading.current?.focus(), 30);
       if (operation.kind === 'exit') onExit();
     } else setSaveError('Your progress has not been saved yet. Retry the same save before continuing; your answer will not be counted twice.');
-    criticalInFlight.current = false; setSavingCritical(false);
+    criticalInFlight.current = false; setSavingCritical(false); return saved;
   }
   function transition(next: PlayState, nextIndex: number, base: Progress, kind: Transition['kind']) {
     if (pendingTransition.current || criticalInFlight.current) return;
     const operation = { next, nextIndex, progress: withSession(next, nextIndex, base), kind };
     pendingTransition.current = operation; void commitTransition(operation);
   }
+
+  const lessonUnlocked = lessonReady(lessonPlan, state.lesson);
+  async function saveLesson(lesson: LessonState): Promise<boolean> {
+    // A failed lesson write can be retried (or replaced by newer local notes).
+    // Answer/advance transitions remain immutable until their original save succeeds.
+    if (criticalInFlight.current || pendingTransition.current && pendingTransition.current.kind !== 'lesson') return false;
+    const next = {...currentState.current, lesson};
+    const prior = latestProgress.current;
+    const lessons = {...prior.lessons, [lessonPlan.id]: lesson};
+    const bounded = Object.fromEntries(Object.entries(lessons).slice(-300));
+    const operation: Transition = {next, nextIndex:index, progress:withSession(next,index,{...prior,lessons:bounded}), kind:'lesson'};
+    pendingTransition.current = operation;
+    return commitTransition(operation);
+  }
+  useEffect(() => { if(done||lessonUnlocked)setLearningMusicPhase(done?'success':'quest'); return () => setLearningMusicPhase('intro'); }, [done, lessonUnlocked]);
 
   useEffect(() => { if (!initialized.current && sessionIsCurrent && cards.length) { initialized.current = true; void persist(state, index, { ...latestProgress.current, sessions: latestProgress.current.sessions + (session.state ? 0 : 1) }); } }, []);
   useEffect(() => {
@@ -148,14 +170,15 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     return () => window.clearInterval(timer);
   }, [isTimed, done, session.startedAt]);
   useEffect(() => {
-    if (sessionIsCurrent && done && cards.length && !completed.current) { completed.current = true; musicFeedback('complete'); onComplete?.(state.independentCount, cards.length); }
+    if (sessionIsCurrent && done && cards.length && !completed.current) { completed.current = true; musicFeedback('complete', scaffold.id, notebook.ageGroup); onComplete?.(state.independentCount, cards.length); }
   }, [done, sessionIsCurrent, cards.length, state.independentCount]);
 
   function submit(correct: boolean) {
     if (!card || currentState.current.submitted || pendingTransition.current || criticalInFlight.current) return;
     const state = currentState.current;
     if (!sessionIsCurrent || !canScoreRecallCard(card, notebook.sources)) { onError('This challenge needs author review or its source evidence changed. Review it in the studio before scored play.'); return; }
-    const assisted = state.assisted || state.hint || state.evidence || scaffold.family === 'explain';
+    if (!lessonReady(lessonPlan, state.lesson)) { onError('Complete the source lesson and guided practice before starting this quest.'); return; }
+    const assisted = state.assisted || state.hint || state.evidence || scaffold.family === 'explain' || lessonQuestSupport(lessonPlan,state.lesson).assisted;
     let updated = recordAttempt(latestProgress.current, card, correct, assisted ? 'guessing' : state.confidence);
     if (assisted) {
       // Supported practice and self-assessment must not award independent-recall XP or advance intervals.
@@ -171,7 +194,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     const next = { ...state, submitted: true, correct, correctCount: state.correctCount + (correct ? 1 : 0), independentCount: state.independentCount + (correct && !assisted ? 1 : 0), answeredCount: state.answeredCount + 1 };
     transition(next, index, updated, 'answer');
   }
-  function nextCard() { const state = currentState.current; if (!state.submitted) return; const nextIndex = index + 1; const next = initialState(state.correctCount, state.answeredCount, state.independentCount); transition(next, nextIndex, latestProgress.current, 'advance'); }
+  function nextCard() { const state = currentState.current; if (!state.submitted) return; const nextIndex = index + 1; const next = {...initialState(state.correctCount, state.answeredCount, state.independentCount), lesson:state.lesson}; transition(next, nextIndex, latestProgress.current, 'advance'); }
   function pause() { transition(currentState.current, index, latestProgress.current, 'exit'); }
   function speak() {
     if (!('speechSynthesis' in window)) { onError('Read-aloud is unavailable in this browser.'); return; }
@@ -181,7 +204,14 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   if (!sessionIsCurrent || (!cards.length && notebook.cards.length > 0)) return <div className="player-empty"><BookOpen size={40}/><h2>{awaitingReview ? 'These challenges need author review' : 'Review the source references'}</h2><p>{awaitingReview ? 'Review the wording, answer and source evidence in the studio, then choose “Mark as reviewed”. Draft questions earn no scores or learning progress.' : 'These challenges reference material that changed. Rebuild from the current sources or review the questions in the studio before playing.'}</p><button className="btn primary" onClick={onExit}>Back to notebook</button></div>;
   if (!cards.length) return <div className="player-empty"><BookOpen size={40}/><h2>No challenges to play yet</h2><p>Add sources and create challenges in the studio first.</p><button className="btn primary" onClick={onExit}>Back to the studio</button></div>;
 
-  if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><div className="session-complete"><div className="completion-art"><WorldPreview scaffoldId={scaffold.id} theme={notebook.theme} ageGroup={notebook.ageGroup}/></div><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{committedProgress.xp}</strong><span>Total practice XP</span></div><div><strong>{committedProgress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div></div>;
+  if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><div className="session-complete"><div className="completion-art"><WorldPreview scaffoldId={scaffold.id} theme={notebook.theme} ageGroup={notebook.ageGroup}/></div><ReactionEffects outcome="complete" scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={session.seed}/><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You studied the source material and practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{committedProgress.xp}</strong><span>Total practice XP</span></div><div><strong>{committedProgress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div></div>;
+
+  if (!lessonUnlocked) return <div className={`player-shell learning-first presentation-${getAgePresentation(notebook.ageGroup).density}`} data-theme={notebook.theme}>
+    <header className="player-topbar"><button className="btn ghost" disabled={locked} onClick={pause}><Pause size={17}/>Save & exit</button><div className="player-game-name"><BookOpen size={19}/><strong>{scaffold.name}</strong></div><div className="player-top-actions">{audioControls}</div></header>
+    <div className="player-lesson-layout"><LearningBriefing plan={lessonPlan} saved={state.lesson} onSave={saveLesson} onReady={()=>{}} onError={onError}/>
+      {saveError && pendingTransition.current?.kind !== 'lesson' && <div className="notice" role="alert"><p>{saveError}</p><button className="btn primary" disabled={savingCritical} onClick={()=>{if(pendingTransition.current)void commitTransition(pendingTransition.current);}}>Retry saving progress</button></div>}
+      <p className="player-save-note" role="status">{savingCount ? 'Saving progress…' : writeFailed ? 'Some progress is not saved. Retry before leaving.' : 'Progress saved on this device · Lesson and quest included offline'}</p>
+    </div></div>;
 
   const source = notebook.sources.find(item => item.id === card.sourceId);
   const sourceVisuals = (notebook.artwork ?? []).filter(art => art.sourceId === card.sourceId && art.reviewStatus === 'reviewed' && source?.text.includes(art.evidence));
@@ -217,13 +247,13 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   }
 
   return <div className={`player-shell family-${scaffold.family} presentation-${getAgePresentation(notebook.ageGroup).density}`} data-theme={notebook.theme}>
-    <header className="player-topbar"><button className="btn ghost" disabled={locked} onClick={pause}><Pause size={17}/>Save & exit</button><div className="player-game-name"><span>{scaffold.icon}</span><strong>{scaffold.name}</strong></div><div className="player-top-actions"><span className="xp-pill"><Sparkles size={16}/>{committedProgress.xp} XP</span><button className="icon-button" onClick={speak} aria-label="Read this challenge aloud"><Volume2 size={19}/></button></div></header>
+    <header className="player-topbar"><button className="btn ghost" disabled={locked} onClick={pause}><Pause size={17}/>Save & exit</button><div className="player-game-name"><span>{scaffold.icon}</span><strong>{scaffold.name}</strong></div><div className="player-top-actions">{audioControls}<span className="xp-pill"><Sparkles size={16}/>{committedProgress.xp} XP</span><button className="icon-button" onClick={speak} aria-label="Read this challenge aloud"><Volume2 size={19}/></button></div></header>
     <div className="player-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={cards.length} aria-valuenow={index} aria-label={`Challenge ${index + 1} of ${cards.length}`}><div style={{ width: `${index / cards.length * 100}%` }}/></div>
     <div className="player-layout">
-      <aside className="player-sidebar"><WorldPreview scaffoldId={scaffold.id} theme={notebook.theme} ageGroup={notebook.ageGroup}/><span className="eyebrow">YOUR EXPEDITION</span><h2>{notebook.title}</h2><p>{scaffold.tagline}</p><ol className="mission-path">{cards.map((item, at) => <li key={item.id} className={at < index ? 'complete' : at === index ? 'current' : ''}><span>{at < index ? <Check size={12}/> : at + 1}</span><div>{at === index ? 'You are here' : at < index ? 'Explored' : `Challenge ${at + 1}`}</div></li>)}</ol><div className="player-note"><Lightbulb size={18}/><p>Hints are always available. Supported practice is saved separately from independent recall.</p></div></aside>
-      <main className="challenge-area">
+      <aside className="player-sidebar" aria-label="Expedition progress"><WorldPreview scaffoldId={scaffold.id} theme={notebook.theme} ageGroup={notebook.ageGroup}/><span className="eyebrow">YOUR EXPEDITION</span><h2>{notebook.title}</h2><p>{scaffold.tagline}</p><ol className="mission-path">{cards.map((item, at) => <li key={item.id} className={at < index ? 'complete' : at === index ? 'current' : ''}><span>{at < index ? <Check size={12}/> : at + 1}</span><div>{at === index ? 'You are here' : at < index ? 'Explored' : `Challenge ${at + 1}`}</div></li>)}</ol><div className="player-note"><Lightbulb size={18}/><p>Hints are always available. Supported practice is saved separately from independent recall.</p></div></aside>
+      <section className="challenge-area" aria-label="Quest workspace">
         <div className="challenge-meta"><span className="eyebrow">CHALLENGE {index + 1} OF {cards.length}</span>{isTimed && <span className="timer-chip" aria-label="Elapsed session time">{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')} · no time limit</span>}<span className="concept-chip">{conceptLabel}</span></div>
-        <p className="game-instructions">{instructions[scaffold.family]}</p>{awaitingReview > 0 && <p className="caregiver-note">{awaitingReview} draft {awaitingReview === 1 ? 'challenge awaits' : 'challenges await'} author review and {awaitingReview === 1 ? 'is' : 'are'} excluded from this scored session.</p>}
+        <div className="quest-learning-status"><BookOpen size={16}/><span>Lesson complete · {lessonQuestSupport(lessonPlan,state.lesson).assisted ? "Apply what you just learned" : "Independent retrieval"}</span><button type="button" onClick={()=>void saveLesson(initialLessonState(lessonPlan))}>Revisit the lesson</button></div><p className="game-instructions">{instructions[scaffold.family]}</p>{awaitingReview > 0 && <p className="caregiver-note">{awaitingReview} draft {awaitingReview === 1 ? 'challenge awaits' : 'challenges await'} author review and {awaitingReview === 1 ? 'is' : 'are'} excluded from this scored session.</p>}
         {card.questionType === 'manual' && !card.sourceId && <p className="caregiver-note">Author-written challenge. The answer was supplied by the notebook author.</p>}
         {young && <p className="caregiver-note">{notebook.ageGroup === '3-5' ? 'Explore together with a grown-up. Use read-aloud whenever it helps.' : 'Need a little help? Try read-aloud or open a hint.'}</p>}
         <section className="challenge-card">
@@ -250,11 +280,11 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
 
           {!state.submitted && scaffold.family !== 'explain' && <div className="challenge-footer"><button className="btn ghost" onClick={() => change({ hint: !state.hint })}><Lightbulb size={17}/>{state.hint ? 'Hide hint' : 'A little hint'}</button><button className="btn primary" disabled={!canSubmit} onClick={check}>Check my answer<ChevronRight size={18}/></button></div>}
 
-          {state.submitted && <div className={`answer-feedback ${state.correct ? 'success' : 'retry'}`} role="status"><div className="feedback-heading">{state.correct ? <CheckCircle2 size={24}/> : <Lightbulb size={24}/>}<h3>{scaffold.family === 'explain' ? 'Reflection saved.' : state.correct ? 'You found it.' : 'A useful moment to learn.'}</h3></div>{pairMode ? <ul className="pair-feedback">{pool.map(item => <li key={item.id}><strong>{item.answer}</strong> — {passageLabel(item)}</li>)}</ul> : scaffold.family === 'sequence' ? <ol>{ordering.items.map((item, at) => <li key={at}>{item}</li>)}</ol> : <p>{card.explanation}</p>}<details><summary><BookOpen size={15}/>View source evidence{source ? ` · ${source.title}` : ''}</summary><blockquote>{card.evidence || 'This challenge was written by the notebook author.'}</blockquote>{source?.url && <a href={source.url} target="_blank" rel="noreferrer">Open original source</a>}</details><button className="btn primary" onClick={nextCard}>{index === cards.length - 1 ? 'Complete this chapter' : 'Continue exploring'}<ArrowRight size={18}/></button></div>}
+          {state.submitted && <div className={`answer-feedback ${state.correct ? 'success' : 'retry'}`} role="status"><ReactionEffects outcome={state.correct?'success':'retry'} scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={`${card.id}:${state.answeredCount}`}/><div className="feedback-heading">{state.correct ? <CheckCircle2 size={24}/> : <Lightbulb size={24}/>}<h3>{scaffold.family === 'explain' ? 'Reflection saved.' : state.correct ? scaffold.dialogue.success : scaffold.dialogue.tryAgain}</h3></div>{pairMode ? <ul className="pair-feedback">{pool.map(item => <li key={item.id}><strong>{item.answer}</strong> — {passageLabel(item)}</li>)}</ul> : scaffold.family === 'sequence' ? <ol>{ordering.items.map((item, at) => <li key={at}>{item}</li>)}</ol> : <p>{card.explanation}</p>}<details><summary><BookOpen size={15}/>View source evidence{source ? ` · ${source.title}` : ''}</summary><blockquote>{card.evidence || 'This challenge was written by the notebook author.'}</blockquote>{source?.url && <a href={source.url} target="_blank" rel="noreferrer">Open original source</a>}</details><button className="btn primary" onClick={nextCard}>{index === cards.length - 1 ? 'Complete this chapter' : 'Continue exploring'}<ArrowRight size={18}/></button></div>}
           </fieldset>
         </section>
         <p className="player-save-note" role="status"><Check size={13}/>{saveError ? 'Progress needs a successful save before continuing' : savingCount > 0 ? 'Saving progress…' : writeFailed ? 'Some progress is not saved. Use Save & exit to retry before leaving.' : 'Progress saved on this device · No AI needed to play'}</p><p className="nimeshbuilds-credit">Crafted by <a href="https://github.com/NimeshBuilds" target="_blank" rel="noreferrer">NimeshBuilds</a></p>
-      </main>
+      </section>
     </div>
   </div>;
 }

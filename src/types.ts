@@ -2,6 +2,7 @@ import type { StructuredActivity } from './lib/structuredEngine';
 import type { ReviewState } from './data/learningScience';
 import type { MediaTranscript } from './lib/mediaTranscript';
 import type { VisualEvidence } from './lib/visualEvidence';
+import type { LessonState } from './lib/learningBriefing';
 
 export type SourceKind = 'text' | 'document' | 'website' | 'youtube' | 'notebooklm' | 'audio' | 'video' | 'image' | 'transcript';
 export type SourceStatus = 'ready' | 'needs-transcript' | 'error';
@@ -99,6 +100,8 @@ export interface CardProgress {
 }
 export interface JournalEntry { id: string; text: string; at: string; cardId?: string }
 export interface Progress {
+  /** Content-bound lesson checkpoints, separate from assessed recall. */
+  lessons?: Record<string, LessonState>;
   notebookId: string;
   completedCardIds: string[];
   attempts: Attempt[];

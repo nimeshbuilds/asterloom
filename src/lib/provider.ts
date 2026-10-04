@@ -33,7 +33,8 @@ export function applyRefinementResponse(notebook: Notebook, text: string): Refin
     for (const key of ['answer', 'sourceId', 'evidence', 'correctIndex', 'concept', 'questionType'] as const) if (card[key] !== original[key]) throw new Error(`The refinement changed protected content (${key}). Your existing notebook is unchanged.`);
     if (JSON.stringify(card.options) !== JSON.stringify(original.options)) throw new Error('The refinement changed the answer choices. Your existing notebook is unchanged.');
     if (JSON.stringify(card.tags) !== JSON.stringify(original.tags)) throw new Error('The refinement changed protected content (tags). Your existing notebook is unchanged.');
-    return { ...original, prompt: card.prompt, explanation: card.explanation, reviewStatus: 'needs-review' as const };
+    if (!original.tags.includes('ai-refined') && original.tags.length >= 30) throw new Error('This challenge has no room for refinement provenance. Remove an unused tag before refining it.');
+    return { ...original, prompt: card.prompt, explanation: card.explanation, tags: original.tags.includes('ai-refined') ? [...original.tags] : [...original.tags, 'ai-refined'], reviewStatus: 'needs-review' as const };
   });
   if (new Set(revised.map(card => card.id)).size !== selected.length) throw new Error('The refinement returned duplicate challenge IDs.');
   const replacements = new Map(revised.map(card => [card.id, card]));

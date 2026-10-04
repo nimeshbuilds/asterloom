@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { compileNotebook, createManualCard, searchSources, transcriptToText } from '../src/lib/compiler';
-import { exportOfflineHtml, parsePackage, parseProgress, serializePackage, serializeProgress, validateNotebook } from '../src/lib/package';
+import { parsePackage, parseProgress, serializePackage, serializeProgress, validateNotebook } from '../src/lib/package';
 import { emptyProgress, recordAttempt, selectDueCards, sourceFingerprint } from '../src/lib/storage';
 import { mergeNotebookChanges } from '../src/lib/notebookMerge';
 import { reconcileNotebookProgress } from '../src/lib/progressRevision';
@@ -81,6 +81,7 @@ describe('portable learning packages', () => {
   });
   it('roundtrips learning content while excluding credential and runtime fields', () => {
     const notebook = fixture();
+    notebook.description = '</script><script>notExecutable()</script> \u2028 $& $$';
     const polluted = { ...notebook, apiKey: 'sk-never-export', settings: { authorization: 'secret' }, sources: notebook.sources.map(source => ({ ...source, apiKey: 'also-secret' })) };
     const serialized = serializePackage(polluted);
     expect(serialized).not.toContain('sk-never-export'); expect(serialized).not.toContain('also-secret'); expect(serialized).not.toContain('authorization');
@@ -99,37 +100,7 @@ describe('portable learning packages', () => {
     const notebook = fixture();
     expect(() => validateNotebook({ ...notebook, cards: [{ ...notebook.cards[0], correctIndex: (notebook.cards[0].correctIndex + 1) % notebook.cards[0].options.length }] })).toThrow('disagree');
   });
-  it('embeds escaped notebook data before the app in a full runtime', () => {
-    const notebook = fixture(); notebook.description = '</script><script>evil()</script>\u2028';
-    const output = exportOfflineHtml(notebook, '<!doctype html><html><head><script id="asterloom-notebook">OLD</script><script type="module">app()</script></head><body><div id="root"></div></body></html>');
-    expect(output).not.toContain('>OLD<'); expect(output).not.toContain('</script><script>evil');
-    expect(output).toContain('\\u003c/script>'); expect(output).toContain('\\u2028');
-    expect(output.indexOf('__ASTERLOOM_NOTEBOOK__')).toBeLessThan(output.indexOf('app()'));
-  });
-  it('replaces the notebook twice without matching tag-shaped strings inside bundled JavaScript', () => {
-    const notebook = fixture();
-    const script = `const template = '<script id="asterloom-notebook">'; const music = 'data:audio/ogg;base64,AAAA'; const head = '<head>'; window.boot = true;`;
-    const comment = '<!-- <head><script id="asterloom-notebook">This is a comment.</script> -->';
-    const stylesheet = `body::before { content: '<script id="asterloom-notebook">'; }`;
-    const runtime = `<!doctype html>${comment}<html><head><style>${stylesheet}</style><script data-note="id='asterloom-notebook'" type="module">${script}</script></head><body><div id="root"></div></body></html>`;
-    const first = exportOfflineHtml(notebook, runtime);
-    const second = exportOfflineHtml({ ...notebook, title: 'Second notebook revision' }, first);
-    expect(first).toContain(`<script data-note="id='asterloom-notebook'" type="module">${script}</script>`);
-    expect(second).toContain(`<script data-note="id='asterloom-notebook'" type="module">${script}</script>`);
-    expect(second).toContain(`<style>${stylesheet}</style>`); expect(second).toContain(comment);
-    expect(second.match(/window\.__ASTERLOOM_NOTEBOOK__=/g)).toHaveLength(1);
-    expect(second).toContain('<html><head><script id="asterloom-notebook">window.__ASTERLOOM_NOTEBOOK__=');
-    const embedded = JSON.parse(second.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/)![1]);
-    expect(embedded.title).toBe('Second notebook revision');
-    expect(second.length).toBeGreaterThan(runtime.length);
-  });
-  it('preserves JavaScript replacement markers inside user material literally', () => {
-    const notebook = fixture(); notebook.description = ['$&', '$$', "$'", '$' + String.fromCharCode(96)].join(' ');
-    const output = exportOfflineHtml(notebook, '<!doctype html><html><head><script type="module">app()</script></head><body><div id="root"></div></body></html>');
-    const embedded = output.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/);
-    expect(JSON.parse(embedded![1]).description).toBe(notebook.description);
-    expect(output.match(/<head>/g)).toHaveLength(1);
-  });
+
 });
 
 describe('derived activity revision identity', () => {
@@ -158,9 +129,6 @@ describe('source-bound presentation artwork', () => {
     const remix = createNotebook({ ...imported, id: 'new-owner-remix', title: 'My remix' });
     expect(parsePackage(serializePackage(remix)).artwork).toEqual(notebook.artwork);
     expect(compileNotebook(imported.sources).cards).toEqual(notebook.cards);
-    const html = exportOfflineHtml(remix, '<html><head><script>app()</script></head><body><div id="root"></div></body></html>');
-    const embedded = JSON.parse(html.match(/window\.__ASTERLOOM_NOTEBOOK__=([\s\S]*?);window\.__ASTERLOOM_EXPORT__/)![1]);
-    expect(embedded.artwork).toEqual(notebook.artwork);
   });
   it('rejects broken provenance, duplicate art, executable formats, malformed data and invalid review states', () => {
     const notebook = fixture(); const asset = artwork(notebook);

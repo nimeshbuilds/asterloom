@@ -2811,9 +2811,12 @@
     }
   ],
   "music": {
-    "type": "CC0 recordings with deterministic synthesized fallbacks",
-    "count": 10,
-    "source": "src/lib/musicRecordings.ts",
+    "type": "10 CC0 recordings + 90 original modular interactive scores",
+    "count": 100,
+    "recordings": 10,
+    "interactiveScores": 90,
+    "source": "src/lib/music.ts",
+    "scores": "src/data/interactiveScores.generated.json",
     "credits": "licenses/MUSIC-CREDITS.md",
     "manifest": "src/assets/music/manifest.json"
   }

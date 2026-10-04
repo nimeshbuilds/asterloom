@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest';
 import {validateMediaAsset,compactMediaIssue,materializeNotebookMedia,sourceMediaIdentity,recordingDigest,ensureNotebookMediaAvailable} from '../src/lib/mediaAssets';
 import {bytesDigest} from '../src/lib/evidence';
-import {validateNotebook,exportOfflineHtml} from '../src/lib/package';
+import {validateNotebook,serializePackage,parsePackage} from '../src/lib/package';
 import {createNotebook} from '../src/lib/utils';
 import type {Source} from '../src/types';
 import {prepareTranscriptSource} from '../src/lib/mediaTranscript';
@@ -15,8 +15,8 @@ describe('portable recording assets',()=>{
 
  it('retains only content identity and safe metadata',()=>{expect(validateMediaAsset({...asset,apiKey:'do-not-export',path:'/private/file'})).toEqual(asset);});
  it.each([{...asset,id:'../../secret'},{...asset,name:'../lesson.mp3'},{...asset,size:2*1024**3+1},{...asset,size:-1},{...asset,mime:'text/html'},{...asset,sha256:'f'.repeat(64)}])('rejects invalid attachment metadata %#',value=>{expect(()=>validateMediaAsset(value)).toThrow();});
- it('has one byte identity across native files and inline HTML recordings',()=>{const inline={...source,asset:undefined,dataUrl:'data:audio/mpeg;base64,AAECAw=='};expect(recordingDigest(inline)).toBe(sha256);expect(sourceMediaIdentity(inline)).toBe(sourceMediaIdentity(source));expect(sourceMediaIdentity({...inline,dataUrl:'data:audio/mpeg;base64,AAECAA=='})).not.toBe(sourceMediaIdentity(source));});
- it('keeps native manifests small and refuses ambiguous or broken browser exports',()=>{const notebook=createNotebook({sources:[source]});expect(validateNotebook(notebook).sources[0].asset).toEqual(asset);expect(()=>validateNotebook({...notebook,sources:[{...source,dataUrl:'data:audio/mpeg;base64,AAECAw=='}]})).toThrow(/unambiguous/);expect(()=>exportOfflineHtml(notebook,'<html><head></head><body><script></script></body></html>')).toThrow(/recording files/);});
+ it('has one byte identity across native files and embedded notebook recordings',()=>{const inline={...source,asset:undefined,dataUrl:'data:audio/mpeg;base64,AAECAw=='};expect(recordingDigest(inline)).toBe(sha256);expect(sourceMediaIdentity(inline)).toBe(sourceMediaIdentity(source));expect(sourceMediaIdentity({...inline,dataUrl:'data:audio/mpeg;base64,AAECAA=='})).not.toBe(sourceMediaIdentity(source));});
+ it('keeps native recording references portable and rejects ambiguous payloads',()=>{const notebook=createNotebook({sources:[source]});expect(validateNotebook(notebook).sources[0].asset).toEqual(asset);expect(()=>validateNotebook({...notebook,sources:[{...source,dataUrl:'data:audio/mpeg;base64,AAECAw=='}]})).toThrow(/unambiguous/);const serialized=serializePackage(notebook);expect(parsePackage(serialized).sources[0].asset).toEqual(asset);expect(serialized).not.toContain('data:audio');});
  it('preflights oversized compact exports before downloading anything',async()=>{const notebook=createNotebook({sources:[{...source,asset:{...asset,size:21*1024**2}}]});const fetcher=vi.spyOn(globalThis,'fetch');expect(compactMediaIssue(notebook)).toMatch(/larger than 20 MB/);await expect(materializeNotebookMedia(notebook)).rejects.toThrow(/larger than 20 MB/);expect(fetcher).not.toHaveBeenCalled();fetcher.mockRestore();});
  it('bounds aggregate media separately from the native asset limit',()=>{const sources=Array.from({length:3},(_,i)=>({...source,id:`recording-${i}`,asset:{...asset,size:18*1024**2}}));expect(compactMediaIssue(createNotebook({sources}))).toMatch(/more than 48 MB/);});
 });

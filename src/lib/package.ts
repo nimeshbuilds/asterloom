@@ -1,3 +1,4 @@
+import {validateLessonState} from './learningBriefing';
 import type { CardProgress, LearnPackage, LearningCard, Notebook, NotebookArtwork, Progress, Source, SourceKind } from '../types';
 import { validateActivity } from './structuredEngine';
 import {validateLearningObjectives} from './evidence';
@@ -223,6 +224,16 @@ export function validateProgress(input: unknown): Progress {
     if (cards[id].correct > cards[id].attempts) throw new Error('Correct attempts cannot exceed all attempts.');
   }
   const progress: Progress = { cards, notebookId: identifier(value.notebookId, 'Progress notebook ID'), completedCardIds: array(value.completedCardIds, 'Completed challenges', 2000).map(id => identifier(id, 'Completed challenge ID')), attempts: array(value.attempts, 'Attempts', 10_000).map(raw => { const item = object(raw, 'Attempt'); const confidence = item.confidence; if (!['guessing', 'unsure', 'confident'].includes(String(confidence))) throw new Error('Invalid confidence level.'); return { id: identifier(item.id, 'Attempt ID'), cardId: identifier(item.cardId, 'Attempt challenge'), correct: boolean(item.correct, 'Attempt result'), at: date(item.at, 'Attempt time'), confidence: confidence as 'guessing' | 'unsure' | 'confident', xp: integer(item.xp, 'Attempt XP', 0, 1000) }; }), xp: integer(value.xp, 'XP', 0, 1_000_000_000), mastery: number(value.mastery, 'Recall progress', 0, 100), streak: integer(value.streak, 'Streak', 0, 1_000_000), bestStreak: integer(value.bestStreak, 'Best streak', 0, 1_000_000), sessions: integer(value.sessions, 'Session count', 0, 1_000_000), journal: array(value.journal, 'Journal entries', 2000).map(raw => { const item = object(raw, 'Journal entry'); return { id: identifier(item.id, 'Journal entry ID'), text: string(item.text, 'Journal entry', 10_000, true), at: date(item.at, 'Journal date'), ...(item.cardId ? { cardId: identifier(item.cardId, 'Journal challenge') } : {}) }; }), updatedAt: date(value.updatedAt, 'Progress date'), revision: integer(value.revision, 'Progress revision', 1, 1_000_000) };
+  if (value.lessons !== undefined) {
+    const lessons = object(value.lessons, 'Lesson checkpoints');
+    if (Object.keys(lessons).length > 300) throw new Error('Too many lesson checkpoints.');
+    progress.lessons = Object.fromEntries(Object.entries(lessons).map(([id, state]) => {
+      identifier(id, 'Lesson identifier');
+      const lesson = validateLessonState(state);
+      if (!lesson || lesson.planKey !== id) throw new Error('A lesson checkpoint does not match its content.');
+      return [id, lesson];
+    }));
+  }
   if (value.activeSession) {
     const session = object(value.activeSession, 'Current session');
     const cardIds = array(session.cardIds, 'Session challenges', 2000).map(id => identifier(id, 'Session challenge ID'));
@@ -259,75 +270,4 @@ export function parseProgress(text: string): Progress {
   const value = object(parseJson(text, MAX_PROGRESS_BYTES), 'Progress backup');
   if (value.format !== 'asterloom-progress' || value.version !== 1) throw new Error('This is not an Asterloom progress backup.');
   return validateProgress(value.progress);
-}
-
-/**
- * Scan HTML markup while treating script/style contents as raw text. A regular
- * expression over the whole document also matches tag strings inside the app
- * bundle, which can remove most of the runtime during a Node-side export.
- */
-function embedNotebookInRuntime(html: string, injection: string): string {
-  const edits: { start: number; end: number; replacement: string }[] = [];
-  let position = 0, headEnd = -1;
-  const rawText = new Set(['script', 'style', 'title', 'textarea', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript']);
-  function tagEnd(start: number): number {
-    let quote = '';
-    for (let index = start; index < html.length; index++) {
-      const character = html[index];
-      if (quote) { if (character === quote) quote = ''; }
-      else if (character === '"' || character === "'") quote = character;
-      else if (character === '>') return index + 1;
-    }
-    return html.length;
-  }
-  function isNotebookScript(attributes: string): boolean {
-    // Read attributes individually so an id-looking string inside another
-    // attribute's value cannot identify the script as our data envelope.
-    const attribute = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
-    for (const match of attributes.matchAll(attribute)) {
-      if (match[1].toLowerCase() === 'id' && (match[2] ?? match[3] ?? match[4]) === 'asterloom-notebook') return true;
-    }
-    return false;
-  }
-  while (position < html.length) {
-    const start = html.indexOf('<', position);
-    if (start < 0) break;
-    if (html.startsWith('<!--', start)) {
-      const end = html.indexOf('-->', start + 4); position = end < 0 ? html.length : end + 3; continue;
-    }
-    const opening = /^<([a-zA-Z][a-zA-Z0-9:-]*)(?=[\s/>])/.exec(html.slice(start, start + 100));
-    if (!opening) { position = tagEnd(start + 1); continue; }
-    const name = opening[1].toLowerCase(), end = tagEnd(start + opening[0].length);
-    if (name === 'head' && headEnd < 0) headEnd = end;
-    position = end;
-    if (!rawText.has(name)) continue;
-    const closing = new RegExp(`</${name}(?=[\\s/>])`, 'gi'); closing.lastIndex = end;
-    const close = closing.exec(html);
-    if (!close) throw new Error('The offline runtime contains an unfinished HTML element. Rebuild the application before exporting.');
-    const closeEnd = tagEnd(close.index + close[0].length);
-    if (name === 'script' && isNotebookScript(html.slice(start + opening[0].length, end - 1))) edits.push({ start, end: closeEnd, replacement: '' });
-    position = closeEnd;
-  }
-  if (headEnd < 0) throw new Error('The complete offline runtime needs a document head before it can be exported.');
-  edits.push({ start: headEnd, end: headEnd, replacement: injection });
-  let result = html;
-  for (const edit of edits.sort((a, b) => b.start - a.start)) result = result.slice(0, edit.start) + edit.replacement + result.slice(edit.end);
-  return result;
-}
-
-export function exportOfflineHtml(notebook: Notebook, runtimeHtml: string): string {
-  const validated = validateNotebook(notebook);
-  if (validated.sources.some(source => source.asset)) throw new Error('Include the recording files before preparing a browser game. Use a native app or recording archive for large media.');
-  if (!runtimeHtml.includes('<html') || !runtimeHtml.includes('<script')) throw new Error('The complete offline app runtime is unavailable. Export a .learnpack backup or start the local Asterloom server to create a playable HTML export.');
-  let html = runtimeHtml;
-  if (typeof DOMParser !== 'undefined') {
-    const document = new DOMParser().parseFromString(runtimeHtml, 'text/html');
-    document.getElementById('asterloom-notebook')?.remove();
-    const root = document.getElementById('root'); if (root) root.replaceChildren();
-    document.title = `${validated.title} · Asterloom`;
-    html = '<!doctype html>\n' + document.documentElement.outerHTML;
-  }
-  const payload = JSON.stringify(validated).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-  const injection = `<script id="asterloom-notebook">window.__ASTERLOOM_NOTEBOOK__=${payload};window.__ASTERLOOM_EXPORT__=true;</script>`;
-  return embedNotebookInRuntime(html, injection);
 }

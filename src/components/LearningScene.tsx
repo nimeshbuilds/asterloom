@@ -1,13 +1,13 @@
 import {useEffect,useMemo,useRef,useState,type CSSProperties} from 'react';
 import {ChevronDown,Layers,Leaf,MousePointer2} from 'lucide-react';
-import {getAgePresentation,WORLD_PALETTES,worldForScaffold} from '../data/worlds';
+import {getAgePresentation,worldPalette,worldForScaffold} from '../data/worlds';
 import {worldBackdropMarkup,glyphMarkup} from '../lib/worldIllustration';
 import {sceneNodePositions,type SceneAction,type SceneSnapshot} from '../lib/worldScene';
 import './learning-scene.css';
 export interface LearningSceneProps {scaffoldId?:string;theme?:string;ageGroup?:string;snapshot:SceneSnapshot;selectedId?:string;onSelect?:(id:string)=>void;actions?:SceneAction[];onAction?:(action:SceneAction)=>void;compact?:boolean}
 const empty=()=>{try{return localStorage.getItem('asterloom.scene.simple')==='true';}catch{return false;}};
 export default function LearningScene({scaffoldId,theme='islands',ageGroup='adult',snapshot,selectedId='',onSelect,actions=[],onAction,compact=false}:LearningSceneProps){
- const world=worldForScaffold(scaffoldId),age=getAgePresentation(ageGroup),palette=WORLD_PALETTES[theme]??WORLD_PALETTES.islands;
+ const world=worldForScaffold(scaffoldId),age=getAgePresentation(ageGroup),palette=worldPalette(theme,ageGroup);
  const [simple,setSimple]=useState(empty),[engine,setEngine]=useState<'loading'|'canvas'|'fallback'>('loading'),[motion,setMotion]=useState(false),[revision,setRevision]=useState(0);
  const animation=useRef<number>(0),previousPositions=useRef(new Map<string,{x:number;y:number}>());
  const host=useRef<HTMLDivElement>(null),runtime=useRef<{app:import('pixi.js').Application;pixi:typeof import('pixi.js')}|null>(null),draw=useRef<()=>void>(()=>{}),select=useRef(onSelect);select.current=onSelect;

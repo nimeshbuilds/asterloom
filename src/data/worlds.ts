@@ -23,6 +23,13 @@ export const WORLD_PALETTES:Record<string,{sky:string;ground:string;ink:string;a
  ocean:{sky:'#d5efed',ground:'#a4d2d0',ink:'#245960',accent:'#277d88',secondary:'#be7560',paper:'#fffaf1'},
  library:{sky:'#ede1d9',ground:'#d0bca3',ink:'#574438',accent:'#8b6049',secondary:'#667f6a',paper:'#fffaf1'},
 };
+/** Older learners get an architectural workspace; younger learners retain concrete story worlds. */
+export function worldPalette(theme='islands',age='adult') {
+ const base=WORLD_PALETTES[theme]??WORLD_PALETTES.islands;
+ if(getAgePresentation(age).density!=='studio')return base;
+ const accents:Record<string,string>={islands:'#9fb9ef',observatory:'#8fc9f4',forest:'#8dd6ba',workshop:'#efbd86',ocean:'#8dd9d7',library:'#c5b3ec'};
+ return {sky:'#132331',ground:'#203b4a',ink:'#d8e6ed',accent:accents[theme]??accents.islands,secondary:'#eac489',paper:'#233c4d'};
+}
 // Authored setting objects are decorative. Source-derived objects and relationships are supplied separately by the runtime.
 const designs:[string,string,string,SceneLayout,SceneGlyph,SceneGlyph,SceneGlyph][]=[
  ['concept-map-repair','The connection conservatory','concepts','network','branch','bridge','leaf'],

@@ -90,8 +90,7 @@ export function compileNotebook(sources: Source[], options: CompileOptions = {})
   const sourceVocabulary = new Map<string, string[]>();
   for (const source of sources) {
     if (source.status !== 'ready' || !source.text.trim()) { warnings.push(`“${source.title}” needs readable text or a transcript before it can produce learning activities.`); continue; }
-    if (source.text.length > 500_000) warnings.push(`“${source.title}” is large. This local pass uses the first 500,000 characters; split it into sections to include the remainder.`);
-    const bounded = { ...source, text: maskSubtitleMetadata(source.text.slice(0, 500_000)) };
+    const bounded = { ...source, text: maskSubtitleMetadata(source.text) };
     const definitionsFound = definitions(bounded);
     if (definitionsFound.length > 1) {
       const terms = definitionsFound.map(candidate => candidate.answer);
@@ -108,8 +107,34 @@ export function compileNotebook(sources: Source[], options: CompileOptions = {})
   const maxCards = Math.max(1, Math.min(300, Math.floor(options.maxCards ?? 60)));
   const seen = new Set<string>();
   const cards: LearningCard[] = [];
-  // Round-robin preserves representation across sources when a large document dominates.
-  const queues = sources.map(source => candidates.filter(candidate => candidate.source.id === source.id));
+  // Allocate each source's actual share before sampling its full range. Sampling a
+  // global-sized queue and then taking a prefix would still omit later chapters.
+  const groups = sources.map(source => {
+    const unique = new Set<string>();
+    return candidates.filter(candidate => {
+      if (candidate.source.id !== source.id) return false;
+      const key = normalizeText(candidate.prompt);
+      if (unique.has(key)) return false;
+      unique.add(key);
+      return (candidate.distractors ?? sourceVocabulary.get(source.id) ?? []).some(value => normalizeText(value) !== normalizeText(candidate.answer) && value.length <= 240);
+    }).sort((a,b) => source.text.indexOf(a.evidence) - source.text.indexOf(b.evidence));
+  }).filter(group => group.length);
+  const participating = groups.length > maxCards
+    ? Array.from({length:maxCards},(_,i) => groups[Math.floor(i*(groups.length-1)/Math.max(1,maxCards-1))])
+    : groups;
+  const shares = participating.map(() => 0);
+  for (let remaining=maxCards; remaining>0;) {
+    let allocated=false;
+    for(let i=0;i<participating.length && remaining>0;i++) {
+      if(shares[i]>=participating[i].length)continue;
+      shares[i]++;remaining--;allocated=true;
+    }
+    if(!allocated)break;
+  }
+  const queues = participating.map((found,index) => {
+    const count=shares[index];
+    return found.length > count ? Array.from({length:count},(_,i) => found[Math.floor(i*(found.length-1)/Math.max(1,count-1))]) : [...found];
+  });
   let hasMore = true;
   while (hasMore && cards.length < maxCards) {
     hasMore = false;
@@ -131,7 +156,7 @@ export function compileNotebook(sources: Source[], options: CompileOptions = {})
     }
   }
   if (cards.length) warnings.push('Local generation creates source-recall practice. Review factual accuracy and add application challenges before treating it as a complete assessment.');
-  if (candidates.length > maxCards) warnings.push(`This pass is limited to ${maxCards} challenges. Smaller source sections give finer control over coverage.`);
+  if (candidates.length > maxCards) warnings.push(`Prepared a balanced set of up to ${maxCards} practice targets. All imported material remains in the notebook; this practice set is not an assessment of every statement.`);
   return { cards, warnings, usedSourceIds };
 }
 

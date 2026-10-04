@@ -8,6 +8,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {_electron as electron} from 'playwright';
 import {nativeTestExecutable,waitForTranscription} from './testing.mjs';
+import {learnBeforeQuest} from '../tests/teachingDriver.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const enabled=process.env.ASTERLOOM_NATIVE_SMOKE==='1';
@@ -100,6 +101,18 @@ test('native studio saves across launches, exports a standalone game, and opens 
     // A generated draft remains explorable, but an author must approve it
     // before correct-looking answers can become scored independent progress.
     await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click();
+    await page.getByRole('region',{name:'Learning briefing',exact:true}).waitFor();
+    assert.equal(await page.getByLabel('Your numerical result',{exact:true}).count(),0,'Teaching must precede the native quest controls');
+    await page.getByRole('button',{name:'Explore the source',exact:true}).click();
+    await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).click();
+    await page.getByRole('button',{name:'Save & return',exact:false}).click();
+    await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
+    await page.getByRole('heading',{name:fixtureNotebook.title,exact:true}).waitFor({timeout:20000});
+    await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click();
+    await page.locator('.lesson-context').waitFor();
+    assert.equal(await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).count(),0,'Explored source context must survive a native application restart');
+    await page.getByRole('button',{name:'Passage explored',exact:true}).first().waitFor();
+    await learnBeforeQuest(page);features.lessonPersistence={nativeRestart:true,sourcePassageRestored:true,teachingPrecedesQuest:true};
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
     await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
     await page.getByRole('checkbox',{name:'Site B',exact:true}).check();
@@ -116,7 +129,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const unreviewedRecord=unreviewedProgress.structured['native-unreviewed-lab'];
     assert.equal(unreviewedRecord.completed,false,'Unreviewed completion must remain blocked after restart');
     assert.equal(unreviewedRecord.score,0);assert.equal(unreviewedRecord.review?.independentSuccesses??0,0);
-    await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click();
+    await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
     await page.waitForFunction(()=>{const scene=document.querySelector('.learning-scene');return scene&&['pixi-webgl','svg-dom'].includes(scene.getAttribute('data-renderer'));},{},{timeout:30000});
     const sceneRenderer=await page.locator('.learning-scene').first().getAttribute('data-renderer');
     if(process.env.ASTERLOOM_REQUIRE_PIXI==='1')assert.equal(sceneRenderer,'pixi-webgl','The native learning scene must initialize Pixi under its production CSP');
@@ -126,26 +139,29 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
     await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    await page.locator('.mission-card:not(.system-mission)').click();
+    await page.locator('.mission-card:not(.system-mission)').click(); await learnBeforeQuest(page);
     await page.locator('.answer-option').filter({hasText:'DNS'}).click();
     await page.getByRole('button',{name:'Save & exit',exact:true}).click();
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
-    await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click();
+    await page.locator('.system-mission').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
     assert.equal(await page.getByLabel('Your numerical result',{exact:true}).inputValue(),'12');
     assert.equal(await page.getByRole('checkbox',{name:'Site A',exact:true}).isChecked(),true);
     await page.getByRole('checkbox',{name:'Site B',exact:true}).check();
     await page.getByRole('button',{name:'Check my work',exact:true}).click();
     await page.locator('.structured-feedback.correct').waitFor();
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    await page.locator('.mission-card:not(.system-mission)').click();
+    await page.locator('.mission-card:not(.system-mission)').click(); await learnBeforeQuest(page);
     assert.match(await page.locator('.answer-option.selected').innerText(),/DNS/);
     await page.getByRole('button',{name:'Check my answer',exact:true}).click();
-    await page.getByRole('heading',{name:'You found it.',exact:true}).waitFor();
+    await page.locator('.answer-feedback.success').waitFor();
+    assert.equal(await page.locator('.aster-reaction[data-reaction="success"]').count(),1,'A saved correct answer should show the recipe reaction');
     await page.getByRole('button',{name:'Complete this chapter',exact:true}).click();
     await page.getByRole('button',{name:'Return to my notebook',exact:true}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/70/);
+    assert.match(await page.locator('.world-statbar').innerText(),/20\s*discovery points/,'First-day quests award supported completion points and no independent recall credit');
+    assert.match(await page.locator('.world-statbar').innerText(),/0\s*solved independently/,'First-day teaching cannot grant independent mastery');
     await page.getByRole('button',{name:'Open studio',exact:true}).click();
     await page.getByRole('tab',{name:/Materials/}).click();
+    await page.getByText('Advanced editing · focus a lesson on selected passages',{exact:true}).click();
     await page.locator('.evidence-status').filter({hasText:'Local meaning + exact word search ready.'}).waitFor({timeout:120000});
     await page.getByLabel('Search source materials',{exact:true}).fill('Why does a puddle disappear on a sunny day?');
     await page.locator('.evidence-passages article').first().getByText('Meaning match',{exact:true}).waitFor({timeout:30000});
@@ -168,7 +184,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:/Save & (exit|return)/}).waitFor();
     if(await page.getByRole('button',{name:'Save & exit',exact:true}).count())await page.getByRole('button',{name:'Save & exit',exact:true}).click();
     else await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click();
+    await page.locator('.system-mission').filter({hasText:'Preview an unreviewed native model'}).click(); await learnBeforeQuest(page);
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
     await page.getByRole('checkbox',{name:'Site A',exact:true}).check();
     await page.getByRole('checkbox',{name:'Site B',exact:true}).check();
@@ -176,7 +192,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.locator('.structured-feedback.correct').waitFor();
     assert.match(await page.locator('.structured-review-banner').innerText(),/0 independent attempts/,'Preserved draft feedback remains supported after author approval');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/90/,'Author approval permits supported practice; seeing draft feedback must not become independent credit');
+    assert.match(await page.locator('.world-statbar').innerText(),/40\s*discovery points/,'Author approval permits supported practice; seeing draft feedback must not become independent credit');
     await page.getByRole('button',{name:'Open studio',exact:true}).click();
     await page.getByLabel('Notebook title').fill('A remixed native game');
     await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor({state:'attached'});

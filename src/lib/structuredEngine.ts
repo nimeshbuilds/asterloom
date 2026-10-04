@@ -426,9 +426,9 @@ function hash(text: string): string { let result = 2166136261; for (let i = 0; i
 /** Only explicit structures are extracted. This is source-faithful parsing, not truth verification. */
 export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title' | 'text' | 'status'>[]): { activities: StructuredActivity[]; warnings: string[] } {
   const activities: StructuredActivity[] = [], warnings: string[] = [];
-  for (const source of sources.slice(0, 50)) {
+  for (const source of sources) {
     if (source.status !== 'ready') continue;
-    const text = source.text.slice(0, 500_000); const lines = text.split(/\r?\n/);
+    const text = source.text; const lines = text.split(/\r?\n/);
     const base = (kind: string, evidence: string): ActivityBase => ({ version: 1, extractedFrom: source.id, id: `activity-${hash(source.id + kind + evidence)}`, title: `${source.title}: ${kind}`, instruction: 'Reconstruct the structure explicitly stated in the source.', sourceRefs: [{ sourceId: source.id, evidence }], reviewStatus: 'needs-review', explanation: 'This answer follows the supplied source structure. Review factual accuracy before publishing.', hint: 'Use the exact relationships, categories or order stated in the source.' });
     const add = (activity: StructuredActivity) => { if (activities.length < 150) { const check = validateActivity(activity, [source]); if (check.success) activities.push(check.value); else warnings.push(`${source.title}: ${check.errors[0]}`); } };
     extractTableActivities(source).forEach(add);

@@ -12,7 +12,7 @@ export const localEmbedder:Embedder={
 async function load(){
   if(extractor)return extractor;
   extractor=(async()=>{
-    if(typeof document==='undefined'||location.protocol==='file:')throw new Error('This standalone HTML has no bundled retrieval model. Exact word search and all games work offline. Open the installed studio for local semantic search.');
+    if(typeof document==='undefined'||location.protocol==='file:')throw new Error('Open the Asterloom desktop application to use its bundled local retrieval model.');
     const base=new URL('./retrieval/',document.baseURI).href;
     const response=await fetch(`${base}manifest.json`,{signal:AbortSignal.timeout(10000)});
     if(!response.ok)throw new Error('The local retrieval bundle is unavailable. Exact word search is active.');
