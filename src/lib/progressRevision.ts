@@ -1,6 +1,6 @@
 import type { LearningCard, Notebook, Progress } from '../types';
 import type { StructuredActivity } from './structuredEngine';
-import { hasCurrentCardEvidence } from './utils';
+import { canScoreRecallCard } from './utils';
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
@@ -21,6 +21,38 @@ function currentActivityEvidence(activity: StructuredActivity, notebook: Noteboo
   return activity.sourceRefs.every(reference => Boolean(reference.evidence.trim()) && notebook.sources.some(source => source.id === reference.sourceId && source.text.includes(reference.evidence)));
 }
 
+type SavedActivity = NonNullable<Progress['structured']>[string];
+function withoutDraftCredit(entry: SavedActivity, clearChecked = false): SavedActivity {
+  const { review: _review, reviewStartedAt: _started, ...rest } = entry;
+  let response = entry.response;
+  if (clearChecked && response && typeof response === 'object' && !Array.isArray(response)) {
+    const value = response as Record<string, unknown>, draft = value._draft;
+    if (draft && typeof draft === 'object' && !Array.isArray(draft)) response = { ...value, _draft: { ...draft, checked: false } };
+  }
+  if (!entry.completed && !entry.score && !entry.maxScore && !entry.review && !entry.reviewStartedAt && response === entry.response) return entry;
+  return { ...rest, response, completed: false, score: 0, maxScore: 0 };
+}
+
+/** Migrate old advisory-review saves without erasing an unfinished draft or historical effort. */
+export function reconcileReviewEligibility(notebook: Notebook, progress: Progress): Progress {
+  if (notebook.id !== progress.notebookId) return progress;
+  const eligible = new Set(notebook.cards.filter(card => canScoreRecallCard(card, notebook.sources)).map(card => card.id));
+  const cards = Object.fromEntries(Object.entries(progress.cards).filter(([id]) => eligible.has(id)));
+  const completedCardIds = progress.completedCardIds.filter(id => eligible.has(id));
+  const drafts = new Set((notebook.activities ?? []).filter(activity => activity.reviewStatus === 'needs-review').map(activity => activity.id));
+  let structuredChanged = false;
+  const structured = progress.structured === undefined ? undefined : Object.fromEntries(Object.entries(progress.structured).map(([id, entry]) => {
+    const next = drafts.has(id) ? withoutDraftCredit(entry) : entry;
+    if (next !== entry) structuredChanged = true;
+    return [id, next];
+  }));
+  const clearSession = !!progress.activeSession && progress.activeSession.cardIds.some(id => !eligible.has(id));
+  if (!structuredChanged && Object.keys(cards).length === Object.keys(progress.cards).length && completedCardIds.length === progress.completedCardIds.length && !clearSession) return progress;
+  const next: Progress = { ...progress, cards, completedCardIds, ...(structured === undefined ? {} : { structured }), mastery: Object.keys(cards).length ? Math.round(Object.values(cards).filter(card => card.lastCorrect).length / Object.keys(cards).length * 100) : 0, updatedAt: new Date().toISOString(), revision: Math.min(1_000_000, progress.revision + 1) };
+  if (clearSession) delete next.activeSession;
+  return next;
+}
+
 /**
  * Historical effort stays intact when authors revise a notebook. Current completion,
  * scheduling and unfinished answers apply only to the objective that earned them.
@@ -33,20 +65,26 @@ export function reconcileNotebookProgress(previous: Notebook, next: Notebook, pr
   const currentActivities = new Map((next.activities ?? []).map(activity => [activity.id, activity]));
   const cardUnchanged = (id: string) => {
     const before = priorCards.get(id), after = currentCards.get(id);
-    return !!before && !!after && hasCurrentCardEvidence(after, next.sources) && cardModel(before) === cardModel(after);
+    return !!before && !!after && canScoreRecallCard(after, next.sources) && cardModel(before) === cardModel(after);
   };
   const activityUnchanged = (id: string) => {
     const before = priorActivities.get(id), after = currentActivities.get(id);
-    return !!before && !!after && currentActivityEvidence(after, next) && activityModel(before) === activityModel(after);
+    return !!before && !!after && !(before.reviewStatus === 'reviewed' && after.reviewStatus === 'needs-review') && currentActivityEvidence(after, next) && activityModel(before) === activityModel(after);
   };
   const cards = Object.fromEntries(Object.entries(progress.cards).filter(([id]) => cardUnchanged(id)));
   const completedCardIds = progress.completedCardIds.filter(cardUnchanged);
-  const structured = progress.structured === undefined ? undefined : Object.fromEntries(Object.entries(progress.structured).filter(([id]) => activityUnchanged(id)));
+  let upgraded = false;
+  const structured = progress.structured === undefined ? undefined : Object.fromEntries(Object.entries(progress.structured).filter(([id]) => activityUnchanged(id)).map(([id, entry]) => {
+    const isUpgrade = priorActivities.get(id)?.reviewStatus === 'needs-review' && currentActivities.get(id)?.reviewStatus === 'reviewed';
+    const nextEntry = isUpgrade ? withoutDraftCredit(entry, true) : entry;
+    if (nextEntry !== entry) upgraded = true;
+    return [id, nextEntry];
+  }));
   const clearSession = !!progress.activeSession && progress.activeSession.cardIds.some(id => !cardUnchanged(id));
-  const changed = Object.keys(cards).length !== Object.keys(progress.cards).length || completedCardIds.length !== progress.completedCardIds.length || Object.keys(structured ?? {}).length !== Object.keys(progress.structured ?? {}).length || clearSession;
-  if (!changed) return progress;
+  const changed = upgraded || Object.keys(cards).length !== Object.keys(progress.cards).length || completedCardIds.length !== progress.completedCardIds.length || Object.keys(structured ?? {}).length !== Object.keys(progress.structured ?? {}).length || clearSession;
+  if (!changed) return reconcileReviewEligibility(next, progress);
   const revised: Progress = { ...progress, cards, completedCardIds, ...(structured === undefined ? {} : { structured }), mastery: Object.keys(cards).length ? Math.round(Object.values(cards).filter(card => card.lastCorrect).length / Object.keys(cards).length * 100) : 0, updatedAt: new Date().toISOString(), revision: progress.revision + 1 };
   if (clearSession) delete revised.activeSession;
   // attempts, XP, journal, sessions and historical streaks are deliberately preserved.
-  return revised;
+  return reconcileReviewEligibility(next, revised);
 }

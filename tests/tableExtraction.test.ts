@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractStructuredActivities, validateActivity, evaluateActivity } from '../src/lib/structuredEngine';
+import { extractStructuredActivities, validateActivity, evaluateActivity, evaluateActivityForAuthoring } from '../src/lib/structuredEngine';
 import { extractTableActivities } from '../src/lib/tableExtraction';
 import { initialDataResponse } from '../src/lib/dataEngine';
 const source = (text: string) => ({ id: 'original-log', title: 'Observations', text, status: 'ready' as const });
@@ -14,7 +14,9 @@ describe('deterministic table compilation', () => {
     expect(validateActivity(a, [s]).success).toBe(true); expect(a.reviewStatus).toBe('needs-review');
     expect(a.rows[2].values['column-2']).toBeNull(); expect(a.sourceRefs.every(ref => text.includes(ref.evidence))).toBe(true);
     const response = initialDataResponse(a); response.answers = { 'count-records': '3', 'largest-value': '4' };
-    expect(evaluateActivity(a, response).correct).toBe(true);
+    expect(evaluateActivityForAuthoring(a, response).correct).toBe(true);
+    expect(evaluateActivity(a, response)).toMatchObject({ valid: false, correct: null, outcome: 'draft-preview', score: 0 });
+    expect(evaluateActivity({ ...a, reviewStatus: 'reviewed' }, response).correct).toBe(true);
     expect(validateActivity(a, [source(text.replace('4', '5'))]).success).toBe(false);
   });
   it('keeps identifiers, formulas and mixed numeric formatting as literal text', () => {

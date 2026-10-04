@@ -85,7 +85,10 @@ export function resolveScaffoldRuntime(scaffoldId: string, notebook: Pick<Notebo
   if (!scaffold) return { ...base, reason: definition.runtimeHint };
   if (!scaffold.ages.includes(notebook.ageGroup)) return { ...base, reason: `This recipe is not configured for the notebook’s age setting. Choose a compatible recipe or adjust the audience in the studio. ${definition.runtimeHint}` };
   if (!definition.engineReady) return { ...base, reason: definition.runtimeHint };
-  if (definition.mode === 'source-practice') return { ...base, available: notebook.cards.length > 0, requiresAuthorBinding: false, reason: notebook.cards.length ? 'Source-recall cards are ready.' : 'Add source-recall cards before starting this practice mode.' };
+  if (definition.mode === 'source-practice') {
+    const ready = notebook.cards.filter(card => card.reviewStatus !== 'needs-review').length;
+    return { ...base, available: ready > 0, requiresAuthorBinding: false, reason: ready ? `${ready} source-recall ${ready === 1 ? 'card is' : 'cards are'} ready. Draft questions stay out of scored sessions.` : notebook.cards.length ? 'These recall questions need author review. Check the wording, answer and evidence, then mark them reviewed in the studio.' : 'Add source-recall cards before starting this practice mode.' };
+  }
   const bound = (notebook.activities ?? []).filter(activity => activity.scaffoldIds?.includes(scaffoldId) && definition.activityKinds.includes(activity.kind) && fitsSpecificContract(scaffoldId, activity));
   const reviewed = bound.filter(activity => activity.reviewStatus === 'reviewed');
   if (!reviewed.length) return { ...base, reason: bound.length ? 'A suitable activity is linked, but its answers and evidence still need author review.' : `Build or import a suitable ${definition.activityKinds.join(' / ')} activity, link it to this recipe and review its content. A recipe name alone does not prepare its learning model.` };

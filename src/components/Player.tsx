@@ -4,7 +4,7 @@ import type { LearningCard, Notebook, Progress } from '../types';
 import type { Scaffold } from '../data/scaffolds';
 import { AGE_GROUPS } from '../data/scaffolds';
 import { recordAttempt, selectDueCards } from '../lib/storage';
-import { hasCurrentCardEvidence, normalizeText, seededShuffle, stableHash } from '../lib/utils';
+import { canScoreRecallCard, normalizeText, seededShuffle, stableHash } from '../lib/utils';
 import WorldArt from './WorldArt';
 import LearningFigures from './LearningFigures';
 import {musicFeedback,duckMusic} from '../lib/music';
@@ -60,7 +60,8 @@ function chunksFor(card: LearningCard, notebook: Notebook): { items: string[]; i
 }
 
 export default function Player({ notebook, scaffold, progress, onProgress, onExit, onError, onComplete }: Props) {
-  const eligibleCards = notebook.cards.filter(item => hasCurrentCardEvidence(item, notebook.sources));
+  const eligibleCards = notebook.cards.filter(item => canScoreRecallCard(item, notebook.sources));
+  const awaitingReview = notebook.cards.filter(item => item.reviewStatus === 'needs-review').length;
   const [session] = useState(() => {
     const saved = progress.activeSession;
     if (saved?.scaffoldId === scaffold.id && saved.index < saved.cardIds.length && saved.cardIds.every(id => eligibleCards.some(card => card.id === id))) return saved;
@@ -87,7 +88,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   }
   function change(patch: Partial<PlayState>) { const next = { ...state, ...patch, assisted: state.assisted || patch.figures === true || patch.hint === true || patch.evidence === true || patch.reflectionRevealed === true }; setState(next); persist(next); }
 
-  useEffect(() => { persist(state, index, { ...latestProgress.current, sessions: latestProgress.current.sessions + (session.state ? 0 : 1) }); }, []);
+  useEffect(() => { if (sessionIsCurrent && cards.length) persist(state, index, { ...latestProgress.current, sessions: latestProgress.current.sessions + (session.state ? 0 : 1) }); }, []);
   useEffect(() => {
     if (!isTimed || done) return;
     const timer = window.setInterval(() => setElapsed(Math.max(0, Math.floor((Date.now() - Date.parse(session.startedAt)) / 1000))), 1000);
@@ -95,11 +96,11 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
   }, [isTimed, done, session.startedAt]);
   useEffect(() => {
     if (sessionIsCurrent && done && cards.length && !completed.current) { completed.current = true; musicFeedback('complete'); onComplete?.(state.independentCount, cards.length); }
-  }, [done]);
+  }, [done, sessionIsCurrent, cards.length, state.independentCount]);
 
   function submit(correct: boolean) {
     if (!card || state.submitted) return;
-    if (!sessionIsCurrent || !hasCurrentCardEvidence(card, notebook.sources)) { onError('This challenge’s source material changed. Review or rebuild it in the studio before playing.'); return; }
+    if (!sessionIsCurrent || !canScoreRecallCard(card, notebook.sources)) { onError('This challenge needs author review or its source evidence changed. Review it in the studio before scored play.'); return; }
     musicFeedback(correct?'success':'try-again');
     const assisted = state.assisted || state.hint || state.evidence || scaffold.family === 'explain';
     let updated = recordAttempt(latestProgress.current, card, correct, assisted ? 'guessing' : state.confidence);
@@ -124,7 +125,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
     window.speechSynthesis.cancel(); const utterance=new SpeechSynthesisUtterance(card?.prompt ?? scaffold.name); utterance.onstart=()=>duckMusic(true);utterance.onend=()=>duckMusic(false);utterance.onerror=()=>duckMusic(false);window.speechSynthesis.speak(utterance);
   }
 
-  if (!sessionIsCurrent || (!cards.length && notebook.cards.length > 0)) return <div className="player-empty"><BookOpen size={40}/><h2>Review the source references</h2><p>These challenges reference material that changed. Rebuild from the current sources or review the questions in the studio before playing.</p><button className="btn primary" onClick={onExit}>Back to notebook</button></div>;
+  if (!sessionIsCurrent || (!cards.length && notebook.cards.length > 0)) return <div className="player-empty"><BookOpen size={40}/><h2>{awaitingReview ? 'These challenges need author review' : 'Review the source references'}</h2><p>{awaitingReview ? 'Review the wording, answer and source evidence in the studio, then choose “Mark as reviewed”. Draft questions earn no scores or learning progress.' : 'These challenges reference material that changed. Rebuild from the current sources or review the questions in the studio before playing.'}</p><button className="btn primary" onClick={onExit}>Back to notebook</button></div>;
   if (!cards.length) return <div className="player-empty"><BookOpen size={40}/><h2>No challenges to play yet</h2><p>Add sources and create challenges in the studio first.</p><button className="btn primary" onClick={onExit}>Back to the studio</button></div>;
 
   if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><div className="session-complete"><div className="completion-art"><WorldArt theme={notebook.theme}/></div><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{progress.xp}</strong><span>Total practice XP</span></div><div><strong>{progress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div></div>;
@@ -167,7 +168,7 @@ export default function Player({ notebook, scaffold, progress, onProgress, onExi
       <aside className="player-sidebar"><WorldArt theme={notebook.theme}/><span className="eyebrow">YOUR EXPEDITION</span><h2>{notebook.title}</h2><p>{scaffold.tagline}</p><ol className="mission-path">{cards.map((item, at) => <li key={item.id} className={at < index ? 'complete' : at === index ? 'current' : ''}><span>{at < index ? <Check size={12}/> : at + 1}</span><div>{at === index ? 'You are here' : at < index ? 'Explored' : `Challenge ${at + 1}`}</div></li>)}</ol><div className="player-note"><Lightbulb size={18}/><p>Hints are always available. Supported practice is saved separately from independent recall.</p></div></aside>
       <main className="challenge-area">
         <div className="challenge-meta"><span className="eyebrow">CHALLENGE {index + 1} OF {cards.length}</span>{isTimed && <span className="timer-chip" aria-label="Elapsed session time">{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')} · no time limit</span>}<span className="concept-chip">{conceptLabel}</span></div>
-        <p className="game-instructions">{instructions[scaffold.family]}</p>
+        <p className="game-instructions">{instructions[scaffold.family]}</p>{awaitingReview > 0 && <p className="caregiver-note">{awaitingReview} draft {awaitingReview === 1 ? 'challenge awaits' : 'challenges await'} author review and {awaitingReview === 1 ? 'is' : 'are'} excluded from this scored session.</p>}
         {card.questionType === 'manual' && !card.sourceId && <p className="caregiver-note">Author-written challenge. The answer was supplied by the notebook author.</p>}
         {young && <p className="caregiver-note">{notebook.ageGroup === '3-5' ? 'Explore together with a grown-up. Use read-aloud whenever it helps.' : 'Need a little help? Try read-aloud or open a hint.'}</p>}
         <section className="challenge-card">

@@ -53,3 +53,8 @@ export function hasCurrentCardEvidence(card: LearningCard, sources: readonly Sou
   if (!source || !card.evidence?.trim() || !source.text.includes(card.evidence)) return false;
   return card.questionType === 'manual' || card.evidence.toLocaleLowerCase().includes(card.answer.toLocaleLowerCase());
 }
+
+/** Explicit author/assistant drafts cannot enter scored recall. Legacy status-less cards retain evidence validation. */
+export function canScoreRecallCard(card: LearningCard, sources: readonly Source[]): boolean {
+  return card.reviewStatus !== 'needs-review' && hasCurrentCardEvidence(card, sources);
+}

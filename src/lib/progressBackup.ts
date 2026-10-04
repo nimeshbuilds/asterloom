@@ -1,7 +1,8 @@
 import type { LearningCard, Notebook, Progress, Source } from '../types';
 import type { StructuredActivity } from './structuredEngine';
 import { parseProgress, validateProgress } from './package';
-import { hasCurrentCardEvidence } from './utils';
+import { canScoreRecallCard } from './utils';
+import { reconcileReviewEligibility } from './progressRevision';
 
 const MAX_BYTES = 64 * 1024 * 1024;
 const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
@@ -50,7 +51,7 @@ async function modelIndex(notebook: Notebook): Promise<ModelIndex> {
   };
   const cards: [string, string][] = [];
   for (const card of notebook.cards) {
-    if (!hasCurrentCardEvidence(card, notebook.sources)) continue;
+    if (!canScoreRecallCard(card, notebook.sources)) continue;
     cards.push([card.id, await digest({ model: cardModel(card), media: await media(sources.get(card.sourceId)) })]);
   }
   const activities: [string, string][] = [];
@@ -109,7 +110,7 @@ export async function serializeNotebookProgress(notebook: Notebook, input: Progr
   const progress = validateProgress(input);
   if (progress.notebookId !== notebook.id) throw new Error('The progress belongs to a different notebook.');
   const models = await modelIndex(notebook);
-  const cleaned = reconcile(progress, models, models).progress;
+  const cleaned = reconcileReviewEligibility(notebook, reconcile(progress, models, models).progress);
   const text = JSON.stringify({ format: 'asterloom-progress', version: 2, progress: cleaned, models }, null, 2);
   if (new TextEncoder().encode(text).byteLength > MAX_BYTES) throw new Error('This progress backup exceeds the 64 MB portable limit.');
   return text;
@@ -123,10 +124,13 @@ export async function restoreNotebookProgress(notebook: Notebook, text: string):
   if (progress.notebookId !== notebook.id) throw new Error('Import the matching notebook before restoring its progress.');
   const saved = legacy ? undefined : readModels(envelope.models);
   const result = reconcile(progress, saved, await modelIndex(notebook));
+  const eligible = reconcileReviewEligibility(notebook, result.progress);
+  result.resetObjectiveCount += Object.entries(result.progress.structured ?? {}).filter(([id, entry]) => eligible.structured?.[id] !== entry).length;
+  result.progress = eligible;
   const notice = legacy
     ? 'Learning history restored. This older backup cannot verify current challenge rules, so answers, completion and review schedules need fresh attempts. Your discovery points, attempts and journal are preserved.'
     : result.resetObjectiveCount
-      ? `Learning history restored. ${result.resetObjectiveCount} changed or removed challenge${result.resetObjectiveCount === 1 ? '' : 's'} need fresh attempts; matching challenges keep their progress.`
+      ? `Learning history restored. ${result.resetObjectiveCount} changed, unreviewed or removed challenge${result.resetObjectiveCount === 1 ? '' : 's'} need fresh attempts; matching challenges keep their progress.`
       : 'Your learning progress is restored.';
   return { ...result, notice, legacy };
 }

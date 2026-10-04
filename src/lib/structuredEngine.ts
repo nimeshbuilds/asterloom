@@ -71,7 +71,7 @@ export type ActivityResponse =
 export interface Evaluation {
   /** Added by the player; a supported attempt is distinct from independent performance. */
   hintUsed?: boolean;
-  valid: boolean; correct: boolean | null; outcome: 'correct' | 'retry' | 'self-reviewed' | 'invalid';
+  valid: boolean; correct: boolean | null; outcome: 'correct' | 'retry' | 'self-reviewed' | 'invalid' | 'draft-preview';
   score: number; maxScore: number; feedback: string;
   details: { id: string; correct: boolean | null; message: string }[];
 }
@@ -321,8 +321,8 @@ export function validateActivity(input: unknown, sources?: Pick<Source, 'id' | '
 }
 const invalid = (feedback: string): Evaluation => ({ valid: false, correct: null, outcome: 'invalid', score: 0, maxScore: 0, feedback, details: [] });
 const sameSet = (a: string[], b: string[]) => a.length === b.length && new Set(a).size === a.length && a.every(value => b.includes(value));
-/** All scoring depends only on activity data and submitted answers. No network or model access. */
-export function evaluateActivity(activity: StructuredActivity, response: unknown): Evaluation {
+/** Preview-only structural checks. Never use this authoring helper to award learning credit. */
+export function evaluateActivityForAuthoring(activity: StructuredActivity, response: unknown): Evaluation {
   const valid = validateActivity(activity); if (!valid.success) return invalid(valid.errors.join('; '));
   if (!plain(response)) return invalid('Submit a response object.');
   if (activity.kind === 'completion') return evaluateCompletion(activity, response);
@@ -349,7 +349,7 @@ export function evaluateActivity(activity: StructuredActivity, response: unknown
       for (const rule of activity.membership) {
         const selected = assignments[rule.itemId];
         if (!Array.isArray(selected) || !selected.every(id => typeof id === 'string' && activity.categories.some(category => category.id === id)) || new Set(selected).size !== selected.length) return invalid('Use distinct valid categories for each item.');
-        details.push({ id: rule.itemId, correct: sameSet(selected, rule.categoryIds), message: `The reviewed categories are ${rule.categoryIds.map(id => activity.categories.find(category => category.id === id)?.label).join(', ')}.` });
+        details.push({ id: rule.itemId, correct: sameSet(selected, rule.categoryIds), message: `The ${activity.reviewStatus === 'reviewed' ? 'reviewed' : 'draft'} categories are ${rule.categoryIds.map(id => activity.categories.find(category => category.id === id)?.label).join(', ')}.` });
       }
       break;
     }
@@ -392,7 +392,7 @@ export function evaluateActivity(activity: StructuredActivity, response: unknown
       for (const criterion of activity.criteria) {
         const rating = ratings[criterion.id];
         if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 0 || rating >= criterion.levels.length) return invalid('Choose a listed rubric level for every criterion.');
-        details.push({ id: criterion.id, correct: selfAssessed ? null : rating === criterion.expectedLevel, message: selfAssessed ? `Your reflection: ${criterion.levels[rating]}` : `Reviewed criterion: ${criterion.levels[criterion.expectedLevel!]}` });
+        details.push({ id: criterion.id, correct: selfAssessed ? null : rating === criterion.expectedLevel, message: selfAssessed ? `Your reflection: ${criterion.levels[rating]}` : `${activity.reviewStatus === 'reviewed' ? 'Reviewed' : 'Draft'} criterion: ${criterion.levels[criterion.expectedLevel!]}` });
       }
       break;
     }
@@ -407,7 +407,18 @@ export function evaluateActivity(activity: StructuredActivity, response: unknown
   const score = details.filter(detail => detail.correct === true).length;
   const maxScore = details.filter(detail => detail.correct !== null).length;
   const correct = selfAssessed ? null : score === maxScore && maxScore > 0;
-  return { valid: true, correct, outcome: selfAssessed ? 'self-reviewed' : correct ? 'correct' : 'retry', score, maxScore, feedback: selfAssessed ? 'Reflection saved. This is self-assessment, not an automatic correctness grade.' : `${correct ? 'The response satisfies the reviewed model.' : 'Review the feedback and try again.'} ${activity.explanation}`, details };
+  return { valid: true, correct, outcome: selfAssessed ? 'self-reviewed' : correct ? 'correct' : 'retry', score, maxScore, feedback: selfAssessed ? 'Reflection saved. This is self-assessment, not an automatic correctness grade.' : `${correct ? `The response satisfies the ${activity.reviewStatus === 'reviewed' ? 'reviewed' : 'draft'} model.` : 'Review the feedback and try again.'} ${activity.explanation}`, details };
+}
+
+/** Unreviewed authored models can be explored, but their checks never count as learning credit. */
+export function evaluateActivity(activity: StructuredActivity, response: unknown): Evaluation {
+  const preview = evaluateActivityForAuthoring(activity, response);
+  if (activity.reviewStatus !== 'needs-review') return preview;
+  return {
+    valid: false, correct: null, outcome: 'draft-preview', score: 0, maxScore: 0, hintUsed: true,
+    feedback: 'Draft preview only. These checks compare your work with an unreviewed authored model; they do not verify its meaning against the source. The author must review the rules and answers before completion, points, review credit or mission scores can be earned.' + (preview.valid ? '' : ` Preview guidance: ${preview.feedback}`),
+    details: preview.details.map(detail => ({ ...detail, message: `Draft model check: ${detail.message}` })),
+  };
 }
 
 function hash(text: string): string { let result = 2166136261; for (let i = 0; i < text.length; i++) { result ^= text.charCodeAt(i); result = Math.imul(result, 16777619); } return (result >>> 0).toString(36); }

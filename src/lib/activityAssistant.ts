@@ -1,6 +1,6 @@
 import type { Source } from '../types';
 import type { ProviderConfig } from './provider';
-import { evaluateActivity, validateActivity } from './structuredEngine';
+import { evaluateActivityForAuthoring, validateActivity } from './structuredEngine';
 import type { StructuredActivity } from './structuredEngine';
 
 const schemas = {
@@ -41,7 +41,7 @@ export function validateActivityDraft(request: ActivityDraftRequest, text: strin
   const checked = validateActivity({ ...input, id, reviewStatus: 'needs-review' }, [{ ...request.source, text: request.excerpt }]);
   if (!checked.success) throw new Error(checked.errors.slice(0, 3).join(' '));
   if (checked.value.kind === 'budget') {
-    if (!evaluateActivity(checked.value, envelope.solution).correct) throw new Error('The resource draft needs a valid, affordable reference allocation. Ask the assistant to repair its solution or use the guided builder.');
+    if (!evaluateActivityForAuthoring(checked.value, envelope.solution).correct) throw new Error('The resource draft needs a valid, affordable reference allocation. Ask the assistant to repair its solution or use the guided builder.');
   } else if (envelope.solution !== undefined) throw new Error('This activity family does not use a resource solution.');
   return checked.value;
 }

@@ -170,6 +170,7 @@ test('source tables, picture support and changing rules survive the full creator
   await createNotebook(page, 'Small discoveries', 'Source table', 'Name,Temperature\nNorth,12\nSouth,18\nMissing,');
   await expect(page.locator('.activity-library article')).toHaveCount(1);
   await expect(page.locator('.activity-library article')).toContainText('investigate the table');
+  await page.locator('.activity-library article').getByRole('button', { name: 'Mark reviewed', exact: true }).click();
   await page.getByRole('button', { name: 'Try picture worlds', exact: true }).click();
   await page.getByRole('button', { name: 'Try changing rules', exact: true }).click();
   await expect(page.locator('.activity-library article')).toHaveCount(4);
@@ -400,9 +401,11 @@ test('editing source material blocks stale saved answers from earning credit', a
   await page.getByRole('textbox', { name: 'Readable source text', exact: true }).fill('Comet: an icy object that travels through the solar system.');
   await page.getByRole('button', { name: 'Done', exact: false }).click();
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
-  await expect(page.getByRole('heading', { name: 'Review the source references', exact: true })).toBeVisible();
+  await expect(page.getByText(/These recall questions need author review/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Check my answer', exact: false })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Back to notebook', exact: true }).click();
+  await closeDialog(page);
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /^Your worlds/ }).click();
+  await page.getByRole('button', { name: 'Open A small guide to the cosmos', exact: true }).click();
   await expect(page.locator('.world-statbar')).toContainText('0discovery points');
 });
 
@@ -491,6 +494,24 @@ test('an existing assistant can refine wording through a checked local JSON exch
   const notebook = JSON.parse(await readFile(packFile, 'utf8')).notebook;
   expect(notebook.cards[0]).toMatchObject({ prompt: cards[0].prompt, answer: cards[0].answer, evidence: cards[0].evidence, reviewStatus: 'needs-review' });
   expect(aiCalls).toBe(0);
+  await closeDialog(page);
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /^Your worlds/ }).click();
+  await page.getByRole('button', { name: 'Open Assistant wording exchange', exact: true }).click();
+  await page.locator('.mission-card').filter({ has: page.getByRole('heading', { name: 'Recall escape mission', exact: true }) }).click();
+  await expect(page.getByText(/These recall questions need author review/)).toBeVisible();
+  await expect(page.locator('.answer-option')).toHaveCount(0);
+  await closeDialog(page);
+  await page.getByRole('tab', { name: /Challenges/ }).click();
+  await page.locator('.challenge-review').first().getByRole('button', { name: 'Mark as reviewed', exact: false }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /^Your worlds/ }).click();
+  await page.getByRole('button', { name: 'Open Assistant wording exchange', exact: true }).click();
+  await page.locator('.mission-card').filter({ has: page.getByRole('heading', { name: 'Recall escape mission', exact: true }) }).click();
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '1');
+  await page.locator('.answer-option').filter({ hasText: cards[0].answer }).click();
+  await page.getByRole('button', { name: 'Check my answer', exact: false }).click();
+  await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
+  await expect(page.locator('.world-statbar')).toContainText('1solved independently');
+
 });
 
 test('delayed wording refinement preserves newer title edits and rejects newer source edits', async ({ page }, testInfo) => {
@@ -953,4 +974,51 @@ test('structured activity scores synchronize between two invited learners', asyn
   await guest.getByRole('button', { name: 'Refresh standings', exact: true }).click();
   await expect(guest.getByRole('row').filter({ hasText: 'Sage' }).getByRole('cell').nth(2)).toHaveText('2,000');
   await hostContext.close(); await guestContext.close();
+});
+
+test('unreviewed models stay unscored through save and offline export until the author approves them', async ({ page, browser }, testInfo) => {
+  await openLibrary(page);
+  await page.getByRole('button', { name: 'Open Inside the connected world', exact: true }).click();
+  await page.getByRole('button', { name: 'Open studio', exact: false }).click();
+  await page.getByRole('tab', { name: /Challenges/ }).click();
+  await page.getByRole('button', { name: 'Edit Plan a small lab', exact: true }).click();
+  const json = page.getByRole('textbox', { name: 'Activity JSON', exact: true });
+  const activity = JSON.parse(await json.inputValue()); activity.reviewStatus = 'needs-review';
+  await json.fill(JSON.stringify(activity));
+  await page.getByRole('button', { name: 'Import activities', exact: true }).click();
+  await page.getByRole('button', { name: 'Play game', exact: false }).click();
+  await page.locator('.structured-path button').filter({ hasText: 'Plan a small lab' }).click();
+  await page.getByRole('spinbutton').nth(0).fill('2'); await page.getByRole('spinbutton').nth(1).fill('1');
+  await page.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await expect(page.locator('.structured-feedback.draft-preview')).toContainText('author review needed');
+  await expect(page.locator('.structured-game-header .xp-pill')).toContainText('0 discovery points');
+  await expect(page.locator('.structured-next')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save & return', exact: false }).click();
+  await expect(page.locator('.system-mission.completed')).toHaveCount(0);
+  const download = await exportDownload(page, 'html'), file = testInfo.outputPath('unreviewed-game.html'); await download.saveAs(file);
+  const context = await browser.newContext({ offline: true }), recipient = await context.newPage();
+  await recipient.goto(pathToFileURL(file).href);
+  await recipient.locator('.system-mission').filter({ hasText: 'Plan a small lab' }).click();
+  await recipient.getByRole('spinbutton').nth(0).fill('2'); await recipient.getByRole('spinbutton').nth(1).fill('1');
+  await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await expect(recipient.locator('.structured-feedback.draft-preview')).toBeVisible();
+  await recipient.getByRole('button', { name: 'Save & return', exact: false }).click();
+  await recipient.reload();
+  await expect(recipient.locator('.system-mission.completed')).toHaveCount(0);
+  await expect(recipient.locator('.world-statbar')).toContainText('0solved independently');
+  await recipient.getByRole('button', { name: 'Open studio', exact: false }).click();
+  await recipient.getByRole('tab', { name: /Challenges/ }).click();
+  await recipient.locator('.activity-library article').filter({ hasText: 'Plan a small lab' }).getByRole('button', { name: 'Mark reviewed', exact: true }).click();
+  await recipient.getByRole('button', { name: 'Play game', exact: false }).click();
+  await recipient.locator('.structured-path button').filter({ hasText: 'Plan a small lab' }).click();
+  await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await expect(recipient.locator('.structured-feedback.correct')).toBeVisible();
+  await expect(recipient.locator('.structured-game-header .xp-pill')).toContainText('20 discovery points');
+  await expect(recipient.locator('.structured-review-banner')).toContainText('0 independent attempts');
+  await recipient.clock.install({ time: Date.now() + 2 * 24 * 60 * 60 * 1000 });
+  await recipient.getByRole('button', { name: 'Start a fresh attempt', exact: true }).click();
+  await recipient.getByRole('spinbutton').nth(0).fill('2'); await recipient.getByRole('spinbutton').nth(1).fill('1');
+  await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await expect(recipient.locator('.structured-review-banner')).toContainText('1 independent attempt');
+  await context.close();
 });

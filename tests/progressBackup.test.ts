@@ -60,7 +60,7 @@ describe('content-bound portable progress', () => {
     const { notebook, progress } = fixture();
     const text = await serializeNotebookProgress(notebook, progress);
     notebook.title = 'A new world title'; notebook.theme = 'forest'; notebook.revision++;
-    notebook.activities![0] = { ...notebook.activities![0], title: 'A new mission title', hint: 'A different reminder.', reviewStatus: 'needs-review', scaffoldIds: [] };
+    notebook.activities![0] = { ...notebook.activities![0], title: 'A new mission title', hint: 'A different reminder.', scaffoldIds: [] };
     notebook.sources[0].text += '\nAn unrelated footnote.';
     expect((await restoreNotebookProgress(notebook, text)).progress).toEqual(progress);
   });
