@@ -40,6 +40,53 @@ async function exportDownload(page: Page, kind: 'pack' | 'html'): Promise<Downlo
 }
 async function closeDialog(page: Page) { await page.getByRole('button', { name: 'Close dialog', exact: true }).last().click(); }
 
+test('library initialization blocks creation and imports until persisted notebooks are loaded', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Pause the final cursor result, after iteration has finished, so the real IDB
+    // transaction can close without making cursor.continue() run in an inactive one.
+    const original = IDBObjectStore.prototype.openCursor;
+    let firstRead = true;
+    IDBObjectStore.prototype.openCursor = function (...args) {
+      const request = original.apply(this, args);
+      if (!firstRead || this.name !== 'records') return request;
+      firstRead = false;
+      Object.defineProperty(request, 'onsuccess', {
+        configurable: true,
+        set(callback) {
+          request.addEventListener('success', event => {
+            if (request.result) callback.call(request, event);
+            else (window as any).releaseNotebookRead = () => callback.call(request, event);
+          });
+        },
+      });
+      return request;
+    };
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => typeof (window as any).releaseNotebookRead === 'function');
+  await expect(page.getByText('Opening your worlds…', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create a world', exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Import learning notebook', { exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Restore learning progress', { exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Create a world', exact: true }).evaluate((button: HTMLButtonElement) => button.click());
+  // A synthetic file change must also be rejected by the entry-point guard.
+  await page.getByLabel('Import learning notebook', { exact: true }).setInputFiles({ name: 'premature.learnpack', mimeType: 'application/json', buffer: Buffer.from('{}') });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Notebook title', exact: true })).toHaveCount(0);
+  await page.evaluate(() => (window as any).releaseNotebookRead());
+  await expect(page.getByRole('heading', { name: 'What will you discover today?' })).toBeVisible();
+  await expect(page.locator('.notebook-card')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Create a world', exact: true }).last().click();
+  await page.getByRole('textbox', { name: 'Notebook title', exact: true }).fill('Created after library readiness');
+  await expect(page.locator('.save-state')).toContainText('Saved on this device');
+  await page.reload();
+  await page.waitForFunction(() => typeof (window as any).releaseNotebookRead === 'function');
+  await expect(page.getByRole('button', { name: 'Create a world', exact: true })).toBeDisabled();
+  await page.evaluate(() => (window as any).releaseNotebookRead());
+  await expect(page.getByRole('button', { name: 'Open Created after library readiness', exact: true })).toBeVisible();
+  await expect(page.locator('.notebook-card')).toHaveCount(4);
+});
+
 test('advanced laboratories create real models, resume investigations, and remain playable offline', async ({ page, browser }, testInfo) => {
   test.setTimeout(180_000);
   page.setDefaultTimeout(15_000);
