@@ -34,7 +34,11 @@ function fixturePdf(){
   const start=Buffer.byteLength(text);text+=`xref\n0 6\n0000000000 65535 f \n${offsets.map(value=>`${String(value).padStart(10,'0')} 00000 n `).join('\n')}\ntrailer\n<< /Root 1 0 R /Size 6 >>\nstartxref\n${start}\n%%EOF`;return Buffer.from(text).toString('base64');
 }
 
-test('native studio saves across launches, exports a standalone game, and opens its isolated studio',{skip:!enabled,timeout:360000},async()=>{
+// Intel emulation includes real speech recognition, OCR, model inference and
+// several complete Universal app copies. Give Rosetta its measured headroom;
+// individual operations keep their own bounded waits and all assertions run.
+const workflowTimeout=process.platform==='darwin'&&process.env.ASTERLOOM_SMOKE_ARCH==='x64'?600000:360000;
+test('native studio saves across launches, exports a standalone game, and opens its isolated studio',{skip:!enabled,timeout:workflowTimeout},async()=>{
   const directory=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-native-smoke-'));
   const output=path.join(directory,'exports');await fs.mkdir(output);
   const executable=process.env.ASTERLOOM_SMOKE_APP;

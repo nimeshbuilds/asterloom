@@ -46,7 +46,9 @@ test('a plausible numerical answer with the wrong evidence fails, revision succe
 test('missing values have their own mark and the investigation remains accessible on a narrow screen',async({page})=>{
  await page.setViewportSize({width:390,height:844});await page.goto(address);
  await page.getByRole('button',{name:'Inspect Morning D: Temperature Not recorded'}).click();await expect(page.locator('.data-missing-mark')).toHaveText('?');await expect(page.getByRole('complementary',{name:'Record inspector'})).toContainText('Not recorded');
- await expect(page.locator('.data-records')).toContainText('18 °C');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+ await expect(page.locator('.data-records')).toContainText('18 °C');await page.evaluate(()=>document.fonts.ready);
+ const layout=await page.evaluate(()=>({viewport:innerWidth,width:document.documentElement.scrollWidth,controls:[...document.querySelectorAll('.data-filter input,.data-filter select,.data-answer input')].map(element=>({tag:element.tagName,right:element.getBoundingClientRect().right,width:element.getBoundingClientRect().width,parentWidth:element.parentElement!.getBoundingClientRect().width}))}));
+ expect(layout.width,JSON.stringify(layout)).toBeLessThanOrEqual(layout.viewport+1);
  const results=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(results.violations).toEqual([]);
  await page.screenshot({path:'.qa/game-quality-review/data-mobile.png',fullPage:true});
 });
@@ -55,4 +57,13 @@ test('overview scene carries context without a second set of answer controls; ex
  await page.goto(address+'/?scene=overview');await expect(page.getByRole('button',{name:'Answer one',exact:false})).toHaveCount(0);await expect(page.locator('.scene-overview')).toBeVisible();await expect(page.locator('.scene-state-summary')).toContainText('An exact-source quest.');
  await page.goto(address+'/?scene=workspace');await page.getByRole('button',{name:'1 Answer one',exact:true}).click();expect(await page.evaluate(()=>(window as any).work.changes)).toBe(1);
  await expect(page.locator('.scene-object-tray')).toBeVisible();
+});
+
+test('filter and answer controls fit their columns with wide fallback font metrics at320 and390px',async({page})=>{
+ for(const width of [320,390]){
+  await page.setViewportSize({width,height:844});await page.goto(address);await page.evaluate(()=>{document.body.style.fontFamily='monospace';document.body.style.fontSize='20px';});await page.evaluate(()=>document.fonts.ready);
+  await page.getByLabel('Explore a column').selectOption('zone');await page.getByLabel('Contains',{exact:true}).fill('north');await expect(page.locator('.data-records')).toContainText('Morning A');await page.getByLabel('Your numerical result',{exact:true}).first().fill('20');
+  const layout=await page.evaluate(()=>({viewport:innerWidth,width:document.documentElement.scrollWidth,controls:[...document.querySelectorAll('.data-filter input,.data-filter select,.data-answer input')].map(element=>{const rect=element.getBoundingClientRect(),parent=element.parentElement!.getBoundingClientRect();return{tag:element.tagName,left:rect.left,right:rect.right,parentRight:parent.right,width:rect.width,parentWidth:parent.width};})}));
+  expect(layout.width,JSON.stringify(layout)).toBeLessThanOrEqual(width+1);for(const control of layout.controls){expect(control.right,JSON.stringify(control)).toBeLessThanOrEqual(control.parentRight+1);expect(control.left).toBeGreaterThanOrEqual(0);}
+ }
 });
