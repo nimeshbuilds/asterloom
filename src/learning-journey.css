@@ -8,3 +8,5 @@
 .player-shell.presentation-studio .player-sidebar>.eyebrow{color:#485f57}
 .player-shell .answer-feedback>p,.player-shell .answer-feedback>details>summary{color:#405d4b}
 .editor-heading>div:first-child{flex:1;min-width:0}.editor-heading>.button-row{flex-shrink:0}.editor-heading .title-input{display:block;width:100%;max-width:100%;min-width:0}
+
+.player-shell.presentation-studio .answer-feedback.wrong>p,.player-shell.presentation-studio .answer-feedback.retry>p{color:#694d28}.player-shell .answer-feedback.wrong .feedback-heading>h3,.player-shell .answer-feedback.retry .feedback-heading>h3{color:#694d28}
