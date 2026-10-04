@@ -2,6 +2,9 @@ import type { CardProgress, LearnPackage, LearningCard, Notebook, NotebookArtwor
 import { validateActivity } from './structuredEngine';
 import {validateLearningObjectives} from './evidence';
 import {validateOriginalFile} from './originalFiles';
+import {validateMediaAsset,sourceMediaIdentity} from './mediaAssets';
+import {validateMediaTranscript} from './mediaTranscript';
+import {validateVisualEvidenceSource,type VisualEvidence} from './visualEvidence';
 
 const MAX_PACKAGE_BYTES = 64 * 1024 * 1024;
 const SOURCE_KINDS: SourceKind[] = ['text', 'document', 'website', 'youtube', 'notebooklm', 'audio', 'video', 'image', 'transcript'];
@@ -70,6 +73,18 @@ function validateSource(input: unknown): Source {
     if (!/^data:(?:image\/(?:png|jpeg|webp|gif)|audio\/(?:mpeg|mp3|wav|x-wav|ogg|webm|mp4|x-m4a|m4a)|video\/(?:mp4|webm|ogg|quicktime));base64,[A-Za-z0-9+/]*={0,2}$/.test(dataUrl)) throw new Error('Embedded media must be a supported image, audio, or video file; executable formats are excluded.');
     source.dataUrl = dataUrl;
   }
+  if (value.asset !== undefined) {
+    if (source.dataUrl || !['audio','video'].includes(kind)) throw new Error('A recording must have one unambiguous media attachment.');
+    source.asset = validateMediaAsset(value.asset);
+    if (!source.asset.mime.startsWith(kind + '/')) throw new Error('The recording attachment and source type disagree.');
+    source.mime = source.asset.mime;
+  }
+  if (value.transcript !== undefined) source.transcript = validateMediaTranscript(value.transcript, source.text);
+  if (value.visualEvidence !== undefined) {
+    source.visualEvidence = value.visualEvidence as VisualEvidence;
+    const errors = validateVisualEvidenceSource(source);
+    if (errors.length) throw new Error(errors.join(' '));
+  }
   if (value.originalFile !== undefined) source.originalFile=validateOriginalFile(value.originalFile);
   if (value.webImport !== undefined) source.webImport=validateWebImport(value.webImport);
   if (value.error !== undefined) source.error = string(value.error, 'Source error', 2000, true);
@@ -124,6 +139,15 @@ export function validateNotebook(input: unknown): Notebook {
   const value = object(input, 'Notebook');
   const sources = array(value.sources, 'Sources', 300).map(validateSource);
   unique(sources.map(source => source.id), 'Sources');
+  for (const source of sources) if (source.transcript) {
+    source.transcript = validateMediaTranscript(source.transcript, source.text, sources);
+    const recording = sources.find(item=>item.id===source.transcript!.mediaSourceId);
+    if (sourceMediaIdentity(recording) !== `bytes:${source.transcript.mediaRevision}`) throw new Error('The transcript does not match its bundled recording. Restore matching original media and captions.');
+  }
+  for (const source of sources) if (source.visualEvidence) {
+    const errors = validateVisualEvidenceSource(source, sources);
+    if (errors.length) throw new Error(errors.join(' '));
+  }
   const artwork = value.artwork === undefined ? undefined : array(value.artwork, 'Artwork', 20).map(item => validateArtwork(item, sources));
   if (artwork) unique(artwork.map(item => item.id), 'Artwork');
   const mediaLength = sources.reduce((sum, source) => sum + (source.dataUrl ? mediaBytes(source.dataUrl) : 0), 0) + (artwork ?? []).reduce((sum, item) => sum + mediaBytes(item.dataUrl), 0);
@@ -293,6 +317,7 @@ function embedNotebookInRuntime(html: string, injection: string): string {
 
 export function exportOfflineHtml(notebook: Notebook, runtimeHtml: string): string {
   const validated = validateNotebook(notebook);
+  if (validated.sources.some(source => source.asset)) throw new Error('Include the recording files before preparing a browser game. Use a native app or recording archive for large media.');
   if (!runtimeHtml.includes('<html') || !runtimeHtml.includes('<script')) throw new Error('The complete offline app runtime is unavailable. Export a .learnpack backup or start the local Asterloom server to create a playable HTML export.');
   let html = runtimeHtml;
   if (typeof DOMParser !== 'undefined') {

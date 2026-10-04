@@ -126,7 +126,7 @@ export function compileNotebook(sources: Source[], options: CompileOptions = {})
       if (!distractors.length) continue;
       const optionsList = seededShuffle([candidate.answer, ...distractors], seed + 1);
       const id = `card-${stableHash(key + candidate.evidence).toString(36)}`;
-      cards.push({ id, prompt: candidate.prompt, answer: candidate.answer, options: optionsList, correctIndex: optionsList.indexOf(candidate.answer), explanation: `The source states: “${candidate.evidence}”`, sourceId: candidate.source.id, evidence: candidate.evidence, concept: candidate.concept, tags: ['source-recall', candidate.questionType], questionType: candidate.questionType, reviewStatus: 'extractive' });
+      cards.push({ id, prompt: candidate.prompt, answer: candidate.answer, options: optionsList, correctIndex: optionsList.indexOf(candidate.answer), explanation: `The source states: “${candidate.evidence}”`, sourceId: candidate.source.id, evidence: candidate.evidence, concept: candidate.concept, tags: ['source-recall', candidate.questionType], questionType: candidate.questionType, reviewStatus: candidate.source.transcript||candidate.source.visualEvidence||['transcript','audio','video','image'].includes(candidate.source.kind)?'needs-review':'extractive' });
       if (cards.length >= maxCards) break;
     }
   }

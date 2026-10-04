@@ -125,3 +125,9 @@ ASTERLOOM_NATIVE_SMOKE=1 ASTERLOOM_SMOKE_ARCH=x64 ASTERLOOM_SMOKE_APP="/path/Ast
 ```
 
 The test launches an isolated wrapper selecting the requested slice and asserts the actual Electron architecture. The same `ASTERLOOM_SMOKE_ARCH` setting is supported by the optional native Tor test. Exported and remixed games are launched in the selected mode too.
+
+## Original recordings and portable archives
+
+The native protocol forwards recording uploads as streams rather than buffering them as JSON/Base64. FFmpeg and whisper.cpp are bundled for Mac Universal and Windows; verified speech models download on first use and remain in the app-managed shared cache. Each exported game copies only its selected notebook's original media files, with content hashes checked before and after copying.
+
+Narrow IPC methods `exportNotebookArchive(packageText)` and `importNotebookArchive()` present native dialogs and stream `.learnzip` backups. Export returns `{path,assetCount,bytes}`; import returns `{packageText,assetCount,notebookId}`. Either can return `{canceled:true}` or `{error}`. Archives do not carry provider keys, model caches, room secrets or learner profiles. See [LOCAL-MEDIA.md](../docs/LOCAL-MEDIA.md) for source pins, licensing, build tools, limits and tests.

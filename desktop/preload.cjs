@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('asterloomDesktop',{
   availableExports:bootstrap?.availableExports||[],
   isExportedGame:!!bootstrap?.notebook,
   exportGame:(notebook,platform)=>ipcRenderer.invoke('asterloom:export-game',notebook,platform),
+  exportNotebookArchive:packageText=>ipcRenderer.invoke('asterloom:export-notebook-archive',packageText),
+  importNotebookArchive:()=>ipcRenderer.invoke('asterloom:import-notebook-archive'),
   setTorEnabled:enabled=>ipcRenderer.invoke('asterloom:set-tor',enabled),
   getTorStatus:()=>ipcRenderer.invoke('asterloom:tor-status'),
 });

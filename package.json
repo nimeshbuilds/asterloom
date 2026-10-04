@@ -1,6 +1,6 @@
 {
   "name": "asterloom",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A local-first studio for turning your materials into portable learning adventures.",
   "main": "desktop/main.mjs",
   "directories": {
@@ -9,17 +9,18 @@
   },
   "scripts": {
     "dev": "concurrently -k \"node server/index.mjs\" \"vite\"",
-    "build": "node scripts/prepare-retrieval-assets.mjs && tsc -b && vite build && node scripts/postbuild.mjs",
+    "build": "node scripts/prepare-retrieval-assets.mjs && node scripts/prepare-ocr-assets.mjs && tsc -b && vite build && node scripts/postbuild.mjs",
     "start": "node server/index.mjs",
     "test": "vitest run",
-    "test:server": "node --test server/server.test.mjs server/provider-connections.test.mjs server/web-extraction.test.mjs",
+    "test:server": "node --test server/server.test.mjs server/provider-connections.test.mjs server/web-extraction.test.mjs server/media.test.mjs server/media.integration.test.mjs server/media-runtime.test.mjs",
     "test:e2e": "playwright test",
     "preview": "vite preview --host 127.0.0.1",
     "desktop": "electron .",
     "package:desktop": "node scripts/package-desktop.mjs",
     "export:desktop": "node scripts/export-desktop.mjs",
     "assets": "tsx scripts/build-assets.tsx",
-    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && node --test desktop/bundles.test.mjs"
+    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && node --test desktop/bundles.test.mjs desktop/media-archive.test.mjs",
+    "prepare:media": "node scripts/prepare-media-runtime.mjs"
   },
   "keywords": [],
   "author": "Nimesh Pandeya (NimeshBuilds)",
@@ -36,7 +37,10 @@
     "mammoth": "^1.13.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "archiver": "8.0.0",
+    "yauzl": "3.4.0",
+    "tesseract.js": "7.0.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -51,7 +55,6 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
-    "archiver": "^8.0.0",
     "concurrently": "^10.0.5",
     "electron": "^44.5.1",
     "esbuild": "^0.28.2",
@@ -61,7 +64,11 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/spa": "1.0.0",
+    "@tesseract.js-data/fra": "1.0.0",
+    "@tesseract.js-data/deu": "1.0.0"
   },
   "private": true,
   "type": "module",

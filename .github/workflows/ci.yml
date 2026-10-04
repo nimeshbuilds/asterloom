@@ -72,7 +72,7 @@ jobs:
     name: Windows x64 native export and replay
     needs: web
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -80,6 +80,27 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: make mingw-w64-ucrt-x86_64-gcc
+      - name: Build verified local media decoder and speech runtime
+        run: npm run prepare:media -- --platform=windows
+        env:
+          MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+      - name: Transcribe actual MP3 and MP4 locally with Base and Small
+        run: node --test server/media.integration.test.mjs
+        env:
+          ASTERLOOM_MEDIA_INTEGRATION: '1'
+      - name: Keep reproducible Windows speech runtime
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-media-runtime
+          path: desktop/vendor/media/
+          if-no-files-found: error
+          retention-days: 7
       - name: Verify source extraction and room services on this operating system
         run: npm run test:server
       - run: npm run assets
@@ -92,6 +113,7 @@ jobs:
         run: node --test desktop/native-smoke.test.mjs
         env:
           ASTERLOOM_NATIVE_SMOKE: '1'
+          ASTERLOOM_MEDIA_MODELS: ${{ github.workspace }}/.qa/media-build/models
           ASTERLOOM_SMOKE_APP: ${{ github.workspace }}/release/desktop/Asterloom-win32-x64/Asterloom.exe
       - name: Archive the verified Windows bundle
         shell: pwsh
@@ -118,7 +140,7 @@ jobs:
     name: macOS native export and replay
     needs: web
     runs-on: macos-14
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -126,6 +148,12 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Build both verified Mac speech runtime slices
+        run: npm run prepare:media -- --platform=mac
+      - name: Transcribe actual MP3 and MP4 locally with Base and Small
+        run: node --test server/media.integration.test.mjs
+        env:
+          ASTERLOOM_MEDIA_INTEGRATION: '1'
       - name: Verify signing boundaries without accessing private keys
         run: node --test desktop/signing.test.mjs desktop/architectures.test.mjs desktop/credential-store.test.mjs
       - name: Verify source extraction and room services on this operating system
@@ -144,6 +172,7 @@ jobs:
         run: node --test desktop/native-smoke.test.mjs
         env:
           ASTERLOOM_NATIVE_SMOKE: '1'
+          ASTERLOOM_MEDIA_MODELS: ${{ github.workspace }}/.qa/media-build/models
       - name: Archive the application with executable permissions intact
         shell: bash
         run: |

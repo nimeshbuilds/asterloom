@@ -8,6 +8,8 @@ import { createNotebook } from '../src/lib/utils';
 import { advanceChildPlay, initialChildPlayResponse } from '../src/lib/childPlayEngine';
 import { childPlaySources, pretendPlayFixture, puppetStoryFixture } from '../src/data/childPlayFixtures';
 import { independentStructuredCount, reviewAfterEvaluation } from '../src/lib/structuredReview';
+import {bytesDigest} from '../src/lib/evidence';
+import {reconcileNotebookProgress} from '../src/lib/progressRevision';
 import type { Notebook, Progress } from '../src/types';
 
 const at = '2026-10-04T00:00:00.000Z';
@@ -101,6 +103,19 @@ describe('content-bound portable progress', () => {
       notebook.sources[notebook.sources.length - 1].dataUrl += 'AA==';
       expect((await restoreNotebookProgress(notebook, text)).progress.structured).toEqual({});
     }
+  });
+  it('preserves credit between native assets and inline exports but resets replaced recording bytes', async () => {
+    const {notebook,progress}=fixture();
+    const bytes=new Uint8Array([0,1,2,3]),hash=bytesDigest(bytes);
+    notebook.sources[0]={...notebook.sources[0],kind:'audio',mime:'audio/mpeg',asset:{id:hash,sha256:hash,name:'lesson.mp3',mime:'audio/mpeg',size:bytes.length}};
+    const saved=await serializeNotebookProgress(notebook,progress);
+    const inline=structuredClone(notebook);inline.sources[0]={...inline.sources[0],asset:undefined,dataUrl:'data:audio/mpeg;base64,AAECAw=='};
+    expect((await restoreNotebookProgress(inline,saved)).progress).toEqual(progress);
+    expect(reconcileNotebookProgress(notebook,inline,progress)).toEqual(progress);
+    const changed=structuredClone(notebook),newHash=bytesDigest(new Uint8Array([0,1,2,4]));changed.sources[0].asset={...changed.sources[0].asset!,id:newHash,sha256:newHash};
+    expect((await restoreNotebookProgress(changed,saved)).resetObjectiveCount).toBe(2);
+    const revised=reconcileNotebookProgress(notebook,changed,progress);
+    expect(revised.structured).toEqual({});expect(revised.completedCardIds).toEqual([]);expect(revised.xp).toBe(progress.xp);
   });
   it('restores legacy history with an explicit conservative reset of unverifiable answers', async () => {
     const { notebook, progress } = fixture();

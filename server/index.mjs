@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 import { createTorController } from './tor.mjs';
 import {createChatGPTConnection,parseCompletedResponse} from './chatgpt-auth.mjs';
 import {extractWebPage} from './web-extraction.mjs';
+import {createMediaService} from './media-service.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_FILE = 20 * 1024 * 1024;
@@ -408,8 +409,12 @@ async function readBody(request) {
   return result;
 }
 
-export async function createService({port=4319,host='127.0.0.1',dataDir=path.join(HERE,'.data'),distDir=path.join(HERE,'../dist'),enableTor=false,torBinary,onTorChange,credentialStore,chatgptPlanEnabled=process.env.ASTERLOOM_CHATGPT_PLAN_ENABLED==='1'} = {}) {
+export async function createService({port=4319,host='127.0.0.1',dataDir=path.join(HERE,'.data'),distDir=path.join(HERE,'../dist'),enableTor=false,torBinary,onTorChange,credentialStore,mediaAssetDir,mediaModelDir,mediaRuntime,chatgptPlanEnabled=process.env.ASTERLOOM_CHATGPT_PLAN_ENABLED==='1'} = {}) {
+  dataDir=path.resolve(dataDir);distDir=path.resolve(distDir);
+  if(mediaAssetDir)mediaAssetDir=path.resolve(mediaAssetDir);if(mediaModelDir)mediaModelDir=path.resolve(mediaModelDir);
   await fs.mkdir(dataDir,{recursive:true,mode:0o700});
+  const media=await createMediaService({directory:path.join(dataDir,'media'),bundledDirectory:mediaAssetDir,modelDirectory:mediaModelDir,runtime:mediaRuntime});
+  const mediaStatus=await media.status();
   const connection=await createChatGPTConnection({dataDir,credentialStore,enabled:chatgptPlanEnabled});
   const roomFile=path.join(dataDir,'rooms.json');
   let rooms=[];
@@ -423,7 +428,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
     optional('pdfjs-dist/legacy/build/pdf.mjs'),optional('mammoth'),optional('fflate'),optional('exceljs'),optional('linkedom'),
     findBinary('tesseract'),findBinary('ffmpeg'),findBinary('whisper-cli'),torBinary||findBinary(process.platform==='win32'?'tor.exe':'tor'),
   ]);
-  const capabilities={text:true,html:true,csv:true,json:true,captions:true,pdf:!!pdf,docx:!!word && !!office,pptx:!!office,xlsx:!!excel && !!office,imageOcr:!!tesseract,mediaUpload:true,automaticTranscription:false,ffmpegInstalled:!!ffmpeg,whisperInstalled:!!whisper,notebooklm:'assisted-import',youtube:'user-supplied-transcript',apiProviders:['openai','anthropic','xai','compatible'],imageProviders:['openai','compatible'],tor:{installed:!!tor,status:enableTor ? 'starting' : 'disabled',hostname:null,reachabilityVerified:false},formats:{text:'extract',html:'extract',csv:'extract',json:'extract',srt:'extract',vtt:'extract',pdf:pdf?'extract-text':'unavailable',docx:word&&office?'extract-text':'unavailable',pptx:office?'extract-text':'unavailable',xlsx:excel&&office?'extract-cells':'unavailable',images:tesseract?'local-ocr':'attachment-needs-description',mp3:'attachment-needs-transcript',mp4:'attachment-needs-transcript'}};
+  const capabilities={text:true,html:true,csv:true,json:true,captions:true,pdf:!!pdf,docx:!!word && !!office,pptx:!!office,xlsx:!!excel && !!office,imageOcr:!!tesseract,mediaUpload:true,mediaAssets:true,automaticTranscription:mediaStatus.available,ffmpegInstalled:!!ffmpeg||mediaStatus.available,whisperInstalled:!!whisper||mediaStatus.available,notebooklm:'assisted-import',youtube:'user-supplied-transcript',apiProviders:['openai','anthropic','xai','compatible'],imageProviders:['openai','compatible'],tor:{installed:!!tor,status:enableTor ? 'starting' : 'disabled',hostname:null,reachabilityVerified:false},formats:{text:'extract',html:'extract',csv:'extract',json:'extract',srt:'extract',vtt:'extract',pdf:pdf?'extract-text':'unavailable',docx:word&&office?'extract-text':'unavailable',pptx:office?'extract-text':'unavailable',xlsx:excel&&office?'extract-cells':'unavailable',images:tesseract?'local-ocr':'attachment-needs-description',mp3:mediaStatus.available?'local-transcription':'attachment-needs-transcript',mp4:mediaStatus.available?'local-transcription':'attachment-needs-transcript'}};
   const limits={fileBytes:MAX_FILE,sourceCharacters:MAX_TEXT,roomPlayers:32,roomResults:10000};
   capabilities.epub=!!office&&!!dom;capabilities.formats.epub=office&&dom?'extract-chapters':'unavailable';
   const events=new Map(); const rates=new Map();
@@ -447,7 +452,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
         let allowed=false;try {const parsed=new URL(origin);allowed=(process.env.LEARN_ALLOWED_ORIGINS || '').split(',').includes(origin)||(['http:','https:'].includes(parsed.protocol) && ((['localhost','127.0.0.1','[::1]'].includes(parsed.hostname) && ['5173','4318','4319','4173',String(server.address()?.port)].includes(parsed.port)) || parsed.host === hostHeader));} catch {}
         assert(allowed,'This browser origin is not allowed.',403,'FORBIDDEN_ORIGIN');
         response.setHeader('Access-Control-Allow-Origin',origin);response.setHeader('Vary','Origin');
-        response.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');response.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
+        response.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, X-Media-Name, Range');response.setHeader('Access-Control-Allow-Methods','GET, HEAD, POST, DELETE, OPTIONS');
       }
       if(request.method === 'OPTIONS') {response.writeHead(204);response.end();return;}
       const url=new URL(request.url,'http://localhost');
@@ -456,6 +461,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
         if(!rate || rate.until<now) {rate={count:0,until:now+60000};rates.set(key,rate);}
         assert(++rate.count <= 300,'Too many requests. Wait a minute and try again.',429,'RATE_LIMITED');
       }
+      if(await media.handle(request,response,url))return;
       if(request.method === 'GET' && url.pathname === '/api/health') return send(200,{ok:true,version:'0.3.0',capabilities,limits,storage:'local',multiplayer:'persistent-private-rooms'});
       if(request.method === 'GET' && url.pathname === '/api/tor/status') return send(200,capabilities.tor);
       if(request.method === 'POST' && url.pathname === '/api/import-file') return send(200,await importFile(await readBody(request),{tesseract}));
@@ -530,7 +536,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       else response.end();
     }
   });
-  server.requestTimeout=120000;server.headersTimeout=15000;
+  server.requestTimeout=600000;server.headersTimeout=15000;
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,resolve);});
   const actualPort=server.address().port;
   // Tor exposes only the room relay, never the author's imports, AI proxy or
@@ -553,7 +559,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
   const torController=createTorController({binary:tor,dataDir,servicePort:onionGatewayPort,onChange:state=>{Object.assign(capabilities.tor,state);onTorChange?.(state);}});
   Object.assign(capabilities.tor,torController.status());
   if(enableTor)await torController.start();
-  return {server,port:actualPort,onionGatewayPort,capabilities,startTor:()=>torController.start(),stopTor:()=>torController.stop(),torStatus:()=>torController.status(),markTorReachable:()=>torController.markReachable(),close:async()=>{await connection.close();await torController.stop();for(const responses of events.values())for(const response of responses)response.end();onionGateway.closeAllConnections();server.closeAllConnections();await Promise.all([new Promise(resolve=>server.close(resolve)),new Promise(resolve=>onionGateway.close(resolve))]);await writeQueue;}};
+  return {server,port:actualPort,onionGatewayPort,capabilities,media,startTor:()=>torController.start(),stopTor:()=>torController.stop(),torStatus:()=>torController.status(),markTorReachable:()=>torController.markReachable(),close:async()=>{await media.close();await connection.close();await torController.stop();for(const responses of events.values())for(const response of responses)response.end();onionGateway.closeAllConnections();server.closeAllConnections();await Promise.all([new Promise(resolve=>server.close(resolve)),new Promise(resolve=>onionGateway.close(resolve))]);await writeQueue;}};
 }
 
 if(process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

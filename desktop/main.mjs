@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {createService} from '../server/index.mjs';
 import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,normalizeTarget} from './bundles.mjs';
 import {isUniversalMacApp} from './architectures.mjs';
+import {exportNotebookArchive,importNotebookArchive} from './media-archive.mjs';
 import {createCredentialStore} from './credential-store.mjs';
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
@@ -20,7 +21,8 @@ try{embedded=await loadEmbeddedGame(resources);}catch(error){bootstrapError=erro
 const scope=embedded?path.join('games',embedded.identity):'studio';
 // A stable custom browser origin plus a per-package userData directory preserves
 // IndexedDB/localStorage across launches while keeping separate game exports isolated.
-app.setPath('userData',path.join(process.env.ASTERLOOM_DATA_DIR?path.resolve(process.env.ASTERLOOM_DATA_DIR):path.join(app.getPath('appData'),'Asterloom'),scope));
+const storageBase=process.env.ASTERLOOM_DATA_DIR?path.resolve(process.env.ASTERLOOM_DATA_DIR):path.join(app.getPath('appData'),'Asterloom');
+app.setPath('userData',path.join(storageBase,scope));
 // Electron incorporates app.name into User-Agent when building protocol
 // Requests. Non-ASCII notebook titles (or a decorative middle dot) can produce
 // invalid ByteString headers and break every fetch in an exported game.
@@ -69,7 +71,7 @@ app.whenReady().then(async()=>{try{
   let savedTor=false;try{savedTor=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'tor-settings.json'),'utf8')).enabled===true;}catch{}
   // Native requests to a friend's onion relay originate from this fixed app origin.
   process.env.LEARN_ALLOWED_ORIGINS=[...(process.env.LEARN_ALLOWED_ORIGINS||'').split(',').filter(Boolean),APP_URL].join(',');
-  service=await createService({port:0,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),credentialStore:createCredentialStore({filename:path.join(app.getPath('userData'),'ai-account.enc'),safeStorage}),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
+  service=await createService({port:0,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),mediaAssetDir:path.join(resources,'media-assets'),mediaModelDir:process.env.ASTERLOOM_MEDIA_MODELS||path.join(storageBase,'speech-models'),credentialStore:createCredentialStore({filename:path.join(app.getPath('userData'),'ai-account.enc'),safeStorage}),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
   await configureTorProxy(service.torStatus());
   ipcMain.handle('asterloom:tor-status',event=>ownFrame(event)?{...service.torStatus(),proxyConfigured}:{error:'This action is unavailable.'});
   ipcMain.handle('asterloom:set-tor',async(event,enabled)=>{
@@ -90,10 +92,22 @@ app.whenReady().then(async()=>{try{
       if(!template)throw new Error(`The ${target==='mac'?'universal Mac':'Windows'} runtime template is not installed. Install its Asterloom release beside this studio to enable this export.`);
       const chosen=await dialog.showOpenDialog(window,{title:'Choose where to save your learning game',buttonLabel:'Export game here',properties:['openDirectory','createDirectory']});
       if(chosen.canceled||!chosen.filePaths[0])return {canceled:true};
-      const result=await createGameBundle({packageText,target,template,destination:chosen.filePaths[0]});
+      const result=await createGameBundle({packageText,target,template,destination:chosen.filePaths[0],resolveAsset:service.media.resolveAsset});
       return result;
     }catch(error){return {error:error.message||'This game could not be exported.'};}
     finally{exporting=false;}
+  });
+  ipcMain.handle('asterloom:export-notebook-archive',async(event,packageText)=>{
+    if(!ownFrame(event)||exporting)return {error:'Another export is in progress or this action is unavailable.'};
+    exporting=true;
+    try{const game=readGame(packageText);const chosen=await dialog.showSaveDialog(window,{title:'Save notebook with original recordings',defaultPath:game.notebook.title.replace(/[\\/:*?"<>|]/g,'-')+'.learnzip',filters:[{name:'Asterloom recording archive',extensions:['learnzip']}]});if(chosen.canceled||!chosen.filePath)return {canceled:true};return await exportNotebookArchive({packageText,destination:chosen.filePath,resolveAsset:service.media.resolveAsset});}
+    catch(error){return {error:error.message||'The recording archive could not be saved.'};}finally{exporting=false;}
+  });
+  ipcMain.handle('asterloom:import-notebook-archive',async event=>{
+    if(!ownFrame(event)||exporting)return {error:'Another import or export is in progress.'};
+    exporting=true;
+    try{const chosen=await dialog.showOpenDialog(window,{title:'Restore a notebook and its recordings',properties:['openFile'],filters:[{name:'Asterloom recording archive',extensions:['learnzip']}]});if(chosen.canceled||!chosen.filePaths[0])return {canceled:true};return await importNotebookArchive({filename:chosen.filePaths[0],store:service.media.store});}
+    catch(error){return {error:error.message||'The recording archive could not be restored.'};}finally{exporting=false;}
   });
   // A fixed, privileged app origin proxies the private ephemeral HTTP service.
   // Hostile web origins never gain a route to this service through the protocol.
@@ -102,7 +116,7 @@ app.whenReady().then(async()=>{try{
       const url=new URL(request.url);const origin=request.headers.get('origin');
       if(url.hostname!=='app'||(origin&&origin!==APP_URL))return new Response('Forbidden',{status:403});
       const headers=new Headers(request.headers);headers.delete('origin');headers.delete('host');headers.delete('referer');headers.delete('connection');
-      const upstream=await fetch(`http://127.0.0.1:${service.port}${url.pathname}${url.search}`,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:await request.arrayBuffer(),redirect:'manual'});
+      const upstream=await fetch(`http://127.0.0.1:${service.port}${url.pathname}${url.search}`,{method:request.method,headers,...['GET','HEAD'].includes(request.method)?{}:{body:request.body,duplex:'half'},signal:request.signal,redirect:'manual'});
       const responseHeaders=new Headers(upstream.headers);responseHeaders.delete('connection');responseHeaders.delete('transfer-encoding');
       if(responseHeaders.get('content-type')?.includes('text/html')){
         const html=await upstream.text();

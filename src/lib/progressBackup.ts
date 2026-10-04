@@ -3,6 +3,7 @@ import type { StructuredActivity } from './structuredEngine';
 import { parseProgress, validateProgress } from './package';
 import { canScoreRecallCard } from './utils';
 import { reconcileReviewEligibility } from './progressRevision';
+import {sourceMediaIdentity} from './mediaAssets';
 
 const MAX_BYTES = 64 * 1024 * 1024;
 const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
@@ -45,8 +46,10 @@ async function modelIndex(notebook: Notebook): Promise<ModelIndex> {
   const sources = new Map(notebook.sources.map(source => [source.id, source]));
   const mediaHashes = new Map<string, Promise<string>>();
   const media = (source: Source | undefined) => {
-    if (!source?.dataUrl) return Promise.resolve(null);
-    if (!mediaHashes.has(source.id)) mediaHashes.set(source.id, digest({ kind: source.kind, mime: source.mime, dataUrl: source.dataUrl }));
+    if (!source) return Promise.resolve(null);
+    const identity=sourceMediaIdentity(source),linked=source.transcript?sourceMediaIdentity(sources.get(source.transcript.mediaSourceId)):source.visualEvidence?sourceMediaIdentity(sources.get(source.visualEvidence.parentSourceId)):null;
+    if(!identity&&!linked)return Promise.resolve(null);
+    if (!mediaHashes.has(source.id)) mediaHashes.set(source.id, digest({identity,linked}));
     return mediaHashes.get(source.id)!;
   };
   const cards: [string, string][] = [];
@@ -56,7 +59,7 @@ async function modelIndex(notebook: Notebook): Promise<ModelIndex> {
   }
   const activities: [string, string][] = [];
   for (const activity of notebook.activities ?? []) {
-    if (!activity.sourceRefs.every(ref => ref.evidence.trim() && sources.get(ref.sourceId)?.text.includes(ref.evidence))) continue;
+    if (!activity.sourceRefs.every(ref => ref.evidence.trim() && sources.get(ref.sourceId)?.status === 'ready' && sources.get(ref.sourceId)?.text.includes(ref.evidence))) continue;
     const citedMedia = await Promise.all(referencedSourceIds(activity).map(async id => [id, await media(sources.get(id))]));
     activities.push([activity.id, await digest({ model: activityModel(activity), media: citedMedia })]);
   }

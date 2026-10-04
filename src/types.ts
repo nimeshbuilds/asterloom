@@ -1,5 +1,7 @@
 import type { StructuredActivity } from './lib/structuredEngine';
 import type { ReviewState } from './data/learningScience';
+import type { MediaTranscript } from './lib/mediaTranscript';
+import type { VisualEvidence } from './lib/visualEvidence';
 
 export type SourceKind = 'text' | 'document' | 'website' | 'youtube' | 'notebooklm' | 'audio' | 'video' | 'image' | 'transcript';
 export type SourceStatus = 'ready' | 'needs-transcript' | 'error';
@@ -12,6 +14,10 @@ export interface Source {
   url?: string;
   mime?: string;
   dataUrl?: string;
+  /** Content-addressed local file, copied with a native game or asset archive. */
+  asset?: { id: string; name: string; mime: string; size: number; sha256: string; duration?: number };
+  transcript?: MediaTranscript;
+  visualEvidence?: VisualEvidence;
   status: SourceStatus;
   addedAt: string;
   error?: string;

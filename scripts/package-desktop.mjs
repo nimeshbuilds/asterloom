@@ -8,6 +8,7 @@ import {packager} from '@electron/packager';
 import {build} from 'esbuild';
 import {prepareTorRuntime} from '../desktop/prepare-tor.mjs';
 import {prepareNativeDependencies,installNativeDependencies} from '../desktop/native-dependencies.mjs';
+import {prepareMediaRuntime} from './prepare-media-runtime.mjs';
 import {mergeMacApplications,sealDevelopmentMacApplication} from '../desktop/universal.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -29,11 +30,13 @@ async function ensureTor(target){
   await fs.access(path.join(directory,'tor',target.platform==='win32'?'tor.exe':'tor'));await prepareTorRuntime(directory,target.platform);return directory;
 }
 async function packageTarget(target,destination){
-  const nativeDependency=await prepareNativeDependencies(ROOT,target),tor=await ensureTor(target);
+  const nativeDependency=await prepareNativeDependencies(ROOT,target),tor=await ensureTor(target),media=await prepareMediaRuntime(target);
   const icon=path.join(ROOT,'public','assets','brand',target.platform==='darwin'?'icon.icns':'icon.ico');
   console.log(`Preparing the ${target.platform==='darwin'?'Mac':'Windows'} runtime (${target.arch})…`);
   const result=await packager({dir:ROOT,name:'Asterloom',executableName:'Asterloom',appBundleId:'com.asterloom.studio',appVersion:manifest.version,buildVersion:manifest.version,electronVersion,...target,out:destination,overwrite:true,prune:true,asar:false,icon,appCopyright:'Asterloom',afterPrune:[async({buildPath})=>installNativeDependencies(buildPath,nativeDependency)],ignore:[/^\/(?:release|deliverables|\.qa|\.git|test-results|playwright-report|tests|docs|src|scripts)(?:\/|$)/,/^\/server\/\.data(?:\/|$)/,/^\/desktop\/(?:vendor|dev-resources|(?:download-tor|prepare-tor|native-dependencies|universal|testing|signing|sign-worker)\.mjs|.*\.test\.mjs)(?:\/|$)/,/^\/(?:build_product_plan\.py|.*\.log|\.env.*|package-lock\.json|tsconfig.*|vite\.config.*|playwright\.config.*)$/],afterCopy:[async({buildPath})=>{
     const file=path.join(buildPath,'package.json'),current=JSON.parse(await fs.readFile(file,'utf8'));current.main='desktop/main.mjs';await fs.writeFile(file,JSON.stringify(current,null,2));
+    await fs.cp(media,path.join(buildPath,'desktop','vendor','media','runtime'),{recursive:true,filter:filename=>path.basename(filename)!=='BUILD.json'});
+    await fs.cp(path.join(ROOT,'desktop','vendor','media','sources'),path.join(buildPath,'desktop','vendor','media','sources'),{recursive:true});
     await fs.cp(tor,path.join(buildPath,'desktop','vendor','tor','runtime'),{recursive:true});
     await fs.copyFile(path.join(ROOT,'desktop','vendor','tor','manifest.json'),path.join(buildPath,'desktop','vendor','tor','manifest.json'));
     await fs.cp(path.join(ROOT,'desktop','vendor','tor','sources'),path.join(buildPath,'desktop','vendor','tor','sources'),{recursive:true});
@@ -41,7 +44,7 @@ async function packageTarget(target,destination){
   return {directory:result[0],nativeDependency:{name:nativeDependency.name,version:nativeDependency.version,integrity:nativeDependency.integrity}};
 }
 async function recordBuild(info){
-  const record={...info,version:manifest.version,electronVersion,signing:info.platform==='darwin'?'development-ad-hoc':'development-unsigned',notarized:false,generatedAt:new Date().toISOString(),included:['Electron and Node runtime','complete studio and offline game runtime','PDF, DOCX, PPTX, XLSX and EPUB extraction libraries','native PDF canvas binding','verified Tor runtime and source notices'],optionalNotBundled:['Tesseract OCR: image descriptions can be entered manually','speech transcription: upload a transcript for audio and video']};
+  const record={...info,version:manifest.version,electronVersion,signing:info.platform==='darwin'?'development-ad-hoc':'development-unsigned',notarized:false,generatedAt:new Date().toISOString(),included:['Electron and Node runtime','complete studio and offline game runtime','PDF, DOCX, PPTX, XLSX and EPUB extraction libraries','native PDF canvas binding','verified Tor runtime and source notices','FFmpeg 9.0.2 LGPL decoder and whisper.cpp 1.9.4 with exact corresponding sources','streaming original media store and recording archives','local Tesseract OCR runtime and English, Spanish, French, German recognition data'],optionalNotBundled:['Whisper speech models: verified managed first-use download, then offline reuse']};
   await fs.copyFile(path.join(ROOT,'LICENSE'),path.join(info.directory,'ASTERLOOM-LICENSE.txt'));
   await fs.writeFile(path.join(info.directory,'ASTERLOOM-RELEASE.json'),JSON.stringify(record,null,2));builds.push(record);console.log(`Created ${info.directory}`);
 }
@@ -50,6 +53,7 @@ if(includeMac){
   try{
     // Resolve both archives before copying so shared provenance is identical.
     await ensureTor({platform:'darwin',arch:'arm64'});await ensureTor({platform:'darwin',arch:'x64'});
+    await prepareMediaRuntime({platform:'darwin',arch:'arm64'});await prepareMediaRuntime({platform:'darwin',arch:'x64'});
     const arm64=await packageTarget({platform:'darwin',arch:'arm64'},temporary),x64=await packageTarget({platform:'darwin',arch:'x64'},temporary);
     const merged=path.join(temporary,'Asterloom.app');
     const universal=await mergeMacApplications({arm64App:path.join(arm64.directory,'Asterloom.app'),x64App:path.join(x64.directory,'Asterloom.app'),output:merged});

@@ -50,7 +50,7 @@ export function normalizeText(value: string): string { return value.toLocaleLowe
 export function hasCurrentCardEvidence(card: LearningCard, sources: readonly Source[]): boolean {
   if (!card.sourceId) return card.questionType === 'manual';
   const source = sources.find(item => item.id === card.sourceId);
-  if (!source || !card.evidence?.trim() || !source.text.includes(card.evidence)) return false;
+  if (!source || source.status !== 'ready' || !card.evidence?.trim() || !source.text.includes(card.evidence)) return false;
   return card.questionType === 'manual' || card.evidence.toLocaleLowerCase().includes(card.answer.toLocaleLowerCase());
 }
 

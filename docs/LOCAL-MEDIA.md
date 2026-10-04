@@ -1,0 +1,35 @@
+# Local recordings and speech recognition
+
+The desktop application includes FFmpeg 9.0.2 and whisper.cpp 1.9.4. Uploads stream into a local, content-addressed library without Base64 or JSON expansion. Each original is identified by its SHA256, which also binds its transcript to the correct recording. The maximum original is 2 GiB; transcription accepts up to two hours and reserves working disk space. Files remain on the device.
+
+Small multilingual q5_1 is the default accuracy choice (190,085,487 download bytes). Base q5_1 is smaller and faster (59,707,625 bytes); Tiny q5_1 is a quick-draft option (32,152,673 bytes). The first explicit transcription downloads the selected model from a pinned official whisper.cpp model revision and verifies its exact size and SHA256. The model is reused offline and shared across local studio/game profiles. No provider key or system-wide command-line installation is required. Downloads and decoding can be canceled. An interrupted job remains visible after restarting and requires an explicit retry.
+
+Speech recognition is probabilistic. Every transcript is marked for review, with segment timestamps and an exact media revision. No invented confidence score is attached. Silence and repeated segments receive specific handling, but background sound, multiple speakers, jargon and accents still require human checking. Speech models are not bundled into every exported game; recipients need a model only if they choose to transcribe new material. Playing an authored game does not run speech recognition.
+
+## Portable media
+
+Native games include the selected notebook's referenced original recordings as files under `resources/media-assets` (Mac: `Contents/Resources/media-assets`). They include the complete authoring runtime and decoder. Copies omit unrelated recordings, account state, local progress and downloaded model caches. Every selected original is hashed before and after copying. The native app resolves these assets locally; exports never store a machine-specific localhost URL.
+
+A `.learnzip` recording archive is a streamed ZIP64 containing `notebook.learnpack`, `manifest.json`, and `assets/<SHA256>`. It is a portable authoring backup, not a runnable application. Import verifies the entire archive before changing the media library, rejects duplicate/unexpected paths, links, encrypted entries, oversized content, missing recordings and hash mismatches, then streams assets into the local library. The archive limit is 8 GiB, with at most 200 recordings, 2 GiB per recording, and a 64 MiB notebook document. A selected existing output may be replaced only through the native Save dialog. Neither format includes credentials.
+
+Compact browser games and `.learnpack` files embed originals only within the UI's stated size caps. Larger recordings require a native game or recording archive. A standalone browser file has no native transcription service.
+
+## Service contract
+
+- `POST /api/media/assets`: raw media bytes, `X-Media-Name` URL-encoded filename. Returns `{asset}`. Formats: MP3, MP4, M4A, MOV, WebM, MKV, WAV, FLAC, OGG, OPUS and AAC, with matching headers.
+- `GET` / `HEAD /api/media/assets/:sha256`: original bytes; one byte range supported. `/metadata` returns `{asset}`.
+- `GET /api/media/status`: model installation status, download sizes, runtime availability, limits and durable job summaries.
+- `POST /api/media/transcriptions`: `{assetId, model:'small'|'base'|'tiny', language:'auto'|ISO-code}`; returns `{job}`.
+- `GET` / `DELETE /api/media/transcriptions/:id`: status / cancel. Cancel preserves the original.
+
+Completed `job.result` contains `{segments:[{start,end,text,uncertain?}],text,duration,language,engine,engineVersion,model,mediaRevision,reviewStatus:'needs-review',warnings}`. Times are seconds. Decoder input preserves the original media timeline, including an audio track that starts after the video; recognizer segment boundaries remain estimates for author review. Queued jobs execute one at a time, with at most five active or queued jobs. All routes retain the local service's origin/host restrictions and are unavailable through the Tor room gateway.
+
+## Build and redistribution
+
+`npm run prepare:media -- --platform=mac` builds both Mac slices; `--platform=windows` builds Windows x64 on Windows with CMake/MSVC and MSYS2 UCRT64 GCC/make. Build tools are developer-only. The release packager resolves these runtimes automatically. Mac universal assembly merges both decoder and recognizer slices using the existing official Electron merge step. The x64 recognizer explicitly disables AVX, AVX2, FMA, F16C, BMI2, SSE4.2 and AVX512 variants instead of assuming those CPU extensions. Apple Silicon retains Accelerate optimization. On the tested Mac/Rosetta fixture, baseline Small inference took about 21 seconds versus 16 seconds for the earlier AVX2 build; hardware and recording length change these timings. Windows cross-packaging must use a runtime produced and tested on Windows; the build refuses to manufacture one on macOS.
+
+The preparation script pins source archive sizes and SHA256s and verifies FFmpeg's detached OpenPGP release signature against the pinned official key fingerprint. FFmpeg is configured without GPL, nonfree, network protocols, dynamically loaded optional libraries or arbitrary playlist demuxers. The application invokes only its selected demuxer, audio stream and a fixed PCM output, with process timeout/cancellation. Each release includes licenses, the exact corresponding FFmpeg/whisper.cpp source archives, per-platform build options and binary-hash receipts. FFmpeg runs as a separate executable; users may rebuild/replace it subject to its LGPL terms. The application does not make the LGPL executable subject to its personal-use license. Whisper.cpp and model weights retain their upstream licenses. Published app signing is a separate step.
+
+Primary sources: [whisper.cpp CLI](https://github.com/ggml-org/whisper.cpp/blob/v1.9.4/examples/cli/README.md), [official model repository](https://huggingface.co/ggerganov/whisper.cpp), [FFmpeg legal guidance](https://ffmpeg.org/legal.html), [FFmpeg downloads](https://ffmpeg.org/download.html), [MSYS2 build action](https://github.com/msys2/setup-msys2).
+
+Run `npm run test:server` and `npm run test:desktop` for bounded fault-path and archive tests. `ASTERLOOM_MEDIA_INTEGRATION=1 node --test server/media.integration.test.mjs` uses real MP3/audio-MP4/video-MP4 files and actual local Base/Small inference. Native smoke additionally checks a raw 24 MiB upload through the Electron protocol, Range/HEAD, transcription, archive IPC and byte-identical media playback after exporting a new game. Real native operating-system results are release evidence, not inferred from byte inspection.

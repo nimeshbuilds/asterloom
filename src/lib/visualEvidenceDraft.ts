@@ -1,0 +1,10 @@
+import type { OcrLanguage, VisualCapture } from './visualEvidence';
+export interface VisualCaptureDraft {version:1;parentRevision:string;language:OcrLanguage;count:number;times:string;captures:VisualCapture[]}
+const pending=new Map<string,Promise<void>>();
+const DB='asterloom-visual-capture-drafts',STORE='drafts';
+async function database():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const request=indexedDB.open(DB,1);request.onupgradeneeded=()=>request.result.createObjectStore(STORE);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(new Error('The browser could not open local capture drafts.'));});}
+export function visualDraftKey(notebookId:string|undefined,sourceId:string){return `${notebookId??'unsaved-notebook'}:${sourceId}`;}
+export async function readVisualDraft(key:string):Promise<VisualCaptureDraft|null>{await pending.get(key);const db=await database();try{return await new Promise((resolve,reject)=>{const request=db.transaction(STORE,'readonly').objectStore(STORE).get(key);request.onsuccess=()=>{const v=request.result;resolve(v?.version===1&&typeof v.parentRevision==='string'&&Array.isArray(v.captures)&&v.captures.length<=24?v:null);};request.onerror=()=>reject(new Error('The saved capture draft could not be read.'));});}finally{db.close();}}
+async function writeOne(key:string,draft:VisualCaptureDraft|null):Promise<void>{const db=await database();try{await new Promise<void>((resolve,reject)=>{const transaction=db.transaction(STORE,'readwrite'),store=transaction.objectStore(STORE);if(draft)store.put(draft,key);else store.delete(key);transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(new Error('Capture drafts could not be saved. Free browser storage, then retry.'));transaction.onabort=()=>reject(new Error('Capture draft saving was interrupted.'));});}finally{db.close();}}
+
+export function writeVisualDraft(key:string,draft:VisualCaptureDraft|null):Promise<void>{const task=(pending.get(key)??Promise.resolve()).catch(()=>{}).then(()=>writeOne(key,draft));pending.set(key,task);void task.finally(()=>{if(pending.get(key)===task)pending.delete(key);}).catch(()=>{});return task;}

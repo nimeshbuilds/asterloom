@@ -1,6 +1,7 @@
 import type { LearningCard, Notebook, Progress } from '../types';
 import type { StructuredActivity } from './structuredEngine';
 import { canScoreRecallCard } from './utils';
+import {sourceMediaIdentity} from './mediaAssets';
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
@@ -18,7 +19,18 @@ function activityModel(activity: StructuredActivity): string {
   return stable(model);
 }
 function currentActivityEvidence(activity: StructuredActivity, notebook: Notebook): boolean {
-  return activity.sourceRefs.every(reference => Boolean(reference.evidence.trim()) && notebook.sources.some(source => source.id === reference.sourceId && source.text.includes(reference.evidence)));
+  return activity.sourceRefs.every(reference => Boolean(reference.evidence.trim()) && notebook.sources.some(source => source.id === reference.sourceId && source.status === 'ready' && source.text.includes(reference.evidence)));
+}
+
+function mediaEvidence(ids: string[], notebook: Notebook): string {
+  const sourceIds=new Set(ids);
+  for(const id of ids){const source=notebook.sources.find(item=>item.id===id);if(source?.transcript)sourceIds.add(source.transcript.mediaSourceId);if(source?.visualEvidence)sourceIds.add(source.visualEvidence.parentSourceId);}
+  return stable([...sourceIds].sort().map(id=>[id,sourceMediaIdentity(notebook.sources.find(source=>source.id===id))]));
+}
+function activityMediaEvidence(activity:StructuredActivity,notebook:Notebook):string {
+  const ids=new Set(activity.sourceRefs.map(reference=>reference.sourceId));
+  const visit=(value:unknown,key='',depth=0)=>{if(depth>20)return;if(/sourceId$/i.test(key)&&typeof value==='string')ids.add(value);if(/sourceIds$/i.test(key)&&Array.isArray(value))for(const id of value)if(typeof id==='string')ids.add(id);if(Array.isArray(value))value.forEach(child=>visit(child,'',depth+1));else if(value&&typeof value==='object')for(const [childKey,child] of Object.entries(value))visit(child,childKey,depth+1);};
+  visit(activity);return mediaEvidence([...ids],notebook);
 }
 
 type SavedActivity = NonNullable<Progress['structured']>[string];
@@ -39,7 +51,7 @@ export function reconcileReviewEligibility(notebook: Notebook, progress: Progres
   const eligible = new Set(notebook.cards.filter(card => canScoreRecallCard(card, notebook.sources)).map(card => card.id));
   const cards = Object.fromEntries(Object.entries(progress.cards).filter(([id]) => eligible.has(id)));
   const completedCardIds = progress.completedCardIds.filter(id => eligible.has(id));
-  const drafts = new Set((notebook.activities ?? []).filter(activity => activity.reviewStatus === 'needs-review').map(activity => activity.id));
+  const drafts = new Set((notebook.activities ?? []).filter(activity => activity.reviewStatus === 'needs-review' || !currentActivityEvidence(activity, notebook)).map(activity => activity.id));
   let structuredChanged = false;
   const structured = progress.structured === undefined ? undefined : Object.fromEntries(Object.entries(progress.structured).map(([id, entry]) => {
     const next = drafts.has(id) ? withoutDraftCredit(entry) : entry;
@@ -65,11 +77,11 @@ export function reconcileNotebookProgress(previous: Notebook, next: Notebook, pr
   const currentActivities = new Map((next.activities ?? []).map(activity => [activity.id, activity]));
   const cardUnchanged = (id: string) => {
     const before = priorCards.get(id), after = currentCards.get(id);
-    return !!before && !!after && canScoreRecallCard(after, next.sources) && cardModel(before) === cardModel(after);
+    return !!before && !!after && canScoreRecallCard(after, next.sources) && cardModel(before) === cardModel(after) && mediaEvidence([before.sourceId],previous) === mediaEvidence([after.sourceId],next);
   };
   const activityUnchanged = (id: string) => {
     const before = priorActivities.get(id), after = currentActivities.get(id);
-    return !!before && !!after && !(before.reviewStatus === 'reviewed' && after.reviewStatus === 'needs-review') && currentActivityEvidence(after, next) && activityModel(before) === activityModel(after);
+    return !!before && !!after && !(before.reviewStatus === 'reviewed' && after.reviewStatus === 'needs-review') && currentActivityEvidence(after, next) && activityModel(before) === activityModel(after) && activityMediaEvidence(before,previous) === activityMediaEvidence(after,next);
   };
   const cards = Object.fromEntries(Object.entries(progress.cards).filter(([id]) => cardUnchanged(id)));
   const completedCardIds = progress.completedCardIds.filter(cardUnchanged);

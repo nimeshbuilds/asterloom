@@ -1,0 +1,15 @@
+import {readFile,mkdir,writeFile,rename} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),require=createRequire(path.join(root,'package.json'));
+const lock=JSON.parse(await readFile(path.join(root,'scripts/ocr-assets.lock.json'),'utf8'));
+const packages=new Map();
+async function packageRoot(name){if(packages.has(name))return packages.get(name);let dir=path.dirname(require.resolve(name));for(let i=0;i<6;i++){try{const metadata=JSON.parse(await readFile(path.join(dir,'package.json'),'utf8'));if(metadata.name===name){const expected=name==='tesseract.js'?lock.tesseractVersion:name==='tesseract.js-core'?lock.coreVersion:lock.dataVersion;if(metadata.version!==expected)throw new Error(`OCR package ${name} must be exactly ${expected}.`);packages.set(name,dir);return dir;}}catch(error){if(String(error).includes('must be exactly'))throw error;}dir=path.dirname(dir);}throw new Error(`Cannot locate OCR dependency ${name}.`);}
+async function put(destination,bytes,pin){if(bytes.length!==pin.size||createHash('sha256').update(bytes).digest('hex')!==pin.sha256)throw new Error(`OCR asset checksum mismatch: ${destination}. Review dependency changes and update the lock deliberately.`);const target=path.join(root,'public/ocr',destination);await mkdir(path.dirname(target),{recursive:true});await writeFile(target+'.partial',bytes);await rename(target+'.partial',target);}
+for(const file of lock.files)await put(file.destination,await readFile(path.join(await packageRoot(file.package),file.source)),file);
+await put('LICENSE-DATA.txt',await readFile(path.join(root,lock.dataLicense.path)),lock.dataLicense);
+await writeFile(path.join(root,'public/ocr/manifest.json'),JSON.stringify(lock,null,2)+'\n');
+await writeFile(path.join(root,'public/ocr/NOTICE.txt'),`Asterloom local optical character recognition\n\nTesseract.js ${lock.tesseractVersion}: https://github.com/naptha/tesseract.js (Apache-2.0).\nTesseract.js-core ${lock.coreVersion}: https://github.com/naptha/tesseract.js-core (Apache-2.0).\nWorker dependencies: worker.min.js.LICENSE.txt.\n\nEnglish, Spanish, French and German trained data from https://github.com/naptha/tessdata, package version ${lock.dataVersion}, ${lock.dataFlavor} variant. Trained data Apache-2.0 license accompanies this bundle; npm packaging declares MIT.\n\nThe six embedded-WASM core variants and four language packs are pinned by SHA-256. Preparation uses installed dependencies only: no runtime CDN fallback or source uploads.\nOCR recognizes visible text; it does not understand diagrams or establish factual correctness. Author review is required before recognized text becomes learning evidence. This bundle is an authoring dependency; exported games can play without OCR.\n`);
+console.log(`Verified local OCR bundle: Tesseract ${lock.tesseractVersion}, all embedded-WASM cores, four languages, licenses. No downloads.`);

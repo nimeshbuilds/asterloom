@@ -175,7 +175,7 @@ export function evaluateRule(rule: Rule, context: Record<string, Primitive>): bo
 }
 
 /** Optional sources enforce exact evidence provenance. Correctness still needs author review. */
-export function validateActivity(input: unknown, sources?: Pick<Source, 'id' | 'text'>[]): ActivityValidation {
+export function validateActivity(input: unknown, sources?: (Pick<Source, 'id' | 'text'> & Partial<Pick<Source, 'status'>>)[]): ActivityValidation {
   const errors: string[] = [];
   if (!plain(input)) return { success: false, errors: ['activity: expected a plain object'] };
   if (input.version !== 1) errors.push('version: unsupported activity version');
@@ -193,6 +193,7 @@ export function validateActivity(input: unknown, sources?: Pick<Source, 'id' | '
     if (sources) {
       const source = sources.find(item => item.id === ref.sourceId);
       if (!source || typeof ref.evidence !== 'string' || !source.text.includes(ref.evidence)) errors.push(`sourceRefs[${index}]: evidence must occur exactly in the named source`);
+      if (source && source.status !== undefined && source.status !== 'ready' && input.reviewStatus === 'reviewed') errors.push(`sourceRefs[${index}]: review the readable source before approving its learning activity`);
     }
   });
   switch (input.kind) {
@@ -299,7 +300,7 @@ export function validateActivity(input: unknown, sources?: Pick<Source, 'id' | '
     case 'data': errors.push(...validateDataFields(input)); break;
     case 'media':
       errors.push(...validateMediaFields(input));
-      if (sources) { const recording = sources.find(s => s.id === input.mediaSourceId) as Partial<Source> | undefined; if (!recording || typeof recording.dataUrl !== 'string' || !/^data:(?:audio|video)\/[a-z0-9.+-]+;base64,/i.test(recording.dataUrl)) errors.push('mediaSourceId: attach the audio/video recording for offline playback'); }
+      if (sources) { const recording = sources.find(s => s.id === input.mediaSourceId) as Partial<Source> | undefined; if (!recording || !(typeof recording.dataUrl === 'string' && /^data:(?:audio|video)\/[a-z0-9.+-]+;base64,/i.test(recording.dataUrl) || recording.asset && /^[a-f0-9]{64}$/.test(recording.asset.id) && recording.asset.id === recording.asset.sha256 && /^(?:audio|video)\//.test(recording.asset.mime))) errors.push('mediaSourceId: attach the audio/video recording for offline playback'); }
       break;
     case 'scenario': errors.push(...validateScenarioFields(input)); break;
     case 'rule-switch': errors.push(...validateRuleSwitchFields(input)); break;

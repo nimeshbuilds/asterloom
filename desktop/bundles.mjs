@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {parsePackage,serializePackage} from './generated/package-validation.mjs';
 import {isUniversalMacApp} from './architectures.mjs';
+import {sha256File,atomicJson} from '../server/media-assets.mjs';
 
 export const TARGETS={mac:{platform:'darwin',arch:'universal',directory:'Asterloom-darwin-universal'},windows:{platform:'win32',arch:'x64',directory:'Asterloom-win32-x64'}};
 export function normalizeTarget(target){if(['mac','mac-intel','mac-arm64','mac-universal'].includes(target))return 'mac';if(target==='windows')return target;throw new Error('Choose Mac or Windows as the export platform.');}
@@ -40,8 +41,10 @@ async function uniqueDestination(directory,name,target){
 function run(binary,args){return new Promise((resolve,reject)=>{const child=spawn(binary,args,{stdio:['ignore','pipe','pipe']});let error='';child.stderr.on('data',chunk=>{if(error.length<4000)error+=chunk.toString();});child.stdout.resume();child.on('error',reject);child.on('exit',code=>code===0?resolve():reject(new Error(`Application signing failed (${code}). ${error.trim()}`)));});}
 
 /** Copies a trusted runtime template and embeds exactly one validated notebook, never local state. */
-export async function createGameBundle({packageText,target,template,destination,sign=true}){
+export async function createGameBundle({packageText,target,template,destination,sign=true,resolveAsset}){
   const game=readGame(packageText);
+  const selectedAssets=[...new Map(game.notebook.sources.filter(s=>s.asset).map(s=>[s.asset.id,s.asset])).values()];
+  const media=[];for(const asset of selectedAssets){if(!resolveAsset)throw new Error('The original recording must be available in the local media library before export.');const item=await resolveAsset(asset);if(await sha256File(item.path)!==asset.sha256)throw new Error('An original recording failed its integrity check. Re-import it before exporting.');media.push(item);}
   target=normalizeTarget(target);
   const source=await fs.realpath(template);const destinationRoot=await fs.realpath(destination);
   if(destinationRoot===source||destinationRoot.startsWith(source+path.sep))throw new Error('Choose an export folder outside the application itself.');
@@ -58,8 +61,10 @@ export async function createGameBundle({packageText,target,template,destination,
   const stagedOutput=path.join(staging,path.basename(output));
   let publication;
   try{
-    await fs.cp(source,stagedOutput,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true,mode:fsConstants.COPYFILE_FICLONE});
+    const previousAssets=path.join(resourcesDirectory(source,target),'media-assets');
+    await fs.cp(source,stagedOutput,{recursive:true,errorOnExist:true,force:false,verbatimSymlinks:true,mode:fsConstants.COPYFILE_FICLONE,filter:entry=>entry!==previousAssets&&!entry.startsWith(previousAssets+path.sep)});
     const resources=resourcesDirectory(stagedOutput,target);await fs.mkdir(resources,{recursive:true});
+    if(media.length){const assetDir=path.join(resources,'media-assets');await fs.mkdir(assetDir);for(const item of media){const targetFile=path.join(assetDir,item.asset.id);await fs.copyFile(item.path,targetFile,fsConstants.COPYFILE_FICLONE);if(await sha256File(targetFile)!==item.asset.sha256)throw new Error('A recording changed during export. Retry with the original recording.');await atomicJson(targetFile+'.json',item.asset);}}
     const license=path.join(resources,'app','LICENSE');
     if(await existing(license))await fs.copyFile(license,path.join(resources,'ASTERLOOM-LICENSE.txt'));
     await fs.writeFile(path.join(resources,'game.learnpack'),game.packageText,'utf8');

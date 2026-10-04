@@ -61,6 +61,19 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const health=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(health.ok,true);assert.equal(health.capabilities.pdf,true);
     const pdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
     assert.equal(pdf.status,200,JSON.stringify(pdf.body));assert.match(pdf.body.source.content,/DNS resolves names to addresses/);assert.equal(pdf.body.source.metadata.pages,1);
+    assert.equal(health.capabilities.mediaAssets,true);assert.equal(health.capabilities.automaticTranscription,true);
+    // This exceeds the legacy JSON import limit and must cross the native protocol as a raw stream.
+    const largeAsset=await page.evaluate(async()=>{const bytes=new Uint8Array(24*1024*1024);bytes.set(new TextEncoder().encode('RIFF'),0);new DataView(bytes.buffer).setUint32(4,bytes.length-8,true);bytes.set(new TextEncoder().encode('WAVE'),8);const upload=await fetch('/api/media/assets',{method:'POST',headers:{'X-Media-Name':'large-stream.wav','Content-Type':'audio/wav'},body:new Blob([bytes])});const body=await upload.json();if(!upload.ok)throw new Error(body.error);const head=await fetch('/api/media/assets/'+body.asset.id,{method:'HEAD'});const range=await fetch('/api/media/assets/'+body.asset.id,{headers:{Range:'bytes=0-11'}});return {asset:body.asset,length:head.headers.get('content-length'),rangeStatus:range.status,header:[...new Uint8Array(await range.arrayBuffer())]};});
+    assert.equal(largeAsset.asset.size,24*1024*1024);assert.equal(Number(largeAsset.length),largeAsset.asset.size);assert.equal(largeAsset.rangeStatus,206);assert.equal(Buffer.from(largeAsset.header).toString('ascii',0,4),'RIFF');
+    const mediaBytes=await fs.readFile(path.join(ROOT,'server','fixtures','media','jfk.mp3'));
+    const speechAsset=await page.evaluate(async bytes=>{const response=await fetch('/api/media/assets',{method:'POST',headers:{'X-Media-Name':'speech.mp3','Content-Type':'audio/mpeg'},body:new Uint8Array(bytes)});return (await response.json()).asset;},[...mediaBytes]);
+    assert.ok(speechAsset?.id);const mediaNotebook=structuredClone(fixtureNotebook);mediaNotebook.sources.push({id:'native-speech',title:'Original speech recording',kind:'audio',text:'',status:'needs-transcript',addedAt:'2026-10-03T12:00:00.000Z',asset:speechAsset});const picture=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=240;const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,1000,240);ctx.fillStyle='black';ctx.font='56px Arial';ctx.fillText('NATIVE EVIDENCE',40,90);ctx.fillText('Visible words stay on this device.',40,170);return canvas.toDataURL('image/png');});mediaNotebook.sources.push({id:'native-ocr-picture',title:'Native OCR picture',kind:'image',text:'',mime:'image/png',dataUrl:picture,status:'needs-transcript',addedAt:'2026-10-03T12:00:00.000Z'});const mediaPackage=JSON.stringify({...JSON.parse(fixturePackage),notebook:mediaNotebook});
+    const speechJob=await page.evaluate(async assetId=>(await(await fetch('/api/media/transcriptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assetId,model:'base',language:'en'})})).json()).job,speechAsset.id);
+    assert.ok(speechJob?.id);await page.waitForFunction(async id=>{const {job}=await(await fetch('/api/media/transcriptions/'+id)).json();if(job.state==='error')throw new Error(JSON.stringify(job.error));return job.state==='complete';},speechJob.id,{timeout:120000});
+    const transcript=await page.evaluate(async id=>(await(await fetch('/api/media/transcriptions/'+id)).json()).job.result,speechJob.id);assert.match(transcript.text,/what your country can do for you/i);assert.equal(transcript.mediaRevision,speechAsset.id);features.localTranscription={engine:transcript.engine,model:transcript.model,segments:transcript.segments.length};
+    const archivePath=path.join(directory,'speech-notebook.learnzip');await application.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},archivePath);
+    const archived=await page.evaluate(text=>window.asterloomDesktop.exportNotebookArchive(text),mediaPackage);assert.equal(archived.assetCount,1,JSON.stringify(archived));
+    await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},archivePath);const restoredArchive=await page.evaluate(()=>window.asterloomDesktop.importNotebookArchive());assert.equal(restoredArchive.assetCount,1,JSON.stringify(restoredArchive));assert.equal(JSON.parse(restoredArchive.packageText).notebook.sources.find(source=>source.id==='native-speech').asset.id,speechAsset.id);
     await page.getByRole('button',{name:'Create a world',exact:true}).last().click();
     await page.getByLabel('Notebook title').fill('Native continuity test');
     // Small Windows runner displays trigger the compact layout, which hides
@@ -71,13 +84,14 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:'Native continuity test',exact:true}).waitFor({timeout:20000});
     await fs.mkdir(path.join(ROOT,'.qa'),{recursive:true});await page.screenshot({path:path.join(ROOT,'.qa','native-studio.png'),animations:'disabled'});
     await application.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});},output);
-    const exported=await page.evaluate(async ({text,target})=>window.asterloomDesktop.exportGame(text,target),{text:fixturePackage,target:nativeTarget});
+    const exported=await page.evaluate(async ({text,target})=>window.asterloomDesktop.exportGame(text,target),{text:mediaPackage,target:nativeTarget});
     assert.ok(exported.path,JSON.stringify(exported));assert.equal(exported.error,undefined);
     await fs.access(path.join(exportedResources(exported.path),'game.learnpack'));
     const embedded=JSON.parse(await fs.readFile(path.join(exportedResources(exported.path),'game.learnpack'),'utf8'));assert.equal(embedded.notebook.id,fixtureNotebook.id);assert.equal(embedded.notebooks,undefined);
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:fixtureNotebook.title,exact:true}).waitFor({timeout:20000});
     const bootstrap=await page.evaluate(()=>({id:window.__ASTERLOOM_NOTEBOOK__?.id,isGame:window.asterloomDesktop?.isExportedGame}));assert.equal(bootstrap.id,fixtureNotebook.id);assert.equal(bootstrap.isGame,true);
+    const bundledSpeech=await page.evaluate(async id=>{const response=await fetch('/api/media/assets/'+id);const bytes=await response.arrayBuffer();return {status:response.status,size:bytes.byteLength,hash:[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(byte=>byte.toString(16).padStart(2,'0')).join('')};},speechAsset.id);assert.equal(bundledSpeech.status,200);assert.equal(bundledSpeech.size,mediaBytes.length);assert.equal(bundledSpeech.hash,speechAsset.sha256);
     const exportedHealth=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(exportedHealth.ok,true);
     const exportedPdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'exported-native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
     assert.equal(exportedPdf.status,200,JSON.stringify(exportedPdf.body));assert.match(exportedPdf.body.source.content,/DNS resolves names to addresses/);
@@ -138,7 +152,13 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.match(await page.locator('.evidence-passages article').first().innerText(),/Evaporation/,'The bundled model must retrieve relevant source evidence beyond exact words');
     features.semanticStatus=await page.locator('.evidence-status').innerText();
     assert.match(features.semanticStatus,/WASM CPU|WebGPU/);
-    assert.deepEqual(remoteRequests,[],'Local semantic authoring and game rendering must not request external network resources');
+    await page.locator('.source-main').filter({hasText:'Native OCR picture'}).click();
+    await page.getByRole('button',{name:'Read text locally',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('textarea[aria-label="Readable learning text"]')?.value.includes('NATIVE EVIDENCE'),{},{timeout:120000});
+    features.localOCR=await page.getByLabel('Readable learning text',{exact:true}).inputValue();assert.match(features.localOCR,/Visible words stay on this device/i);
+    assert.equal(await page.getByRole('checkbox',{name:/I checked this text against the picture/}).isChecked(),false,'OCR output must remain unreviewed');
+    await page.getByRole('button',{name:'Done',exact:true}).click();
+    assert.deepEqual(remoteRequests,[],'Local semantic authoring, OCR and game rendering must not request external network resources');
     features.externalRequests=remoteRequests.length;
     console.log(`Native semantic retrieval: ${features.semanticStatus}`);
     await fs.writeFile(path.join(ROOT,'.qa',`native-features-${actual.platform}-${actual.arch}.json`),JSON.stringify(features,null,2));

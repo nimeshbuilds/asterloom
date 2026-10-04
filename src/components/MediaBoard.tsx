@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { Source } from '../types';
 import { mediaCaptionTrack } from '../lib/mediaEngine';
 import { duckMusic } from '../lib/music';
+import { mediaPlaybackUrl } from '../lib/mediaAssets';
 import type { MediaActivity, MediaResponse } from '../lib/mediaEngine';
 import './extended.css';
 export default function MediaBoard({ activity, response, sources, onChange }: { activity: MediaActivity; response: MediaResponse; sources: Source[]; onChange: (value: MediaResponse) => void }) {
@@ -10,7 +11,7 @@ export default function MediaBoard({ activity, response, sources, onChange }: { 
   currentResponse.current = response;
   const source = sources.find(s => s.id === activity.mediaSourceId), active = activity.checkpoints.find(c => c.id === response.activeCheckpointId) ?? activity.checkpoints[0];
   useEffect(() => () => duckMusic(false), []);
-  const playable = source?.dataUrl && /^data:(?:audio|video)\/[a-z0-9.+-]+;base64,/i.test(source.dataUrl);
+  const playable = mediaPlaybackUrl(source);
   const time = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
   function emit(next: MediaResponse) { currentResponse.current = next; onChange(next); }
   function seek(position: number, checkpointId = response.activeCheckpointId) {
@@ -24,7 +25,7 @@ export default function MediaBoard({ activity, response, sources, onChange }: { 
     if (checkpoint) { emit({ ...current, position, activeCheckpointId: checkpoint.id, visitedCheckpointIds: [...current.visitedCheckpointIds, checkpoint.id] }); media.current.pause(); }
     else if (Math.abs(position - current.position) >= 1 || media.current.paused && Math.abs(position - current.position) > .01) emit({ ...current, position });
   }
-  const props = { controls: true, preload: 'metadata', src: playable ? source!.dataUrl : undefined, ref: (element: HTMLMediaElement | null) => { media.current = element; }, onLoadedMetadata: () => { if (!restored.current && media.current) { media.current.currentTime = Math.min(response.position, Number.isFinite(media.current.duration) ? media.current.duration : activity.duration); restored.current = true; if (Number.isFinite(media.current.duration) && Math.abs(media.current.duration - activity.duration) > 1) setError('The recording length differs from the authored timeline. Ask the creator to review cue and checkpoint times.'); } }, onTimeUpdate: update, onSeeked: () => { manualSeek.current = false; update(); }, onPlay: () => { manualSeek.current = false; duckMusic(true); }, onPause: () => { duckMusic(false); update(); }, onEnded: () => duckMusic(false), onError: () => { manualSeek.current = false; duckMusic(false); setError('This device could not play the attached recording. The transcript and checkpoint responses remain available.'); } };
+  const props = { controls: true, preload: 'metadata', src: playable, ref: (element: HTMLMediaElement | null) => { media.current = element; }, onLoadedMetadata: () => { if (media.current instanceof HTMLVideoElement && media.current.videoWidth === 0) setError('This device can read the recording’s audio but cannot display its video track. You can use the transcript; ask the creator for MP4/H.264 or WebM video.'); if (!restored.current && media.current) { media.current.currentTime = Math.min(response.position, Number.isFinite(media.current.duration) ? media.current.duration : activity.duration); restored.current = true; if (Number.isFinite(media.current.duration) && Math.abs(media.current.duration - activity.duration) > 1) setError('The recording length differs from the authored timeline. Ask the creator to review cue and checkpoint times.'); } }, onTimeUpdate: update, onSeeked: () => { manualSeek.current = false; update(); }, onPlay: () => { manualSeek.current = false; duckMusic(true); }, onPause: () => { duckMusic(false); update(); }, onEnded: () => duckMusic(false), onError: () => { manualSeek.current = false; duckMusic(false); setError('This device could not play the attached recording. The transcript and checkpoint responses remain available.'); } };
   return <div className="media-workbench">{playable ? source?.kind === 'video' || source?.mime?.startsWith('video/') ? <video {...props}><track kind="captions" src={mediaCaptionTrack(activity)} label="Source transcript" default/></video> : <audio {...props}/> : <p role="alert" className="structured-notice warning">Attach the original audio or video file to this source to enable offline playback. The text transcript is available below.</p>}{error && <p role="status">{error}</p>}
     <p className="structured-helper">The recording pauses at new checkpoints. You can revisit any segment or work from the transcript. Position and responses are saved; listening time does not earn points.</p>
     <nav className="media-progress" aria-label="Recording checkpoints">{activity.checkpoints.map((c, i) => <button type="button" key={c.id} aria-current={active.id === c.id} onClick={() => seek(c.at, c.id)}>{i + 1} · {time(c.at)} {response.answers[c.id] ? '✓' : ''}</button>)}</nav>

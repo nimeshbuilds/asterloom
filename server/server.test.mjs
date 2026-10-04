@@ -26,7 +26,7 @@ test('public address policy rejects private, metadata, mapped and documentation 
   assert.equal(isPublicIp('8.8.8.8'),true);assert.equal(isPublicIp('2606:4700:4700::1111'),true);
 });
 test('health truthfully distinguishes text extraction from media transcript assistance',async()=>{
-  const result=await get('/api/health');assert.equal(result.status,200);assert.equal(result.data.capabilities.automaticTranscription,false);assert.equal(result.data.capabilities.formats.mp4,'attachment-needs-transcript');assert.equal(result.data.capabilities.tor.reachabilityVerified,false);
+  const result=await get('/api/health');assert.equal(result.status,200);assert.equal(typeof result.data.capabilities.automaticTranscription,'boolean');assert.equal(result.data.capabilities.mediaAssets,true);assert.equal(result.data.capabilities.formats.mp4,result.data.capabilities.automaticTranscription?'local-transcription':'attachment-needs-transcript');assert.equal(result.data.capabilities.tor.reachabilityVerified,false);
 });
 test('host and browser-origin checks reject rebinding and foreign pages',async()=>{
   const origin=await fetch(base+'/api/health',{headers:{Origin:'https://attacker.example'}});assert.equal(origin.status,403);

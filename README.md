@@ -40,7 +40,8 @@ In the desktop studio, open a notebook → **Export** → choose a platform. The
 - A library of separate learning notebooks, editable source materials and source-linked challenges.
 - TXT, Markdown, copied text, CSV, JSON, SRT/VTT and HTML imports in the browser.
 - Local PDF, DOCX, PPTX, XLSX and EPUB extraction; bounded public-page import with Mozilla Readability, preserved headings/lists/code/tables, access-wall detection, final-URL provenance and downloadable original snapshots.
-- MP3/MP4 and supported media attachments. Supply transcripts/descriptions where automatic extraction is unavailable.
+- Streamed MP3/MP4 and supported recording uploads up to 2 GiB per file in the desktop studio. Original bytes are retained by SHA-256; local Whisper.cpp transcription produces editable timestamps, with managed, verified Base/Small model downloads and offline reuse. Speech jobs support progress, cancel, restart recovery and retry. Machine transcripts and their generated learning activities require author review.
+- Local Tesseract/WASM text recognition for images and up to 24 selected video frames, with English, Spanish, French and German bundled. The picture, raw OCR, corrected text, parent recording and capture timestamp remain linked. Recognition does not interpret diagrams; only explicitly checked text becomes a ready learning source.
 - Deterministic source extraction, exact evidence offsets/revisions, local hybrid lexical + semantic retrieval, evidence-selected objective drafts and author review. Desktop authoring uses the bundled q8 MiniLM encoder through ONNX WASM by default; WebGPU is attempted when supported. Its English-focused similarity estimates select evidence, not authoritative answers. No remote model or API tokens are required. Offline HTML authoring retains lexical retrieval when the native model assets are unavailable.
 - New document and text uploads preserve their original files with SHA-256 checksums. Originals travel with the notebook as downloadable attachments alongside extracted text; earlier notebooks require reimport to add originals.
 - **Seventeen bounded activity engines**: sequences, classification, policy decisions, relationship graphs, budgets, rubrics, diagram labels, worked completion, data investigation, media checkpoints, stateful scenarios, construction, explanation, source-picture exploration, changing-rule sorting, puppet/pretend play and picture build-and-tell. Specialized scenario interfaces include prediction, multi-case planning, role perspectives, dialogue and supplied prompt/output comparison.
@@ -51,8 +52,8 @@ In the desktop studio, open a notebook → **Export** → choose a platform. The
 - A logo/icon system, six overall themes, and 75 authored world compositions with domain objects, age profiles, live state-driven scenes and prepared SVG previews. PixiJS scenes retain accessible DOM controls and a simpler rendering fallback. Recipes share engines and presentation primitives.
 - Ten offline CC0 music recordings, prepared scaffold pairings, volume/mute, optional synthesized fallback and interaction sounds.
 - Durable local notebook/progress storage, interrupted-session recovery and separate progress backups. Structured attempts use transparent spaced-review intervals; assisted, collaborative and caregiver-reviewed work earns no independent-learning credit.
-- Portable `.learnpack` and self-contained HTML exports with create/remix/re-export capability.
-- Private asynchronous challenge rooms, compatible-content fingerprints, persisted results, retry queues and deduplicated standings. Scores are friendly, self-reported competition.
+- Portable `.learnpack` and self-contained HTML exports with create/remix/re-export capability. Compact exports embed recording bytes (20 MiB/file, 48 MiB media total). Large `.learnzip` archives stream the selected notebook and recordings, verify every checksum and reopen in the desktop studio; native app exports also include the selected recordings.
+- Private asynchronous challenge rooms bind to the same source text and recording bytes. Durable per-result outboxes retry in the background after the dialog closes or the app reopens; uncertain acknowledgments do not duplicate scores. Tor reconnect and explicit on/off choices are preserved. Scores are friendly, self-reported competition.
 - Optional excerpt-only game-model drafting and wording refinement using the user's OpenAI, Anthropic, xAI or compatible API endpoint. A copy/paste prompt-and-JSON workflow also works with an existing assistant subscription. API keys remain in session memory. Provider catalogs are fetched dynamically with a manual model-ID fallback. Optional ChatGPT-plan OAuth plumbing uses PKCE, verified identity tokens, scope checks, encrypted desktop credentials and the public Responses API. This distribution leaves subscription sign-in disabled pending provider eligibility/approval; commercial integration is not established merely by having working code. Claude subscription login requires provider approval, and a general Grok subscription integration has not been verified. No CLI or user token scraping is used.
 - Opt-in Tor rooms with a verified bundled runtime, onion-only proxy routing, saved outboxes and restricted peer endpoints. Separate-process and native-renderer peer tests have passed locally; the host must remain open for synchronization.
 
@@ -94,7 +95,7 @@ GitHub Actions runs web/source/service checks and native application export/repl
 - React + TypeScript; DOM/SVG interactions for inspectable, keyboard-accessible activities.
 - Trusted, deterministic engines execute bounded notebook data; imported notebooks never supply arbitrary executable code.
 - Vite builds a self-contained offline browser studio with embedded fonts, art and music.
-- Node local companion handles document import, provider proxy and persistent private rooms.
+- Node local companion handles document import, provider proxy, durable speech jobs, streaming recording assets and persistent private rooms. Native FFmpeg decodes audio; whisper.cpp runs local speech recognition. Bundled Tesseract WASM handles visible text.
 - Electron application packages the same studio and companion, using an isolated renderer and a stable custom origin for local saves.
 - A versioned scaffold schema and structured activity schema extend the catalog through declarative definitions.
 
@@ -102,7 +103,7 @@ GitHub Actions runs web/source/service checks and native application export/repl
 
 - Validate fun, age appropriateness, retention and transfer with representative learners.
 - Expand authoring convenience and professionally reviewed domain fixture libraries. Bounded prepared models do not establish the behavior of live cloud platforms, professional systems or arbitrary source content.
-- Ship validated local audio transcription/OCR models if automatic media understanding is advertised.
+- Evaluate transcription/OCR accuracy with representative accents, languages, noise, layouts and diagrams; the shipped models recognize speech/text and do not establish subject-matter correctness.
 - Broaden Tor reliability testing across real networks and platforms, and finish redistribution review for every bundled dependency.
 - Complete signing/notarization, distribution/update processes, support and any paid checkout offering.
 - Test accessibility with assistive technology and broaden browser/OS/device coverage.

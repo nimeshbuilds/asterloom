@@ -17,5 +17,6 @@ desktop/vendor/
 
 # Reproducible, hash-verified local retrieval payloads
 public/retrieval/
+public/ocr/
 
 /node_modules
