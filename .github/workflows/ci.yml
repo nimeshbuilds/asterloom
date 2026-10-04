@@ -43,6 +43,10 @@ jobs:
           npx tsx scripts/build-laboratories.ts
       - name: Install the browser and its system dependencies
         run: npx playwright install --with-deps chromium
+      - name: Verify delayed transcription polling in an actual browser
+        run: node --test --test-name-pattern="actual Chromium" desktop/transcription-poll.test.mjs
+        env:
+          ASTERLOOM_BROWSER_POLL_TEST: '1'
       - name: Exercise creation, offline export, progress, and multiplayer
         run: npm run test:e2e
       - name: Keep browser diagnostics
@@ -108,17 +112,25 @@ jobs:
       - name: Download verified Tor runtime
         run: node desktop/download-tor.mjs --host
       - name: Package the Windows development application
+        id: native_package
         run: npm run package:desktop -- --platform=windows
       - name: Test actual Windows creation, restart, game export, play, and remix
+        id: native_smoke
         run: node --test desktop/native-smoke.test.mjs
         env:
           ASTERLOOM_NATIVE_SMOKE: '1'
           ASTERLOOM_MEDIA_MODELS: ${{ github.workspace }}/.qa/media-build/models
           ASTERLOOM_SMOKE_APP: ${{ github.workspace }}/release/desktop/Asterloom-win32-x64/Asterloom.exe
-      - name: Archive the verified Windows bundle
+      # Retain a packaged candidate for diagnosis; a failed smoke still fails this job.
+      - name: Archive the packaged unsigned Windows bundle
+        id: native_archive
+        if: ${{ always() && steps.native_package.outcome == 'success' }}
         shell: pwsh
-        run: Compress-Archive -Path release/desktop/Asterloom-win32-x64 -DestinationPath release/Asterloom-windows-x64.zip
-      - name: Keep the unsigned Windows development bundle
+        run: |
+          "Packaged unsigned Windows candidate. Native smoke outcome: ${{ steps.native_smoke.outcome }}. This artifact is diagnostic until the complete native job passes." >> $env:GITHUB_STEP_SUMMARY
+          Compress-Archive -Path release/desktop/Asterloom-win32-x64 -DestinationPath release/Asterloom-windows-x64.zip
+      - name: Keep the packaged unsigned Windows development bundle
+        if: ${{ always() && steps.native_package.outcome == 'success' && steps.native_archive.outcome == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: windows-x64-development-unsigned
@@ -165,21 +177,28 @@ jobs:
       - name: Download verified Tor runtime
         run: node desktop/download-tor.mjs --platform=mac
       - name: Package one Universal Mac application
+        id: native_package
         shell: bash
         run: |
           npm run package:desktop -- --platform=mac
           echo "ASTERLOOM_SMOKE_APP=$PWD/release/desktop/Asterloom-darwin-universal/Asterloom.app/Contents/MacOS/Asterloom" >> "$GITHUB_ENV"
           echo "ASTERLOOM_SMOKE_ARCH=$(node -p 'process.arch')" >> "$GITHUB_ENV"
       - name: Test actual macOS creation, restart, game export, play, and remix
+        id: native_smoke
         run: node --test desktop/native-smoke.test.mjs
         env:
           ASTERLOOM_NATIVE_SMOKE: '1'
           ASTERLOOM_MEDIA_MODELS: ${{ github.workspace }}/.qa/media-build/models
-      - name: Archive the application with executable permissions intact
+      # Retain a packaged candidate for diagnosis; a failed smoke still fails this job.
+      - name: Archive the packaged unsigned Mac bundle with executable permissions intact
+        id: native_archive
+        if: ${{ always() && steps.native_package.outcome == 'success' }}
         shell: bash
         run: |
+          echo "Packaged unsigned Mac candidate. Native smoke outcome: ${{ steps.native_smoke.outcome }}. This artifact is diagnostic until the complete native job passes." >> "$GITHUB_STEP_SUMMARY"
           tar -czf release/Asterloom-macos-universal.tar.gz -C release/desktop Asterloom-darwin-universal
-      - name: Keep the unsigned macOS development bundle
+      - name: Keep the packaged unsigned macOS development bundle
+        if: ${{ always() && steps.native_package.outcome == 'success' && steps.native_archive.outcome == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: macos-development-unsigned

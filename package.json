@@ -19,7 +19,7 @@
     "package:desktop": "node scripts/package-desktop.mjs",
     "export:desktop": "node scripts/export-desktop.mjs",
     "assets": "tsx scripts/build-assets.tsx",
-    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && node --test desktop/bundles.test.mjs desktop/media-archive.test.mjs desktop/verified-download.test.mjs desktop/tor-verification-keys.test.mjs desktop/media-build-config.test.mjs desktop/copy-native-tree.test.mjs desktop/native-dependencies.test.mjs",
+    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && node --test desktop/bundles.test.mjs desktop/media-archive.test.mjs desktop/verified-download.test.mjs desktop/tor-verification-keys.test.mjs desktop/media-build-config.test.mjs desktop/copy-native-tree.test.mjs desktop/native-dependencies.test.mjs desktop/transcription-poll.test.mjs",
     "prepare:media": "node scripts/prepare-media-runtime.mjs"
   },
   "keywords": [],

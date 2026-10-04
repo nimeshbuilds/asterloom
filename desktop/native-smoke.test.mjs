@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {_electron as electron} from 'playwright';
-import {nativeTestExecutable} from './testing.mjs';
+import {nativeTestExecutable,waitForTranscription} from './testing.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const enabled=process.env.ASTERLOOM_NATIVE_SMOKE==='1';
@@ -69,8 +69,8 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const speechAsset=await page.evaluate(async bytes=>{const response=await fetch('/api/media/assets',{method:'POST',headers:{'X-Media-Name':'speech.mp3','Content-Type':'audio/mpeg'},body:new Uint8Array(bytes)});return (await response.json()).asset;},[...mediaBytes]);
     assert.ok(speechAsset?.id);const mediaNotebook=structuredClone(fixtureNotebook);mediaNotebook.sources.push({id:'native-speech',title:'Original speech recording',kind:'audio',text:'',status:'needs-transcript',addedAt:'2026-10-03T12:00:00.000Z',asset:speechAsset});const picture=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=240;const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,1000,240);ctx.fillStyle='black';ctx.font='56px Arial';ctx.fillText('NATIVE EVIDENCE',40,90);ctx.fillText('Visible words stay on this device.',40,170);return canvas.toDataURL('image/png');});mediaNotebook.sources.push({id:'native-ocr-picture',title:'Native OCR picture',kind:'image',text:'',mime:'image/png',dataUrl:picture,status:'needs-transcript',addedAt:'2026-10-03T12:00:00.000Z'});const mediaPackage=JSON.stringify({...JSON.parse(fixturePackage),notebook:mediaNotebook});
     const speechJob=await page.evaluate(async assetId=>(await(await fetch('/api/media/transcriptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assetId,model:'base',language:'en'})})).json()).job,speechAsset.id);
-    assert.ok(speechJob?.id);await page.waitForFunction(async id=>{const {job}=await(await fetch('/api/media/transcriptions/'+id)).json();if(job.state==='error')throw new Error(JSON.stringify(job.error));return job.state==='complete';},speechJob.id,{timeout:120000});
-    const transcript=await page.evaluate(async id=>(await(await fetch('/api/media/transcriptions/'+id)).json()).job.result,speechJob.id);assert.match(transcript.text,/what your country can do for you/i);assert.equal(transcript.mediaRevision,speechAsset.id);features.localTranscription={engine:transcript.engine,model:transcript.model,segments:transcript.segments.length};
+    assert.ok(speechJob?.id);const completedSpeech=await waitForTranscription(page,speechJob.id);
+    const transcript=completedSpeech.result;assert.match(transcript.text,/what your country can do for you/i);assert.equal(transcript.mediaRevision,speechAsset.id);features.localTranscription={engine:transcript.engine,model:transcript.model,segments:transcript.segments.length};
     const archivePath=path.join(directory,'speech-notebook.learnzip');await application.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},archivePath);
     const archived=await page.evaluate(text=>window.asterloomDesktop.exportNotebookArchive(text),mediaPackage);assert.equal(archived.assetCount,1,JSON.stringify(archived));
     await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},archivePath);const restoredArchive=await page.evaluate(()=>window.asterloomDesktop.importNotebookArchive());assert.equal(restoredArchive.assetCount,1,JSON.stringify(restoredArchive));assert.equal(JSON.parse(restoredArchive.packageText).notebook.sources.find(source=>source.id==='native-speech').asset.id,speechAsset.id);
