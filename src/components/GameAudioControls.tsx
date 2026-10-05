@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Music2, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
-import { getSoundPreferences, setSoundPreferences, getMusicPreferences, setMusicPreferences, getMusicRuntimeStatus, unlockGameAudio, MUSIC_TRACKS } from '../lib/music';
+import { Music2, SkipForward, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { getSoundPreferences, setSoundPreferences, getMusicPreferences, setMusicPreferences, getMusicRuntimeStatus, unlockGameAudio, skipLearningSoundtrack, MUSIC_TRACKS } from '../lib/music';
 import './game-audio.css';
 
 interface Props { music: boolean; onMusicChange: (enabled: boolean) => void; volume: number; onVolumeChange: (volume: number) => void; trackName?: string }
@@ -11,6 +11,7 @@ export default function GameAudioControls({ music, onMusicChange, volume, onVolu
   const [runtime, setRuntime] = useState(getMusicRuntimeStatus);
   useEffect(() => { const refresh = () => {setSoundtrack(getMusicPreferences());setRuntime(getMusicRuntimeStatus());};window.addEventListener('asterloom:music-preferences',refresh);window.addEventListener('asterloom:music-status',refresh);return()=>{window.removeEventListener('asterloom:music-preferences',refresh);window.removeEventListener('asterloom:music-status',refresh);};},[]);
   const currentTrack=MUSIC_TRACKS.find(item=>item.id===(runtime.trackId??runtime.selection?.trackId))?.name??trackName;
+  const playbackLabel=!music?'Ready':volume===0?'Music muted':runtime.state==='playing'?'Playing':runtime.state==='suspended'?'Paused':runtime.state==='unavailable'?'Audio unavailable':'Ready';
   useEffect(() => { const refresh = () => setSound(getSoundPreferences()); window.addEventListener('asterloom:sound-preferences', refresh); window.addEventListener('storage', refresh); return () => { window.removeEventListener('asterloom:sound-preferences', refresh); window.removeEventListener('storage', refresh); }; }, []);
   function update(patch: Partial<typeof sound>) { setSoundPreferences(patch); setSound(getSoundPreferences()); }
   const active = music || sound.enabled;
@@ -21,11 +22,14 @@ export default function GameAudioControls({ music, onMusicChange, volume, onVolu
     <details className="game-audio-mixer"><summary aria-label="Adjust game audio"><SlidersHorizontal size={16}/></summary>
       <div className="game-audio-panel"><strong>Your sound mix</strong><p>Quiet while you read. More movement when you explore.</p>
         <label><input type="checkbox" checked={music} onChange={event => {if(event.target.checked)unlockGameAudio();onMusicChange(event.target.checked);}}/><Music2 size={15}/> Background score</label>
-        {currentTrack && <small className="game-audio-now">{music?'Playing':'Ready'} · {currentTrack}</small>}
+        {currentTrack && <small className="game-audio-now" role="status">{playbackLabel} · {currentTrack}</small>}
+        {music&&runtime.state==='suspended'&&<button type="button" className="game-audio-next" onClick={unlockGameAudio}>Resume audio</button>}
+        {music&&runtime.state==='unavailable'&&<small>{runtime.reason??'Audio could not start. Your game and progress still work.'}</small>}
+        {music&&soundtrack.mode==='adaptive'&&(runtime.selection?.playlist?.length??0)>1&&<button type="button" className="game-audio-next" disabled={runtime.state!=='playing'} onClick={()=>{skipLearningSoundtrack();}}><SkipForward size={14}/>Next track for this game</button>}
         <div className="game-audio-mode" role="group" aria-label="Soundtrack selection"><button type="button" aria-pressed={soundtrack.mode==='adaptive'} onClick={()=>setMusicPreferences({mode:'adaptive'})}>Follow this game</button><button type="button" aria-pressed={soundtrack.mode==='pinned'} onClick={()=>setMusicPreferences({mode:'pinned',trackId:runtime.trackId??runtime.selection?.trackId??soundtrack.trackId})}>Keep this track</button></div>
-        <small>{soundtrack.mode==='adaptive'?'Each chapter gets a score from its game palette.':'Your chosen track follows you. Change it in the music library.'}</small>
+        <small>{soundtrack.mode==='adaptive'?'Music follows this mission and moves between compatible tracks.':'Your chosen track repeats. Choose Follow this game for a changing soundtrack.'}</small>
         <label className="game-audio-level">Music volume<input aria-label="Game music volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={event => onVolumeChange(Number(event.target.value))}/></label>
-        <label><input type="checkbox" checked={sound.enabled} onChange={event => update({ enabled: event.target.checked })}/><Volume2 size={15}/> Quest feedback sounds</label>
+        <label><input type="checkbox" checked={sound.enabled} onChange={event => update({ enabled: event.target.checked })}/><Volume2 size={15}/> Game & Aster sounds</label>
         <label className="game-audio-level">Feedback volume<input aria-label="Quest feedback volume" type="range" min="0" max="1" step="0.01" value={sound.volume} onChange={event => update({ volume: Number(event.target.value) })}/></label>
         <small>Your preference stays on this device.</small>
       </div>

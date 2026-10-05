@@ -6,6 +6,7 @@ import type { LearningCard, Notebook, Progress } from '../types';
 import type { Scaffold } from '../data/scaffolds';
 import { AGE_GROUPS } from '../data/scaffolds';
 import { recordAttempt } from '../lib/storage';
+import {awardPracticeXp,journeyXp,practiceXp} from '../lib/progression';
 import { canScoreRecallCard, normalizeText, seededShuffle, stableHash } from '../lib/utils';
 import WorldPreview from './WorldPreview';
 import {selectExpeditionCards,type CampaignChapter} from '../lib/campaign';
@@ -30,6 +31,9 @@ interface Props {
 interface PlayState {
   lesson?: LessonState;
   resultAssisted?: boolean;
+  resultXp?: number;
+  resultPracticeXp?: number;
+  sessionPracticeXp?: number;
   input: string; selection: string; pairs: Record<string, string>; order: string[];
   submitted: boolean; correct: boolean; assisted: boolean; figures: boolean; hint: boolean; evidence: boolean; reflectionRevealed: boolean;
   correctCount: number; independentCount: number; answeredCount: number; attemptsOnCard: number; confidence: 'guessing' | 'unsure' | 'confident';
@@ -39,6 +43,7 @@ function restoreState(raw: Record<string, unknown> | undefined): PlayState {
   const value = raw ?? {}; const empty = initialState();
   return { ...empty,
     ...(typeof value.resultAssisted==='boolean'?{resultAssisted:value.resultAssisted}:{}),
+    ...Object.fromEntries(['resultXp','resultPracticeXp','sessionPracticeXp'].filter(key=>typeof value[key]==='number'&&Number.isInteger(value[key])&&Number(value[key])>=0&&Number(value[key])<=1_000_000).map(key=>[key,value[key]])),
     input: typeof value.input === 'string' ? value.input.slice(0, 10_000) : '',
     selection: typeof value.selection === 'string' ? value.selection : '',
     pairs: value.pairs && typeof value.pairs === 'object' && !Array.isArray(value.pairs) ? Object.fromEntries(Object.entries(value.pairs).filter(([, answer]) => typeof answer === 'string')) : {},
@@ -95,12 +100,16 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
   const [savingCritical, setSavingCritical] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [writeFailed, setWriteFailed] = useState(false);
+  const [reactionEvent,setReactionEvent] = useState(0);
+  const freshCompletion = useRef(false);
   type Transition = { next: PlayState; nextIndex: number; progress: Progress; kind: 'answer' | 'advance' | 'exit' | 'lesson' };
   const pendingTransition = useRef<Transition | null>(null);
   const criticalInFlight = useRef(false);
   const initialized = useRef(false);
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const ownedSpeech=useRef<SpeechSynthesisUtterance|null>(null);
+  function stopOwnedSpeech(){const utterance=ownedSpeech.current;if(!utterance)return;ownedSpeech.current=null;utterance.onstart=null;utterance.onend=null;utterance.onerror=null;window.speechSynthesis.cancel();duckMusic(false);}
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false;stopOwnedSpeech(); }; }, []);
   const locked = savingCritical || pendingTransition.current !== null;
   const completed = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -146,7 +155,8 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
       pendingTransition.current = null;
       if(operation.kind==='lesson')gameActionFeedback(lessonActionCue(currentState.current.lesson,operation.next.lesson),scaffold.id,notebook.ageGroup);
       currentState.current = operation.next; setState(operation.next); setIndex(operation.nextIndex);
-      if (operation.kind === 'answer') musicFeedback(operation.next.correct ? 'success' : 'try-again', scaffold.id, notebook.ageGroup);
+      if (operation.kind === 'answer') {setReactionEvent(event=>event+1);musicFeedback(operation.next.correct ? 'success' : 'try-again', scaffold.id, notebook.ageGroup);}
+      if (operation.kind === 'advance') {stopOwnedSpeech();setReactionEvent(0);if(operation.nextIndex>=cards.length&&cards.length)freshCompletion.current=true;}
       if (operation.kind === 'advance') window.setTimeout(() => heading.current?.focus(), 30);
       if (operation.kind === 'exit') onExit();
     } else setSaveError('Your progress has not been saved yet. Retry the same save before continuing; your answer will not be counted twice.');
@@ -180,16 +190,18 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
     return () => window.clearInterval(timer);
   }, [isTimed, done, session.startedAt]);
   useEffect(() => {
-    if (sessionIsCurrent && done && cards.length && !completed.current) { completed.current = true; musicFeedback('complete', scaffold.id, notebook.ageGroup); onComplete?.(state.independentCount, cards.length); }
+    if (sessionIsCurrent && done && cards.length && freshCompletion.current && !completed.current) { completed.current = true; musicFeedback('complete', scaffold.id, notebook.ageGroup); onComplete?.(state.independentCount, cards.length); }
   }, [done, sessionIsCurrent, cards.length, state.independentCount]);
 
-  function submit(correct: boolean) {
+  async function submit(correct: boolean) {
     if (!card || currentState.current.submitted || pendingTransition.current || criticalInFlight.current) return;
     const state = currentState.current;
     if (!sessionIsCurrent || !canScoreRecallCard(card, notebook.sources)) { onError('This challenge needs author review or its source evidence changed. Review it in the studio before scored play.'); return; }
     if (!lessonReady(lessonPlan, state.lesson)) { onError('Complete the source lesson and guided practice before starting this quest.'); return; }
+    criticalInFlight.current=true;setSavingCritical(true);
+    const priorProgress=latestProgress.current;
     const assisted = state.assisted || state.hint || state.evidence || scaffold.family === 'explain' || lessonQuestSupport(lessonPlan,state.lesson).assisted;
-    let updated = recordAttempt(latestProgress.current, card, correct, assisted ? 'guessing' : state.confidence);
+    let updated = recordAttempt(priorProgress, card, correct, assisted ? 'guessing' : state.confidence);
     if (assisted) {
       // Supported practice and self-assessment must not award independent-recall XP or advance intervals.
       const previous = latestProgress.current.cards[card.id];
@@ -201,10 +213,19 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
       updated.cards[card.id] = { ...updated.cards[card.id], correct: previous?.correct ?? 0, lastCorrect: previous?.lastCorrect ?? false, successfulReviews: previous?.successfulReviews ?? 0, intervalDays: previous?.intervalDays ?? 0, dueAt: previous?.dueAt ?? new Date().toISOString() };
     }
     if (scaffold.family === 'explain' && state.input.trim()) updated.journal = [...updated.journal, { id: `reflection-${Date.now()}`, text: state.input.trim(), cardId: card.id, at: new Date().toISOString() }].slice(-2000);
-    const next = { ...state, submitted: true, correct, resultAssisted:assisted, correctCount: state.correctCount + (correct ? 1 : 0), independentCount: state.independentCount + (correct && !assisted ? 1 : 0), answeredCount: state.answeredCount + (state.attemptsOnCard === 0 ? 1 : 0), attemptsOnCard:state.attemptsOnCard+1 };
-    transition(next, index, updated, 'answer');
+    try {
+      const legacySucceeded=!priorProgress.practice&&(priorProgress.attempts.some(attempt=>attempt.cardId===card.id&&attempt.correct)||scaffold.family==='explain'&&priorProgress.journal.some(entry=>entry.cardId===card.id));
+      const rewarded=await awardPracticeXp(priorProgress,notebook,{kind:'card',card},assisted&&(correct||scaffold.family==='explain'),new Date(),legacySucceeded);
+      if(rewarded.practice)updated={...updated,practice:rewarded.practice};
+      if(!mounted.current)return;
+      const gainedPractice=practiceXp(updated)-practiceXp(priorProgress);
+      const next = { ...state, submitted: true, correct, resultAssisted:assisted,resultXp:journeyXp(updated)-journeyXp(priorProgress),resultPracticeXp:gainedPractice,sessionPracticeXp:(state.sessionPracticeXp??0)+gainedPractice, correctCount: state.correctCount + (correct ? 1 : 0), independentCount: state.independentCount + (correct && !assisted ? 1 : 0), answeredCount: state.answeredCount + (state.attemptsOnCard === 0 ? 1 : 0), attemptsOnCard:state.attemptsOnCard+1 };
+      criticalInFlight.current=false;setSavingCritical(false);
+      transition(next, index, updated, 'answer');
+    } catch(error) {if(mounted.current)onError(`Your result could not be prepared for saving. ${error instanceof Error?error.message:'Try again.'}`);}
+    finally {if(!pendingTransition.current){criticalInFlight.current=false;if(mounted.current)setSavingCritical(false);}}
   }
-  function nextCard() { const state = currentState.current; if (!state.submitted) return; const nextIndex = index + 1; const next = {...initialState(state.correctCount, state.answeredCount, state.independentCount), lesson:state.lesson}; transition(next, nextIndex, latestProgress.current, 'advance'); }
+  function nextCard() { const state = currentState.current; if (!state.submitted) return; const nextIndex = index + 1; const next = {...initialState(state.correctCount, state.answeredCount, state.independentCount), lesson:state.lesson,sessionPracticeXp:state.sessionPracticeXp}; transition(next, nextIndex, latestProgress.current, 'advance'); }
   function retryCard() {
     const prior=currentState.current;if(!prior.submitted||prior.correct)return;
     transition({...prior,submitted:false,correct:false,selection:'',input:'',pairs:{},order:[],assisted:true,hint:true,evidence:false},index,latestProgress.current,'advance');
@@ -212,29 +233,32 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
   function pause() { transition(currentState.current, index, latestProgress.current, 'exit'); }
   function speak() {
     if (!('speechSynthesis' in window)) { onError('Read-aloud is unavailable in this browser.'); return; }
-    window.speechSynthesis.cancel(); const utterance=new SpeechSynthesisUtterance(card?.prompt ?? scaffold.name); utterance.onstart=()=>duckMusic(true);utterance.onend=()=>duckMusic(false);utterance.onerror=()=>duckMusic(false);window.speechSynthesis.speak(utterance);
+    stopOwnedSpeech();const utterance=new SpeechSynthesisUtterance(card?.prompt ?? scaffold.name);ownedSpeech.current=utterance;
+    utterance.onstart=()=>{if(mounted.current&&ownedSpeech.current===utterance)duckMusic(true);};
+    const finish=()=>{if(ownedSpeech.current!==utterance)return;ownedSpeech.current=null;duckMusic(false);};
+    utterance.onend=finish;utterance.onerror=finish;window.speechSynthesis.speak(utterance);
   }
 
   const sessionTotals=recallSessionTotals(committedProgress,session,card?.id);
   const lastResult=state.submitted?sessionTotals.lastAttempt:undefined;
   const currentSupport=state.assisted||state.hint||state.evidence||scaffold.family==='explain'||lessonQuestSupport(lessonPlan,state.lesson).assisted;
   // Looking at figures after a saved answer must not relabel that answer's original support mode.
-  const companion=<AsterGuide notebook={notebook} progress={committedProgress} learningState={{title:chapter?.title??scaffold.name,phase:savingCritical||savingCount>0?'saving':done?'complete':!lessonUnlocked?'lesson':state.submitted?'feedback':'answering',position:Math.min(cards.length,index+1),total:cards.length,sourceId:card?.sourceId??lessonPlan.passages[0]?.reference.sourceId,supported:state.submitted?(state.resultAssisted??currentSupport):currentSupport,saveFailed:writeFailed||!!saveError,lessonStage:state.lesson?.stage,lessonStep:(state.lesson?.walkthroughStep??0)+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:writeFailed||!!saveError?'Keep this page open and choose Retry saving progress.':!lessonUnlocked?state.lesson?.stage==='mission'?'Read the mission and accept it to begin the lesson.':state.lesson?.stage==='context'?'Read the source context and continue to the walkthrough.':state.lesson?.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':'Prepare your explanation and compare it with the source before entering the challenge.':done?'Return to my notebook to choose another mission.':state.submitted?state.correct?'Continue exploring, or complete this chapter.':'Read the saved feedback, then try again with the source or continue exploring.':'Make your next move, then choose Check my answer.'}} mode={lessonUnlocked?'play':'study'} contextKey={`${session.seed}:${index}:${card?.id??'done'}`} onAssistance={async()=>{if(pendingTransition.current||criticalInFlight.current)return false;const next={...currentState.current,assisted:true};currentState.current=next;setState(next);return await persist(next);}} feedback={lastResult&&state.submitted?{outcome:lastResult.correct?'success':'retry',eventKey:lastResult.id,committed:true,score:{value:state.correctCount,max:state.answeredCount,xp:lastResult.xp}}:undefined}/>;
+  const companion=<AsterGuide notebook={notebook} progress={committedProgress} learningState={{title:chapter?.title??scaffold.name,phase:savingCritical||savingCount>0?'saving':done?'complete':!lessonUnlocked?'lesson':state.submitted?'feedback':'answering',position:Math.min(cards.length,index+1),total:cards.length,sourceId:card?.sourceId??lessonPlan.passages[0]?.reference.sourceId,supported:state.submitted?(state.resultAssisted??currentSupport):currentSupport,saveFailed:writeFailed||!!saveError,lessonStage:state.lesson?.stage,lessonStep:(state.lesson?.walkthroughStep??0)+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:writeFailed||!!saveError?'Keep this page open and choose Retry saving progress.':!lessonUnlocked?state.lesson?.stage==='mission'?'Read the mission and accept it to begin the lesson.':state.lesson?.stage==='context'?'Read the source context and continue to the walkthrough.':state.lesson?.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':'Prepare your explanation and compare it with the source before entering the challenge.':done?'Return to my notebook to choose another mission.':state.submitted?state.correct?'Continue exploring, or complete this chapter.':'Read the saved feedback, then try again with the source or continue exploring.':'Make your next move, then choose Check my answer.'}} mode={lessonUnlocked?'play':'study'} contextKey={`${session.seed}:${index}:${card?.id??'done'}`} onAssistance={async()=>{if(pendingTransition.current||criticalInFlight.current)return false;const next={...currentState.current,assisted:true};currentState.current=next;setState(next);return await persist(next);}} feedback={lastResult&&state.submitted&&reactionEvent>0?{outcome:lastResult.correct?'success':'retry',eventKey:lastResult.id,committed:true,score:{value:state.correctCount,max:state.answeredCount,xp:state.resultXp??lastResult.xp}}:undefined}/>;
   const supportedNow=state.submitted?(state.resultAssisted??(lastResult?.xp?false:currentSupport)):currentSupport;
   const hudMode:GameplayHUDProps['mode']=!lessonUnlocked?'learning':scaffold.family==='explain'?'reflection':supportedNow||done&&state.correctCount>state.independentCount?'practice':'independent';
   const hudProps:GameplayHUDProps={
-    totalXp:committedProgress.xp,sessionXp:sessionTotals.xp,
+    totalXp:journeyXp(committedProgress),practiceXp:practiceXp(committedProgress),sessionXp:sessionTotals.xp+(state.sessionPracticeXp??0),
     score:{value:scaffold.family==='explain'?state.answeredCount:state.correctCount,max:cards.length,label:scaffold.family==='explain'?'Reflections saved':'Mission score'},
     mission:{label:'Challenges explored',completed:Math.min(cards.length,state.answeredCount),total:cards.length},
-    mode:hudMode,modeReason:done&&scaffold.family!=='explain'?`${state.independentCount} independent correct · ${Math.max(0,state.correctCount-state.independentCount)} supported correct. Points are saved separately.`:hudMode==='learning'?'Preparation saves your work; it does not award XP.':hudMode==='practice'?'Correct answers advance your mission score. Supported recall earns no independent XP.':hudMode==='independent'?'Correct due reviews earn XP. Early repeats earn no new XP.':undefined,
+    mode:hudMode,modeReason:done&&scaffold.family!=='explain'?`${state.independentCount} independent correct · ${Math.max(0,state.correctCount-state.independentCount)} supported correct. Points are saved separately.`:hudMode==='learning'?'Preparation saves your work; it does not award XP.':hudMode==='practice'?'Successful supported practice earns Journey XP once per challenge. It does not award independent mastery.':hudMode==='independent'?'Correct due reviews earn XP. Early repeats earn no new XP.':undefined,
     saving:savingCount>0,saveError:writeFailed||!!saveError,
-    ...(done?{outcome:{id:`complete-${session.seed}`,kind:'complete' as const,xpDelta:0,label:'Chapter complete · progress saved'}}:lastResult?{outcome:{id:lastResult.id,kind:scaffold.family==='explain'?'reflection' as const:lastResult.correct?'correct' as const:'retry' as const,xpDelta:lastResult.xp,label:scaffold.family==='explain'?'Reflection saved':lastResult.correct?supportedNow?'Source-supported success':lastResult.xp>0?'Independent recall confirmed':'Correct · no new XP on this review':'Use the source to prepare your next move'}}:{})
+    ...(done?{outcome:{id:`complete-${session.seed}`,kind:'complete' as const,xpDelta:0,label:'Chapter complete · progress saved'}}:lastResult?{outcome:{id:lastResult.id,kind:scaffold.family==='explain'?'reflection' as const:lastResult.correct?'correct' as const:'retry' as const,xpDelta:state.resultXp??lastResult.xp,label:scaffold.family==='explain'?'Reflection saved':lastResult.correct?supportedNow?'Source-supported success':lastResult.xp>0?'Independent recall confirmed':'Correct · no new XP on this review':'Use the source to prepare your next move'}}:{})
   };
 
   if (!sessionIsCurrent || (!cards.length && notebook.cards.length > 0)) return <div className="player-empty"><BookOpen size={40}/><h2>{awaitingReview ? 'These challenges need author review' : 'Review the source references'}</h2><p>{awaitingReview ? 'Review the wording, answer and source evidence in the studio, then choose “Mark as reviewed”. Draft questions earn no scores or learning progress.' : 'These challenges reference material that changed. Rebuild from the current sources or review the questions in the studio before playing.'}</p><button className="btn primary" onClick={onExit}>Back to notebook</button></div>;
   if (!cards.length) return <div className="player-empty"><BookOpen size={40}/><h2>No challenges to play yet</h2><p>Add sources and create challenges in the studio first.</p><button className="btn primary" onClick={onExit}>Back to the studio</button></div>;
 
-  if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><GameplayHUD {...hudProps}/><div className="session-complete"><div className="completion-art"><WorldPreview scaffoldId={scaffold.id} theme={notebook.theme} ageGroup={notebook.ageGroup}/></div><ReactionEffects outcome="complete" scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={session.seed}/><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You studied the source material and practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{committedProgress.xp}</strong><span>Total game XP</span></div><div><strong>{committedProgress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div>{companion}</div>;
+  if (done) return <div className="player-shell"><header className="player-topbar"><button className="btn ghost" onClick={onExit}><ArrowLeft size={18}/>Back to notebook</button><span className="eyebrow">SESSION COMPLETE</span></header><GameplayHUD {...hudProps}/><div className="session-complete"><div className="completion-art"><WorldPreview scaffoldId={scaffold.id} theme={notebook.theme} ageGroup={notebook.ageGroup}/></div><ReactionEffects outcome="complete" scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={session.seed} animate={freshCompletion.current} theme={notebook.theme} artDirection={notebook.gameDesign?.audioDirection}/><span className="completion-badge"><Flag size={22}/> A little further than before</span><h1>Your next chapter is taking shape.</h1><p>You studied the source material and practiced {cards.length} challenges in {scaffold.name.toLowerCase()}. Your progress is saved on this device.</p><div className="completion-stats"><div><strong>{state.correctCount}/{cards.length}</strong><span>Correct this session</span></div><div><strong>{journeyXp(committedProgress)}</strong><span>Journey XP</span></div><div><strong>{committedProgress.bestStreak}</strong><span>Best answer streak</span></div></div><p className="muted">A later review helps more than repeating the same answers immediately. Missed ideas are queued for another visit.</p><button className="btn primary" onClick={onExit}>Return to my notebook<ArrowRight size={18}/></button></div>{companion}</div>;
 
   if (!lessonUnlocked) return <div className={`player-shell learning-first presentation-${getAgePresentation(notebook.ageGroup).density}`} data-theme={notebook.theme}>
     <header className="player-topbar"><button className="btn ghost" disabled={locked} onClick={pause}><Pause size={17}/>Save & exit</button><div className="player-game-name"><BookOpen size={19}/><strong>{scaffold.name}</strong></div><div className="player-top-actions">{audioControls}</div></header>
@@ -279,7 +303,7 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
   }
 
   return <div className={`player-shell family-${scaffold.family} presentation-${getAgePresentation(notebook.ageGroup).density}`} data-theme={notebook.theme}>
-    <header className="player-topbar"><button className="btn ghost" disabled={locked} onClick={pause}><Pause size={17}/>Save & exit</button><div className="player-game-name"><span>{scaffold.icon}</span><strong>{scaffold.name}</strong></div><div className="player-top-actions">{audioControls}<span className="xp-pill"><Sparkles size={16}/>{committedProgress.xp} XP</span><button className="icon-button" onClick={speak} aria-label="Read this challenge aloud"><Volume2 size={19}/></button></div></header>
+    <header className="player-topbar"><button className="btn ghost" disabled={locked} onClick={pause}><Pause size={17}/>Save & exit</button><div className="player-game-name"><span>{scaffold.icon}</span><strong>{scaffold.name}</strong></div><div className="player-top-actions">{audioControls}<span className="xp-pill"><Sparkles size={16}/>{journeyXp(committedProgress)} XP</span><button className="icon-button" onClick={speak} aria-label="Read this challenge aloud"><Volume2 size={19}/></button></div></header>
     <GameplayHUD {...hudProps}/>
     <div className="player-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={cards.length} aria-valuenow={index} aria-label={`Challenge ${index + 1} of ${cards.length}`}><div style={{ width: `${index / cards.length * 100}%` }}/></div>
     <div className="player-layout">
@@ -314,7 +338,7 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
 
           {!state.submitted && scaffold.family !== 'explain' && <div className="challenge-footer"><button className="btn ghost" onClick={() => change({ hint: !state.hint })}><Lightbulb size={17}/>{state.hint ? 'Hide hint' : 'A little hint'}</button><button className="btn primary" disabled={!canSubmit} onClick={check}>Check my answer<ChevronRight size={18}/></button></div>}
 
-          {state.submitted && <div className={`answer-feedback ${state.correct ? 'success' : 'retry'}`} role="status"><ReactionEffects outcome={state.correct?'success':'retry'} scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={`${card.id}:${state.answeredCount}`}/><div className="feedback-reward"><strong>{scaffold.family==='explain'?'Reflection saved':state.correct?'Mission score +1':'Keep the idea in play'}</strong><span>+{lastResult?.xp??0} XP · {supportedNow?'supported practice':'independent attempt'}</span></div><div className="feedback-heading">{state.correct ? <CheckCircle2 size={24}/> : <Lightbulb size={24}/>}<h3>{scaffold.family === 'explain' ? 'Reflection saved.' : state.correct ? scaffold.dialogue.success : scaffold.dialogue.tryAgain}</h3></div>{pairMode ? <ul className="pair-feedback">{pool.map(item => <li key={item.id}><strong>{item.answer}</strong> — {passageLabel(item)}</li>)}</ul> : scaffold.family === 'sequence' ? <ol>{ordering.items.map((item, at) => <li key={at}>{item}</li>)}</ol> : <p>{card.explanation}</p>}<details><summary><BookOpen size={15}/>View source evidence{source ? ` · ${source.title}` : ''}</summary><blockquote>{card.evidence || 'This challenge was written by the notebook author.'}</blockquote>{source?.url && <a href={source.url} target="_blank" rel="noreferrer">Open original source</a>}</details>{!state.correct&&scaffold.family!=='explain'&&<button className="btn secondary" onClick={retryCard}>Try again with the source<ArrowRight size={16}/></button>}<button className="btn primary" onClick={nextCard}>{index === cards.length - 1 ? 'Complete this chapter' : 'Continue exploring'}<ArrowRight size={18}/></button></div>}
+          {state.submitted && <div className={`answer-feedback ${state.correct ? 'success' : 'retry'}`} role="status"><ReactionEffects outcome={state.correct?'success':'retry'} scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={`${card.id}:${state.attemptsOnCard}`} animate={reactionEvent>0} theme={notebook.theme} artDirection={notebook.gameDesign?.audioDirection}/><div className="feedback-reward"><strong>{scaffold.family==='explain'?'Reflection saved':state.correct?'Mission score +1':'Keep the idea in play'}</strong><span>+{state.resultXp??lastResult?.xp??0} Journey XP · {supportedNow?'supported practice':'independent attempt'}</span></div><div className="feedback-heading">{state.correct ? <CheckCircle2 size={24}/> : <Lightbulb size={24}/>}<h3>{scaffold.family === 'explain' ? 'Reflection saved.' : state.correct ? scaffold.dialogue.success : scaffold.dialogue.tryAgain}</h3></div>{pairMode ? <ul className="pair-feedback">{pool.map(item => <li key={item.id}><strong>{item.answer}</strong> — {passageLabel(item)}</li>)}</ul> : scaffold.family === 'sequence' ? <ol>{ordering.items.map((item, at) => <li key={at}>{item}</li>)}</ol> : <p>{card.explanation}</p>}<details><summary><BookOpen size={15}/>View source evidence{source ? ` · ${source.title}` : ''}</summary><blockquote>{card.evidence || 'This challenge was written by the notebook author.'}</blockquote>{source?.url && <a href={source.url} target="_blank" rel="noreferrer">Open original source</a>}</details>{!state.correct&&scaffold.family!=='explain'&&<button className="btn secondary" onClick={retryCard}>Try again with the source<ArrowRight size={16}/></button>}<button className="btn primary" onClick={nextCard}>{index === cards.length - 1 ? 'Complete this chapter' : 'Continue exploring'}<ArrowRight size={18}/></button></div>}
           </fieldset>
         </section>
         <p className="player-save-note" role="status"><Check size={13}/>{saveError ? 'Progress needs a successful save before continuing' : savingCount > 0 ? 'Saving progress…' : writeFailed ? 'Some progress is not saved. Use Save & exit to retry before leaving.' : 'Progress saved on this device · No AI needed to play'}</p><p className="nimeshbuilds-credit">Crafted by <a href="https://github.com/NimeshBuilds" target="_blank" rel="noreferrer">NimeshBuilds</a></p>

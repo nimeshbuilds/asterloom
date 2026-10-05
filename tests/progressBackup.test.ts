@@ -10,6 +10,7 @@ import { childPlaySources, pretendPlayFixture, puppetStoryFixture } from '../src
 import { independentStructuredCount, reviewAfterEvaluation } from '../src/lib/structuredReview';
 import {bytesDigest} from '../src/lib/evidence';
 import {reconcileNotebookProgress} from '../src/lib/progressRevision';
+import {awardIndependentActivityXp,migrateIndependentActivityAwards} from '../src/lib/progression';
 import type { Notebook, Progress } from '../src/types';
 
 const at = '2026-10-04T00:00:00.000Z';
@@ -23,6 +24,21 @@ function fixture(): { notebook: Notebook; progress: Progress } {
 }
 
 describe('content-bound portable progress', () => {
+  it('preserves independent milestone receipts after changed-model restoration and cosmetic downgrade', async () => {
+    const {notebook,progress}=fixture(),activity=notebook.activities![0];
+    const earned=await awardIndependentActivityXp({...progress,structured:undefined},notebook,activity,true,new Date(at));
+    expect(earned.xp).toBe(120);earned.structured=progress.structured;
+    const text=await serializeNotebookProgress(notebook,earned),draft=structuredClone(notebook);draft.activities![0].reviewStatus='needs-review';
+    const downgraded=await restoreNotebookProgress(draft,text);expect(downgraded.progress.independentActivityAwards).toEqual(earned.independentActivityAwards);expect(downgraded.progress.structured![activity.id].completed).toBe(false);
+    expect(await awardIndependentActivityXp(downgraded.progress,notebook,activity,true,new Date(at))).toBe(downgraded.progress);
+    const changed=structuredClone(notebook);changed.activities![0].instruction='A different instruction for this child story.';const restored=await restoreNotebookProgress(changed,text);
+    expect(restored.progress.structured).toEqual({});expect(restored.progress.independentActivityAwards).toEqual(earned.independentActivityAwards);expect(restored.progress.xp).toBe(120);
+    const renewed=await awardIndependentActivityXp(restored.progress,changed,changed.activities![0],true,new Date(at));expect(renewed.xp).toBe(170);expect(Object.keys(renewed.independentActivityAwards!)).toHaveLength(2);
+  });
+  it('roundtrips reliable legacy milestone tombstones without paying the old fifty again',async()=>{
+    const{notebook,progress}=fixture();const migrated=migrateIndependentActivityAwards(progress,notebook,new Date(at));expect(migrated.xp).toBe(progress.xp);
+    const result=await restoreNotebookProgress(notebook,await serializeNotebookProgress(notebook,migrated));expect(result.progress).toEqual(migrated);expect(await awardIndependentActivityXp(result.progress,notebook,notebook.activities![0],true,new Date(at))).toBe(result.progress);
+  });
   it('restores matching answers, independent reviews and the exact unfinished session', async () => {
     const { notebook, progress } = fixture();
     const text = await serializeNotebookProgress(notebook, progress);

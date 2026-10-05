@@ -16,12 +16,17 @@ let nativeTarget=process.platform==='win32'?'windows':'mac';
 const exportedExecutable=bundle=>nativeTarget==='windows'?path.join(bundle,'Asterloom.exe'):path.join(bundle,'Contents','MacOS','Asterloom');
 const exportedResources=bundle=>nativeTarget==='windows'?path.join(bundle,'resources'):path.join(bundle,'Contents','Resources');
 const fixtureNotebook={id:'native-smoke-notebook',title:'Native export · 知識 🧭',description:'An isolated native learning notebook.',createdAt:'2026-10-03T12:00:00.000Z',updatedAt:'2026-10-03T12:00:00.000Z',ageGroup:'adult',goal:'Remember networking facts',theme:'islands',scaffoldIds:['recall-escape-mission'],sources:[{id:'native-source',title:'Network notes',kind:'text',text:'DNS: Resolves domain names to addresses.',status:'ready',addedAt:'2026-10-03T12:00:00.000Z'}],cards:[{id:'native-card',prompt:'What resolves names?',answer:'DNS',options:['DNS','Router'],correctIndex:0,sourceId:'native-source',evidence:'DNS: Resolves domain names to addresses.',concept:'DNS',tags:[],explanation:'DNS resolves names.',questionType:'definition',reviewStatus:'reviewed'}],revision:1};
-const dataEvidence='Prepared native test observations: Site A recorded 4 units and Site B recorded 8 units. The task is to total these two observations only.';
+const dataEvidence='Prepared native test observations: Site A recorded 4 units and Site B recorded 8 units. The tasks are to total these two observations and find their mean, without making a wider inference.';
 fixtureNotebook.sources.push({id:'native-data-source',title:'Recorded observations',kind:'text',text:dataEvidence,status:'ready',addedAt:'2026-10-03T12:00:00.000Z'});
 fixtureNotebook.sources.push({id:'native-semantic-source',title:'Water and networks',kind:'text',text:'Evaporation: The process in which liquid water changes into vapor in the air.\nCondensation: The process in which water vapor changes into liquid droplets.\n\nTLS encrypts communication between a client and a server.',status:'ready',addedAt:'2026-10-03T12:00:00.000Z'});
 fixtureNotebook.activities=[{version:1,id:'native-data-lab',kind:'data',title:'Investigate the native observations',instruction:'Explore the two observations and calculate their total.',sourceRefs:[{sourceId:'native-data-source',evidence:dataEvidence}],reviewStatus:'reviewed',explanation:'The total describes only the two supplied observations.',hint:'Use both data rows.',datasetTitle:'Recorded observations',limitations:'Two prepared test records; no wider inference.',columns:[{id:'reading',label:'Reading',type:'number',unit:'units'}],rows:[{id:'site-a',label:'Site A',values:{reading:4},evidenceRefs:[0]},{id:'site-b',label:'Site B',values:{reading:8},evidenceRefs:[0]}],chartColumnId:'reading',questions:[{id:'total',prompt:'What is the total recorded value?',operation:'sum',columnId:'reading',filters:[],tolerance:0,requireEvidenceRows:true,reason:'Both observed records contribute to the total.',evidenceRefs:[0]}]}];
-fixtureNotebook.activities.push({...structuredClone(fixtureNotebook.activities[0]),id:'native-unreviewed-lab',title:'Preview an unreviewed native model',reviewStatus:'needs-review'});
+// Use a genuinely different rule from the reviewed total. IDs, titles and
+// review status alone must never turn one model into two reward entitlements.
+fixtureNotebook.activities.push({...structuredClone(fixtureNotebook.activities[0]),id:'native-unreviewed-lab',title:'Preview an unreviewed native model',instruction:'Explore the two observations and calculate their mean.',reviewStatus:'needs-review',explanation:'The mean describes only the two supplied observations.',questions:[{...structuredClone(fixtureNotebook.activities[0].questions[0]),id:'mean',prompt:'What is the mean recorded value?',operation:'mean',reason:'The mean uses both supplied observations.'}]});
 const fixturePackage=JSON.stringify({format:'learnpack',version:1,exportedAt:'2026-10-03T12:00:00.000Z',notebook:fixtureNotebook});
+async function readSavedProgress(page,notebookId){
+  return page.evaluate(id=>new Promise((resolve,reject)=>{const open=indexedDB.open('asterloom-local-v1');open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result;const read=db.transaction('records','readonly').objectStore('records').get('progress:'+id);read.onerror=()=>{db.close();reject(read.error);};read.onsuccess=()=>{db.close();resolve(read.result);};};}),notebookId);
+}
 async function pinDataRecord(page,name){
   await page.getByRole('button',{name:new RegExp('^Inspect '+name+':')}).click();
   const pin=page.getByRole('complementary',{name:'Record inspector'}).getByRole('button',{name:'Pin to this question',exact:true});
@@ -130,7 +135,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).count(),0,'Explored source context must survive a native application restart');
     await page.getByRole('button',{name:'Passage explored',exact:true}).first().waitFor();
     await learnBeforeQuest(page);features.lessonPersistence={nativeRestart:true,sourcePassageRestored:true,teachingPrecedesQuest:true};
-    await page.getByLabel('Your numerical result',{exact:true}).fill('12');
+    await page.getByLabel('Your numerical result',{exact:true}).fill('6');
     await pinDataRecord(page,'Site A');
     await pinDataRecord(page,'Site B');
     const draftCheck=page.getByRole('button',{name:'Check my work',exact:true});
@@ -143,8 +148,11 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:fixtureNotebook.title,exact:true}).waitFor({timeout:20000});
-    const unreviewedProgress=await page.evaluate(notebookId=>new Promise((resolve,reject)=>{const open=indexedDB.open('asterloom-local-v1');open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result;const read=db.transaction('records','readonly').objectStore('records').get('progress:'+notebookId);read.onerror=()=>{db.close();reject(read.error);};read.onsuccess=()=>{db.close();resolve(read.result);};};}),fixtureNotebook.id);
-    assert.equal(unreviewedProgress.xp,0,'An unreviewed model must not award XP');
+    const unreviewedProgress=await readSavedProgress(page,fixtureNotebook.id);
+    assert.equal(unreviewedProgress.xp,0,'An unreviewed model must not award independent XP');
+    assert.equal(unreviewedProgress.practice?.xp,20,'Correct model practice earns 20 discovery points after a native restart');
+    assert.equal(unreviewedProgress.mastery,0);assert.deepEqual(unreviewedProgress.completedCardIds,[]);assert.deepEqual(unreviewedProgress.independentActivityAwards??{},{});
+    assert.deepEqual(Object.values(unreviewedProgress.practice.awards).map(({kind,objectiveId,xp})=>({kind,objectiveId,xp})),[{kind:'activity',objectiveId:'native-unreviewed-lab',xp:20}]);
     const unreviewedRecord=unreviewedProgress.structured['native-unreviewed-lab'];
     assert.equal(unreviewedRecord.completed,false,'Unreviewed completion must remain blocked after restart');
     assert.equal(unreviewedRecord.score,0);assert.equal(unreviewedRecord.review?.independentSuccesses??0,0);
@@ -176,8 +184,12 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(await page.locator('.aster-reaction[data-reaction="success"]').count(),1,'A saved correct answer should show the recipe reaction');
     await page.getByRole('button',{name:'Complete this chapter',exact:true}).click();
     await page.getByRole('button',{name:'Return to my notebook',exact:true}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/20\s*discovery points/,'First-day quests award supported completion points and no independent recall credit');
+    assert.match(await page.locator('.world-statbar').innerText(),/50\s*Journey XP/,'Distinct supported model20 + model20 + recall10 rewards must be visible');
     assert.match(await page.locator('.world-statbar').innerText(),/0\s*solved independently/,'First-day teaching cannot grant independent mastery');
+    const combinedProgress=await readSavedProgress(page,fixtureNotebook.id);
+    assert.equal(combinedProgress.xp,0);assert.equal(combinedProgress.practice?.xp,50);assert.equal(combinedProgress.mastery,0);assert.deepEqual(combinedProgress.completedCardIds,[]);assert.deepEqual(combinedProgress.independentActivityAwards??{},{});
+    assert.deepEqual(Object.values(combinedProgress.practice.awards).map(({kind,objectiveId,xp})=>({kind,objectiveId,xp})).sort((a,b)=>a.objectiveId.localeCompare(b.objectiveId)),[{kind:'card',objectiveId:'native-card',xp:10},{kind:'activity',objectiveId:'native-data-lab',xp:20},{kind:'activity',objectiveId:'native-unreviewed-lab',xp:20}]);
+    assert.equal(combinedProgress.structured['native-data-lab'].review?.independentSuccesses??0,0);assert.equal(combinedProgress.cards['native-card'].successfulReviews,0);
     await page.getByRole('button',{name:'Edit materials',exact:true}).click();
     await page.getByRole('button',{name:'Customize learning & appearance',exact:true}).click();
     await page.getByRole('tab',{name:/Materials/}).click();
@@ -197,7 +209,6 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.deepEqual(remoteRequests,[],'Local semantic authoring, OCR and game rendering must not request external network resources');
     features.externalRequests=remoteRequests.length;
     console.log(`Native semantic retrieval: ${features.semanticStatus}`);
-    await fs.writeFile(path.join(ROOT,'.qa',`native-features-${actual.platform}-${actual.arch}.json`),JSON.stringify(features,null,2));
     await page.getByRole('tab',{name:/Challenges/}).click();
     await page.locator('.activity-library article').filter({hasText:'Preview an unreviewed native model'}).getByRole('button',{name:'Mark reviewed',exact:true}).click();
     await page.getByRole('button',{name:'Play game',exact:true}).click();
@@ -205,14 +216,20 @@ test('native studio saves across launches, exports a standalone game, and opens 
     if(await page.getByRole('button',{name:'Save & exit',exact:true}).count())await page.getByRole('button',{name:'Save & exit',exact:true}).click();
     else await page.getByRole('button',{name:'Save & return',exact:false}).click();
     await page.locator('[data-activity-id]').filter({hasText:'Preview an unreviewed native model'}).click(); await learnBeforeQuest(page);
-    await page.getByLabel('Your numerical result',{exact:true}).fill('12');
+    await page.getByLabel('Your numerical result',{exact:true}).fill('6');
     await pinDataRecord(page,'Site A');
     await pinDataRecord(page,'Site B');
     await page.getByRole('button',{name:'Check my work',exact:true}).click();
     await page.locator('.structured-feedback.correct').waitFor();
     assert.match(await page.locator('.structured-review-banner').innerText(),/0 independent attempts/,'Preserved draft feedback remains supported after author approval');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/40\s*discovery points/,'Author approval permits supported practice; seeing draft feedback must not become independent credit');
+    assert.match(await page.locator('.world-statbar').innerText(),/50\s*Journey XP/,'Approving and repeating the same model must not award its discovery points again');
+    const approvedProgress=await readSavedProgress(page,fixtureNotebook.id);
+    assert.equal(approvedProgress.xp,0);assert.equal(approvedProgress.mastery,0);assert.deepEqual(approvedProgress.completedCardIds,[]);assert.deepEqual(approvedProgress.independentActivityAwards??{},{});
+    assert.deepEqual(approvedProgress.practice,combinedProgress.practice,'Author approval and replay must preserve the exact previously committed reward ledger');
+    assert.equal(approvedProgress.structured['native-unreviewed-lab'].completed,true);assert.equal(approvedProgress.structured['native-unreviewed-lab'].review?.independentSuccesses??0,0);
+    features.practiceRewards={unreviewedAfterRestart:20,combinedJourneyXp:50,afterApprovalJourneyXp:50,approvalLedgerUnchanged:true,independentXp:0,mastery:0};
+    await fs.writeFile(path.join(ROOT,'.qa',`native-features-${actual.platform}-${actual.arch}.json`),JSON.stringify(features,null,2));
     await page.getByRole('button',{name:'Edit materials',exact:true}).click();
     await page.getByLabel('Notebook title').fill('A remixed native game');
     await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor({state:'attached'});

@@ -1,5 +1,6 @@
 import type { Source } from '../types';
 import { normalizeText, stableHash } from './utils';
+import {sourceContentExclusions} from './sourceContent';
 
 export interface SourceSegment {
   start: number; end: number; quote: string;
@@ -89,7 +90,18 @@ function splitRange(text: string, start: number, end: number, limit: number, lin
 /** Parse document structure without rewriting a single source character or spanning section/cue boundaries. */
 export function segmentSource(text: string, maxLength = 1200): SourceSegment[] {
   const limit = Math.max(120, Math.min(1200, Math.floor(maxLength) || 1200));
-  const lines = [...text.matchAll(/[^\r\n]*(?:\r?\n|$)/g)].filter(m => m[0].length).map(m => ({ raw: m[0], clean: m[0].trim(), start: m.index!, end: m.index! + m[0].replace(/\r?\n$/, '').length }));
+  const excluded=sourceContentExclusions(text);let excludedIndex=0,scanIndex=0;
+  const lines = [...text.matchAll(/[^\r\n]*(?:\r?\n|$)/g)].filter(m => m[0].length).flatMap(m => {
+    const start=m.index!,end=start+m[0].replace(/\r?\n$/, '').length;
+    const parts:{raw:string;clean:string;start:number;end:number}[]=[];
+    const add=(a:number,b:number)=>{const raw=text.slice(a,b);parts.push({raw,clean:raw.trim(),start:a,end:b});};
+    while(scanIndex<excluded.length&&excluded[scanIndex].end<=start)scanIndex++;
+    let cursor=start;
+    for(let i=scanIndex;i<excluded.length&&excluded[i].start<end;i++){
+      const range=excluded[i];if(range.start>cursor)add(cursor,Math.min(range.start,end));cursor=Math.max(cursor,range.end);
+    }
+    if(cursor<end||start===end)add(Math.min(cursor,end),end);return parts;
+  });
   const subtitles = /^\uFEFF?WEBVTT\b/.test(text) || lines.some(line => TIME.test(line.clean));
   const result: SourceSegment[] = []; let headingPath: string[] = [], sectionKey = 'root', code = false, metadata = false;
   let pending: { start: number; end: number; kind: SourceSegment['kind'] } | undefined;
@@ -103,6 +115,7 @@ export function segmentSource(text: string, maxLength = 1200): SourceSegment[] {
   };
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index], next = lines[index + 1];
+    while(excludedIndex<excluded.length&&excluded[excludedIndex].end<=line.start){flush();sectionKey=`content-${excluded[excludedIndex].end}`;excludedIndex++;}
     if (!line.clean) { flush(); metadata = false; continue; }
     if (subtitles && (/^(?:NOTE|STYLE|REGION)(?:\s|$)/.test(line.clean) || metadata)) { flush(); metadata = true; continue; }
     if (subtitles && (/^\uFEFF?WEBVTT(?:\s|$)/.test(line.clean) || TIME.test(line.clean) || next && TIME.test(next.clean))) {

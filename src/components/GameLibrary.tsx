@@ -1,3 +1,4 @@
+import {journeyXp} from '../lib/progression';
 import {useState} from 'react';
 import {ArrowRight,BookOpen,Download,FolderOpen,Gamepad2,Plus,Play,Trash2,Upload} from 'lucide-react';
 import type {Notebook,Progress} from '../types';
@@ -10,7 +11,7 @@ export default function GameLibrary({notebooks,samples,progresses,search,busy,on
  const [examples,setExamples]=useState(false);
  const yours=notebooks.filter(n=>!SAMPLE_IDS.has(n.id));
  const filtered=yours.filter(n=>`${n.title} ${n.description}`.toLowerCase().includes(search.toLowerCase()));
- const card=(n:Notebook,sample=false)=>{const xp=progresses[n.id]?.xp??0;const draft=n.creation?.status==='draft';return <article className="notebook-card game-shelf-card" key={n.id}>
+ const card=(n:Notebook,sample=false)=>{const xp=progresses[n.id]?journeyXp(progresses[n.id]):0;const draft=n.creation?.status==='draft';return <article className="notebook-card game-shelf-card" key={n.id}>
   <button className="notebook-cover" onClick={()=>sample?onSample(n):onOpen(n)} aria-label={`Open ${n.title}`}><WorldPreview scaffoldId={n.scaffoldIds[0]} theme={n.theme} ageGroup={n.ageGroup} title={n.title}/><span className="cover-badge">{sample?'EXAMPLE GAME':!n.sources.length?'ADD MATERIALS':draft?'IN PROGRESS':'YOUR GAME'}</span><span className="cover-play"><Play size={22} fill="currentColor"/></span></button>
   <div className="notebook-card-body"><button className="card-title" onClick={()=>sample?onSample(n):onOpen(n)}>{n.title}</button><p>{sample?n.description:n.sources.length?`${n.sources.length} source${n.sources.length===1?'':'s'} · Progress saved on this device`:'Add a document, a link, or your notes to get started.'}</p><div className="game-card-actions"><button className="text-button" onClick={()=>sample?onSample(n):onOpen(n)}><Play size={15}/>{sample?'Try this example':!n.sources.length?'Add materials':draft?'Finish creating':xp?'Continue playing':'Open game'}</button>{!sample&&<button className="icon-button delete-game" aria-label={`Delete ${n.title}`} title="Delete game from this device" onClick={()=>onDelete(n)}><Trash2 size={16}/></button>}{sample&&notebooks.some(item=>item.id===n.id)&&<button className="icon-button delete-game" aria-label={`Delete ${n.title}`} title="Delete your saved example" onClick={()=>onDelete(n)}><Trash2 size={16}/></button>}</div></div>
  </article>;};

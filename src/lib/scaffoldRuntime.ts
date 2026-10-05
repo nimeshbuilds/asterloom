@@ -2,6 +2,7 @@ import { getPictureBuildCapabilities } from './pictureBuildEngine';
 import { SCAFFOLDS, scaffoldById } from '../data/scaffolds';
 import {validateActivity,type StructuredActivity} from './structuredEngine';
 import {canScoreRecallCard} from './utils';
+import {hasLearningContentQuote} from './sourceContent';
 import {validateMediaTranscript} from './mediaTranscript';
 import {sourceMediaIdentity} from './mediaAssets';
 import {validateVisualEvidenceSource} from './visualEvidence';
@@ -118,7 +119,7 @@ export function hasCurrentActivityEvidence(activity:StructuredActivity,sources:S
   const ready=new Map<string,boolean>();
   return activity.sourceRefs.every(reference=>{
     const source=sources.find(item=>item.id===reference.sourceId);
-    if(!source||!reference.evidence.trim()||!source.text.includes(reference.evidence))return false;
+    if(!source||!reference.evidence.trim()||!hasLearningContentQuote(source.text,reference.evidence))return false;
     if(!ready.has(source.id))ready.set(source.id,isReadyLearningSource(source,sources));
     return ready.get(source.id)===true;
   });

@@ -16,6 +16,7 @@ import {createCodexConnection} from './codex-engine.mjs';
 import {createGrokConnection} from './grok-engine.mjs';
 import {createClaudeConnection} from './claude-engine.mjs';
 import {extractWebPage} from './web-extraction.mjs';
+import {pdfPageText} from './pdf-text.mjs';
 import {createMediaService} from './media-service.mjs';
 import {cleanupNotebookMedia,validateNotebookCleanup} from './notebook-cleanup.mjs';
 
@@ -188,7 +189,7 @@ export async function importFile(input, capabilities = {}) {
       const pages = [];
       for (let number=1;number<=doc.numPages;number++) {
         const page = await doc.getPage(number); const content = await page.getTextContent();
-        pages.push(`[Page ${number}]\n${content.items.map(item => item.str || '').join(' ')}`);
+        pages.push(`[Page ${number}]\n${pdfPageText(content.items)}`);
       }
       assert(pages.some(page => page.replace(/\[Page \d+\]/,'').trim().length > 5),'This PDF needs OCR. Upload a text-based version or paste its text.',422,'OCR_REQUIRED');
       return sourceResult(name,'pdf',pages.join('\n\n'),{...metadata,pages:doc.numPages},['Text extraction does not reconstruct every chart, formula or reading order. Review the source preview.']);

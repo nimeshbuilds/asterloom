@@ -2,6 +2,15 @@ import {reactionProfile} from '../data/reactionProfiles';
 import type {ScoreInstrument} from './scoreTypes';
 
 export type GameActionCue='select'|'place'|'move'|'connect'|'remove'|'inspect'|'reveal'|'commit';
+export type AsterActionCue='notice'|'open'|'ask'|'answer';
+/** Aster's small glass-and-felt signature acknowledges conversation, never correctness.
+ * The notice is deliberately shortest; no repeated pulse or spoken content is needed. */
+export function asterCuePlan(kind:AsterActionCue,ageGroup?:string){
+ const young=ageGroup==='3-5'||ageGroup==='6-8',root=young?64:67;
+ const intervals:Record<AsterActionCue,number[]>={notice:[0,7],open:[0,4,7],ask:[7,2],answer:[2,7,12]};
+ const duration=young?.16:.14,spacing=.065,velocity=young?.1:.14;
+ return{kind,instrument:(kind==='ask'?'felt':'glass') as ScoreInstrument,notes:intervals[kind].map((interval,index)=>({at:index*spacing,midi:root+interval,duration,velocity:index?velocity*.78:velocity})),maxDuration:(intervals[kind].length-1)*spacing+duration+.24};
+}
 /** Short tactile acknowledgments, not correctness signals. Every world shares its musical identity. */
 export function actionCuePlan(kind:GameActionCue,scaffoldId?:string,ageGroup?:string){
  const profile=reactionProfile(scaffoldId),young=ageGroup==='3-5'||ageGroup==='6-8';

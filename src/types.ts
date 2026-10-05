@@ -115,7 +115,14 @@ export interface SourceStudyState {
   unitId: string; sourceId: string; quote: string; note: string; question: string;
   completed: boolean; updatedAt: string;
 }
+/** Content-bound game points remain separate from assessed recall and mastery. */
+export interface PracticeAward { kind: 'card' | 'activity' | 'study'; objectiveId: string; xp: number; at: string }
+export interface PracticeProgress { xp: number; awards: Record<string, PracticeAward> }
+/** A consumed independent activity milestone; its fixed 50 points are in xp. */
+export interface IndependentActivityAward { objectiveId: string; at: string }
 export interface Progress {
+  practice?: PracticeProgress;
+  independentActivityAwards?: Record<string, IndependentActivityAward>;
   studies?: Record<string, SourceStudyState>;
   /** Content-bound lesson checkpoints, separate from assessed recall. */
   lessons?: Record<string, LessonState>;

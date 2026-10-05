@@ -2,9 +2,11 @@ import type { EvidenceReference, Notebook, Source } from '../types';
 import type { StructuredActivity } from './structuredEngine';
 import { isCurrentEvidence, sourceRevision, textDigest, validateLearningObjectives } from './evidence';
 import { isReadyLearningSource } from './scaffoldRuntime';
+import {isLearningContentRange} from './sourceContent';
 
 /** AI wording is a reviewed authoring artifact. Exact citations establish provenance,
  * not the truth of a paraphrase; the portable player never makes inference requests. */
+export class NonInstructionalTeachingEvidenceError extends Error {constructor(){super('Teaching evidence must use the source’s instructional body, not cover, publication or navigation text.');this.name='NonInstructionalTeachingEvidenceError';}}
 export interface AITeachingExplanation { text:string; citations:EvidenceReference[] }
 export interface AITeachingChunk extends AITeachingExplanation { id:string; title:string }
 export interface AIWorkedExample {
@@ -29,7 +31,7 @@ const AGE_LIMITS:Record<string,{words:number;characters:number;chunks:number}>={
   '9-11':{words:60,characters:420,chunks:4},'12-14':{words:75,characters:520,chunks:5},
   '15-17':{words:90,characters:620,chunks:5},adult:{words:100,characters:700,chunks:5},
 };
-export const AI_TEACHING_DRAFT_SCHEMA='teaching:{title:string,objective:string,conceptExplanation:{text:string,citations:[{sourceId,evidence:EXACT substring}]},chunks:[{id:identifier,title:string,text:string,citations:[{sourceId,evidence:EXACT substring}]}],guidedApplication:{prompt:string,steps:[string]},optional workedExample:{title:string,sourceEvidence:{sourceId,evidence:EXACT source-provided example or labeled procedure},steps:[{title:string,text:string,citations:[{sourceId,evidence:EXACT substring}]}]},optional storyFrame:{fictional:true,setting:string,role:string,mission:string,success:string}}. Provide 2–5 short, progressive teaching chunks (at most3 for ages3–8, at most4 for ages9–11). Explain the concept in plain words BEFORE asking questions, preserving the source conditions and uncertainty. Each text has at most25 words for ages3–5,40 for6–8,60 for9–11,75 for12–14,90 for15–17,100 for adults. Cite each explanation using only the selected supplied unit. Do not copy a wall of quotes. A worked example is optional and MUST be explicitly present in the source; never invent an example, steps, reasoning or causal simulation. guidedApplication must describe the controls/actions of the actual activity and cannot introduce new subject facts or another quiz. Fictional framing must be explicitly fictional and cannot alter subject facts or model rules. No code, URLs, tools, media or review approval.';
+export const AI_TEACHING_DRAFT_SCHEMA='teaching:{title:string,objective:string,conceptExplanation:{text:string,citations:[{sourceId,evidence:EXACT substring}]},chunks:[{id:identifier,title:string,text:string,citations:[{sourceId,evidence:EXACT substring}]}],guidedApplication:{prompt:string,steps:[string]},optional workedExample:{title:string,sourceEvidence:{sourceId,evidence:EXACT source-provided example or labeled procedure},steps:[{title:string,text:string,citations:[{sourceId,evidence:EXACT substring}]}]},optional storyFrame:{fictional:true,setting:string,role:string,mission:string,success:string}}. Provide 2–5 short, progressive teaching chunks (at most3 for ages3–8, at most4 for ages9–11). Explain the concept in plain words BEFORE asking questions, preserving the source conditions and uncertainty. Each text has at most25 words for ages3–5,40 for6–8,60 for9–11,75 for12–14,90 for15–17,100 for adults. Cite each explanation using only the selected supplied unit’s substantive content. Cover titles, taglines, bylines, publication dates, footers and navigation do not teach the subject and cannot be evidence for a lesson. Do not copy a wall of quotes. A worked example is optional and MUST be explicitly present in the source; never invent an example, steps, reasoning or causal simulation. guidedApplication must describe the controls/actions of the actual activity and cannot introduce new subject facts or another quiz. Fictional framing must be explicitly fictional and cannot alter subject facts or model rules. No code, URLs, tools, media or review approval.';
 function record(value:unknown,label:string):Record<string,unknown>{
   if(!value||typeof value!=='object'||Array.isArray(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value)))throw new Error(`Invalid ${label}.`);
   return value as Record<string,unknown>;
@@ -51,7 +53,9 @@ function exactReference(source:Source,start:number,end:number):EvidenceReference
   return{sourceId:source.id,sourceRevision:sourceRevision(source),start,end,quote:source.text.slice(start,end),locator};
 }
 function checkedReference(value:unknown,sources:Source[]):EvidenceReference{
-  return validateLearningObjectives([{id:'objective-ai-citation',title:'Check the supplied exact citation',operation:'explanation',reviewStatus:'needs-review',evidence:[value]}],sources)[0].evidence[0];
+  const ref=validateLearningObjectives([{id:'objective-ai-citation',title:'Check the supplied exact citation',operation:'explanation',reviewStatus:'needs-review',evidence:[value]}],sources)[0].evidence[0];
+  if(!isLearningContentRange(sources.find(source=>source.id===ref.sourceId)!.text,ref.start,ref.end))throw new NonInstructionalTeachingEvidenceError();
+  return ref;
 }
 function checkedWindow(value:unknown,sources:Source[]):EvidenceReference{
   const raw=record(value,'AI source window');fields(raw,['sourceId','sourceRevision','start','end','quote','locator'],'AI source window');
@@ -62,6 +66,10 @@ function checkedWindow(value:unknown,sources:Source[]):EvidenceReference{
   return expected;
 }
 function within(ref:EvidenceReference,windows:EvidenceReference[]):boolean{return windows.some(window=>window.sourceId===ref.sourceId&&window.sourceRevision===ref.sourceRevision&&ref.start>=window.start&&ref.end<=window.end);}
+function learningQuoteWithin(source:Source,window:EvidenceReference,quote:string):boolean {
+ if(!quote.trim())return false;let relative=window.quote.indexOf(quote);
+ while(relative>=0){if(isLearningContentRange(source.text,window.start+relative,window.start+relative+quote.length))return true;relative=window.quote.indexOf(quote,relative+1);}return false;
+}
 function explanation(value:unknown,ageGroup:string,reference:(value:unknown)=>EvidenceReference):AITeachingExplanation{
   const item=record(value,'teaching explanation');fields(item,['text','citations'],'Teaching explanation');
   const limits=AGE_LIMITS[ageGroup];if(!limits)throw new Error('Choose a supported teaching audience.');
@@ -103,8 +111,9 @@ export function validateAILearningMissionDraft(value:unknown,context:AILearningD
   const {activity,ageGroup,sources,sourceWindow}=context,source=sources.find(item=>item.id===sourceWindow.sourceId);
   if(!source||!isReadyLearningSource(source,sources)||!Number.isSafeInteger(sourceWindow.start)||!Number.isSafeInteger(sourceWindow.end)||sourceWindow.start<0||sourceWindow.end<=sourceWindow.start||sourceWindow.end>source.text.length||sourceWindow.end-sourceWindow.start>6000)throw new Error('AI teaching requires the current disclosed source unit.');
   const window=exactReference(source,sourceWindow.start,sourceWindow.end);
-  const reference=(input:unknown)=>{const raw=record(input,'draft citation');fields(raw,['sourceId','evidence'],'Draft citation');if(raw.sourceId!==source.id)throw new Error('Teaching cited a source that was not disclosed for this mission.');const quote=text(raw.evidence,'exact teaching citation',1200);const relative=window.quote.indexOf(quote);if(relative<0)throw new Error('Teaching evidence must be an exact substring of its disclosed source unit.');return exactReference(source,window.start+relative,window.start+relative+quote.length);};
+  const reference=(input:unknown)=>{const raw=record(input,'draft citation');fields(raw,['sourceId','evidence'],'Draft citation');if(raw.sourceId!==source.id)throw new Error('Teaching cited a source that was not disclosed for this mission.');const quote=text(raw.evidence,'exact teaching citation',1200);let relative=window.quote.indexOf(quote);if(relative<0)throw new Error('Teaching evidence must be an exact substring of its disclosed source unit.');while(relative>=0&&!isLearningContentRange(source.text,window.start+relative,window.start+relative+quote.length))relative=window.quote.indexOf(quote,relative+1);if(relative<0)throw new NonInstructionalTeachingEvidenceError();return exactReference(source,window.start+relative,window.start+relative+quote.length);};
   if(!activity.sourceRefs.length||activity.sourceRefs.some(ref=>ref.sourceId!==source.id||!window.quote.includes(ref.evidence)))throw new Error('Teaching and gameplay must use the same disclosed source unit.');
+  if(activity.sourceRefs.some(ref=>!learningQuoteWithin(source,window,ref.evidence)))throw new NonInstructionalTeachingEvidenceError();
   const content=teachingContent(value,ageGroup,reference);
   return{...content,activityId:activity.id,activityFingerprint:aiLearningActivityFingerprint(activity),ageGroup,sourceWindows:[window],guidedApplication:{...content.guidedApplication,activityId:activity.id},reviewStatus:'needs-review'};
 }
@@ -115,6 +124,7 @@ function validateMission(value:unknown,notebook:Pick<Notebook,'activities'|'sour
   const sourceWindows=list(raw.sourceWindows,'source windows',1,3).map(ref=>checkedWindow(ref,notebook.sources));
   if(sourceWindows.some(ref=>!isReadyLearningSource(notebook.sources.find(source=>source.id===ref.sourceId),notebook.sources)))throw new Error('AI teaching source media changed or needs review.');
   if(activity.sourceRefs.some(ref=>!sourceWindows.some(window=>window.sourceId===ref.sourceId&&window.quote.includes(ref.evidence))))throw new Error('AI teaching does not cover the current mission source.');
+  if(activity.sourceRefs.some(ref=>!sourceWindows.some(window=>window.sourceId===ref.sourceId&&learningQuoteWithin(notebook.sources.find(source=>source.id===ref.sourceId)!,window,ref.evidence))))throw new NonInstructionalTeachingEvidenceError();
   const reference=(input:unknown)=>{const ref=checkedReference(input,notebook.sources);if(!within(ref,sourceWindows))throw new Error('AI teaching cited material outside its disclosed source.');return ref;};
   const guide=record(raw.guidedApplication,'saved guided application');if(guide.activityId!==activity.id)throw new Error('Guided application points to a different mission.');fields(guide,['activityId','prompt','steps'],'Saved guided application');
   const content=teachingContent({title:raw.title,objective:raw.objective,conceptExplanation:raw.conceptExplanation,chunks:raw.chunks,guidedApplication:{prompt:guide.prompt,steps:guide.steps},...(raw.workedExample===undefined?{}:{workedExample:raw.workedExample}),...(raw.storyFrame===undefined?{}:{storyFrame:raw.storyFrame})},notebook.ageGroup,reference);
@@ -126,6 +136,16 @@ export function validateAILearningPlan(value:unknown,notebook:Pick<Notebook,'act
   const missions=list(raw.missions,'AI learning missions',1,300).map(mission=>validateMission(mission,notebook));
   if(new Set(missions.map(mission=>mission.activityId)).size!==missions.length)throw new Error('Each mission needs one unique AI teaching plan.');
   return{version:1,missions};
+}
+/** Legacy packs keep their source material and valid peer lessons. Known document furniture
+ * can be omitted safely; unrelated malformed data still fails strict portable validation. */
+export function validateImportedAILearningPlan(value:unknown,notebook:Pick<Notebook,'activities'|'sources'|'ageGroup'>):AILearningPlan|undefined {
+  const raw=record(value,'AI learning plan');fields(raw,['version','missions'],'AI learning plan');if(raw.version!==1)throw new Error('Unsupported AI learning plan version.');
+  const items=list(raw.missions,'AI learning missions',1,300),seen=new Set<unknown>(),missions:AILearningMission[]=[];
+  for(const item of items){const entry=record(item,'saved AI mission');if(seen.has(entry.activityId))throw new Error('Each mission needs one unique AI teaching plan.');seen.add(entry.activityId);
+    try{missions.push(validateMission(entry,notebook));}catch(error){if(!(error instanceof NonInstructionalTeachingEvidenceError))throw error;}
+  }
+  return missions.length?{version:1,missions}:undefined;
 }
 /** Source/model edits remove obsolete generated teaching without discarding other authored missions. */
 export function reconcileAILearningPlan(value:unknown,notebook:Pick<Notebook,'activities'|'sources'|'ageGroup'>):AILearningPlan|undefined{

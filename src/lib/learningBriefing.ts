@@ -7,6 +7,7 @@ import { isPictureRaster } from './pictureEngine';
 import { mediaPlaybackUrl, sourceMediaIdentity } from './mediaAssets';
 import { buildLessonStory, buildLessonActionGuide, type LessonStory, type LessonActionGuide } from './lessonStory';
 import { currentAILearningMission, aiLearningMissionKey, type AILearningMission } from './aiLearningPlan';
+import {learningContentRanges,hasLearningContentQuote} from './sourceContent';
 
 export interface LessonPassage { id:string; title:string; role:'focus'|'context'; reference:EvidenceReference }
 export interface LessonStep { id:string; title:string; instruction:string; reference:EvidenceReference; reason?:EvidenceReference }
@@ -48,6 +49,17 @@ function reference(source:Source,start:number,end:number):EvidenceReference {
   const lineStart=source.text.slice(0,start).split('\n').length,lineEnd=lineStart+(source.text.slice(start,end).match(/\n/g)?.length??0);
   const prefix=block?.locator.kind!=='text'?block?.locator.label.split(' · lines ')[0]:undefined;
   return{sourceId:source.id,sourceRevision:sourceRevision(source),start,end,quote:source.text.slice(start,end),locator:{kind:block?.locator.kind??'text',label:prefix?`${prefix} · lines ${lineStart}–${lineEnd}`:`Lines ${lineStart}–${lineEnd}`,lineStart,lineEnd}};
+}
+function instructionalReferenceSpans(source:Source,start:number,end:number):{start:number;end:number}[] {
+ const spans:{start:number;end:number}[]=[];
+ for(const range of learningContentRanges(source.text,start,end)){
+  let cursor=range.start;
+  const add=(a:number,b:number)=>{while(a<b&&/\s/.test(source.text[a]))a++;while(b>a&&/\s/.test(source.text[b-1]))b--;if(b>a)spans.push({start:a,end:b});};
+  // Page markers locate citations; they are not part of a mandatory lesson.
+  for(const marker of source.text.slice(range.start,range.end).matchAll(/^\[(?:Page|Slide|Sheet):?\s+[^\]\n]+\][ \t]*$/gm)){const at=range.start+marker.index!;add(cursor,at);cursor=at+marker[0].length;}
+  add(cursor,range.end);
+ }
+ return spans;
 }
 type TeachingBlock=ReturnType<typeof evidenceBlocks>[number]&{unitId:string};
 function teachingBlocks(source:Source):TeachingBlock[] {
@@ -103,17 +115,24 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   const alreadyIncluded=(sourceId:string,block:EvidenceReference)=>passages.some(p=>p.reference.sourceId===sourceId&&p.reference.start<=block.start&&p.reference.end>=block.end);
   const add=(source:Source,block:ReturnType<typeof evidenceBlocks>[number],role:LessonPassage['role'])=>{if(seen.has(block.id)||alreadyIncluded(source.id,block)||passages.length>=(role==='focus'?12:16)||role==='context'&&block.quote.trim().length<40)return;seen.add(block.id);passages.push({id:block.id,title:source.title,role,reference:evidenceReference(block)});};
   const anchors:{source:Source;index:number;blocks:TeachingBlock[]}[]=[];
+  const targetReferences=new Map<typeof raw[number],EvidenceReference[]>();
   for(const ref of raw){
     const source=notebook.sources.find(s=>s.id===ref.sourceId),start=source?.text.indexOf(ref.evidence??'')??-1;
     if(!source||source.status!=='ready'||!sourceBindingCurrent(source,notebook.sources)||!ref.evidence?.trim()||start<0){warnings.push('Some mission evidence is missing, changed or not ready. Return to the author workspace to repair it.');continue;}
     let blocks=blockCache.get(source.id);if(!blocks){blocks=teachingBlocks(source);blockCache.set(source.id,blocks);}
-    const matching=blocks.map((b,i)=>({b,i})).filter(({b})=>b.end>start&&b.start<start+ref.evidence.length);
-    // Document segmentation omits headings/cue metadata. A short authored evidence span may
-    // intentionally include its heading (e.g. 'Procedure:'); retain that exact context for teaching.
-    let cursor=start;const end=start+ref.evidence.length;
-    const hasGap=matching.some(({b})=>{const gap=b.start>cursor&&source.text.slice(cursor,Math.min(b.start,end)).trim();cursor=Math.max(cursor,b.end);return !!gap;})||cursor<end&&!!source.text.slice(cursor,end).trim();
-    if(hasGap&&ref.evidence.length<=1200){const exactRef=reference(source,start,end);add(source,{...exactRef,id:`e-${textDigest(source.id).slice(0,16)}-${exactRef.sourceRevision.slice(0,20)}-${start}-${end}`,sourceTitle:source.title},'focus');for(const{i}of matching)anchors.push({source,index:i,blocks});}
-    else for(const{b,i}of matching){add(source,b,'focus');anchors.push({source,index:i,blocks});}
+    const refs:EvidenceReference[]=[];
+    for(const span of instructionalReferenceSpans(source,start,start+ref.evidence.length)){
+      const matching=blocks.map((b,i)=>({b,i})).filter(({b})=>b.end>span.start&&b.start<span.end);
+      if(!matching.length)continue; // A leftover title alone is not a lesson.
+      refs.push(reference(source,span.start,span.end));
+      // Omitted procedure headings can supply legitimate context, but known
+      // publication furniture has already been removed from these exact spans.
+      let cursor=span.start;
+      const hasGap=matching.some(({b})=>{const gap=b.start>cursor&&source.text.slice(cursor,Math.min(b.start,span.end)).trim();cursor=Math.max(cursor,b.end);return !!gap;})||cursor<span.end&&!!source.text.slice(cursor,span.end).trim();
+      if(hasGap&&span.end-span.start<=1200){const exactRef=reference(source,span.start,span.end);add(source,{...exactRef,id:`e-${textDigest(source.id).slice(0,16)}-${exactRef.sourceRevision.slice(0,20)}-${span.start}-${span.end}`,sourceTitle:source.title},'focus');for(const{i}of matching)anchors.push({source,index:i,blocks});}
+      else for(const{b,i}of matching){add(source,b,'focus');anchors.push({source,index:i,blocks});}
+    }
+    targetReferences.set(ref,refs);
   }
   // Additional background must belong to a unit that contains the actual target evidence.
   // Merely sharing a file, a keyword or a neighboring position does not authorize a new lesson topic.
@@ -127,7 +146,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   for(const candidates of sourceCandidates.values())if(candidates[0])add(candidates[0].source,candidates[0].block,'context');
   for(const candidate of [...sourceCandidates.values()].flat())add(candidate.source,candidate.block,'context');
   const targets=activity?[activity.id]:cards.map(c=>c.id);
-  const covered=(ref:typeof raw[number])=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);if(!source||!ref.evidence.trim())return false;const start=source.text.indexOf(ref.evidence);if(start<0)return false;const end=start+ref.evidence.length;let cursor=start;const spans=passages.filter(p=>p.reference.sourceId===ref.sourceId).map(p=>p.reference).sort((a,b)=>a.start-b.start);for(const span of spans){if(span.end<=cursor||span.start>=end)continue;if(span.start>cursor&&source.text.slice(cursor,span.start).trim())return false;cursor=Math.max(cursor,span.end);if(cursor>=end)return true;}return cursor>=end||!source.text.slice(cursor,end).trim();};
+  const covered=(ref:typeof raw[number])=>{const source=notebook.sources.find(s=>s.id===ref.sourceId),targets=targetReferences.get(ref);if(!source||!targets?.length)return false;return targets.every(target=>{let cursor=target.start;const spans=passages.filter(p=>p.reference.sourceId===ref.sourceId).map(p=>p.reference).sort((a,b)=>a.start-b.start);for(const span of spans){if(span.end<=cursor||span.start>=target.end)continue;if(span.start>cursor&&source.text.slice(cursor,span.start).trim())return false;cursor=Math.max(cursor,span.end);if(cursor>=target.end)return true;}return cursor>=target.end||!source.text.slice(cursor,target.end).trim();});};
   const coveredTargetIds=targets.filter(id=>raw.some(r=>r.targetId===id)&&raw.filter(r=>r.targetId===id).every(covered));
   const uncoveredTargetIds=targets.filter(id=>!coveredTargetIds.includes(id));
   if(uncoveredTargetIds.length)warnings.push('This chapter cannot include all of its source evidence within the lesson limit. Split the deck into smaller chapters or repair the missing evidence before starting a quest.');
@@ -138,7 +157,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   const sparse=total<120;
   if(!passages.length)warnings.push('A grounded lesson needs readable source material. Add background, an example and its explanation; a source-free question cannot supply them.');
   else if(sparse)warnings.push('The supplied excerpt is too brief for a full background lesson. This is a limited source-reading orientation; ask the author for context or an explained example.');
-  const currentEvidence=raw.length>0&&raw.every(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);return source?.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&!!ref.evidence?.trim()&&source.text.includes(ref.evidence);});
+  const currentEvidence=raw.length>0&&raw.every(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);return source?.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&!!ref.evidence?.trim()&&hasLearningContentQuote(source.text,ref.evidence);});
   const teaching=activity?currentAILearningMission(notebook,activity):undefined;
   const reviewed=currentEvidence&&(activity?activity.reviewStatus==='reviewed':cards.length>0&&cards.every(c=>c.reviewStatus!=='needs-review'))&&(!teaching||teaching.reviewStatus==='reviewed');
   if(!reviewed)warnings.push('The author has not approved every mission model. Teaching and draft preview do not grant learning credit.');
@@ -179,7 +198,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   const planData={version:2,selection:'target-source-unit',scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),...(teaching?{teaching:aiLearningMissionKey(teaching)}:{}),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
   const visualIds=new Set(mediaIds);if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')visualIds.add(activity.sceneSourceId);if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)visualIds.add(r.narrationSourceId);});
   const media=notebook.sources.filter(s=>visualIds.has(s.id)&&(s.status==='ready'||(s.kind==='audio'||s.kind==='video')&&s.status==='needs-transcript')).flatMap<LearningPlan['media'][number]>(s=>{if(s.kind==='image'&&isPictureRaster(s.dataUrl))return[{sourceId:s.id,title:s.title,kind:'image' as const,url:s.dataUrl,alt:`Original uploaded image: ${s.title}. The source annotation is quoted below.`}];if(s.kind==='audio'||s.kind==='video'){const url=mediaPlaybackUrl(s);if(url)return[{sourceId:s.id,title:s.title,kind:s.kind,url,alt:s.title}];}return[];}).slice(0,6);
-  return{id:`lesson-${textDigest(canonical(planData))}`,version:1,scaffoldId:scaffold.id,title:teaching?.title??activity?.title??notebook.title,theme:notebook.theme,story,ageGroup:notebook.ageGroup,status:!passages.length||uncoveredTargetIds.length?'blocked':sparse||warnings.some(w=>w.startsWith('Some mission'))?'limited':'grounded',warnings:[...new Set(warnings)],passages,walkthrough:{kind,title,limitation,steps},practice:{prompt:teaching?.guidedApplication.prompt??story.reflection,focusOptions,orderIds:kind==='source-procedure'?steps.map(s=>s.id):[],spokenAllowed:notebook.ageGroup==='3-5'||notebook.ageGroup==='6-8'},targets,reviewed,mission:{assignment,assignmentOrigin:activity?'author':'source-guide',sourceTitles:Array.from(new Set(passages.map(p=>p.title))),evidence:raw.flatMap(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);const start=source?.text.indexOf(ref.evidence)??-1;return source&&source.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&start>=0&&ref.evidence.trim()?[reference(source,start,start+ref.evidence.length)]:[]}).slice(0,3),handoff:story.transfer,actionGuide:buildLessonActionGuide(activity)},...(rehearsal?{rehearsal}:{}),...(teaching?{teaching}:{}),coverage:{coveredTargetIds,uncoveredTargetIds},media};
+  return{id:`lesson-${textDigest(canonical(planData))}`,version:1,scaffoldId:scaffold.id,title:teaching?.title??activity?.title??notebook.title,theme:notebook.theme,story,ageGroup:notebook.ageGroup,status:!passages.length||uncoveredTargetIds.length?'blocked':sparse||warnings.some(w=>w.startsWith('Some mission'))?'limited':'grounded',warnings:[...new Set(warnings)],passages,walkthrough:{kind,title,limitation,steps},practice:{prompt:teaching?.guidedApplication.prompt??story.reflection,focusOptions,orderIds:kind==='source-procedure'?steps.map(s=>s.id):[],spokenAllowed:notebook.ageGroup==='3-5'||notebook.ageGroup==='6-8'},targets,reviewed,mission:{assignment,assignmentOrigin:activity?'author':'source-guide',sourceTitles:Array.from(new Set(passages.map(p=>p.title))),evidence:raw.flatMap(ref=>targetReferences.get(ref)??[]).slice(0,3),handoff:story.transfer,actionGuide:buildLessonActionGuide(activity)},...(rehearsal?{rehearsal}:{}),...(teaching?{teaching}:{}),coverage:{coveredTargetIds,uncoveredTargetIds},media};
 }
 
 /** Build only relationships explicitly represented in the material. No invented distractor facts. */

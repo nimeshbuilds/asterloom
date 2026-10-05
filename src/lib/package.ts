@@ -1,7 +1,7 @@
 import {validateAIUsageReceipts} from './aiUsage';
 import {validateLessonState} from './learningBriefing';
 import {validateGameDesign} from './gameDesign';
-import {validateAILearningPlan} from './aiLearningPlan';
+import {validateImportedAILearningPlan} from './aiLearningPlan';
 import type { CardProgress, LearnPackage, LearningCard, Notebook, NotebookArtwork, Progress, Source, SourceKind } from '../types';
 import { validateActivity } from './structuredEngine';
 import {validateLearningObjectives} from './evidence';
@@ -9,6 +9,7 @@ import {validateOriginalFile} from './originalFiles';
 import {validateMediaAsset,sourceMediaIdentity} from './mediaAssets';
 import {validateMediaTranscript} from './mediaTranscript';
 import {validateVisualEvidenceSource,type VisualEvidence} from './visualEvidence';
+import {MAX_INDEPENDENT_ACTIVITY_AWARDS,MAX_PRACTICE_AWARDS,PRACTICE_XP} from './progression';
 
 const MAX_PACKAGE_BYTES = 64 * 1024 * 1024;
 const SOURCE_KINDS: SourceKind[] = ['text', 'document', 'website', 'youtube', 'notebooklm', 'audio', 'video', 'image', 'transcript'];
@@ -170,7 +171,7 @@ export function validateNotebook(input: unknown): Notebook {
   const notebook:Notebook = { ...(value.themeSelection?{themeSelection:value.themeSelection as 'auto'|'manual'}:{}), ...(creation?{creation}:{}), ...(value.generationVersion !== undefined ? {generationVersion:integer(value.generationVersion,'Preparation version',1,1000)} : {}), id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), ...(value.learningObjectives!==undefined?{learningObjectives:validateLearningObjectives(value.learningObjectives,sources)}:{}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
   if(value.aiToolReceipts!==undefined)notebook.aiToolReceipts=validateAIUsageReceipts(value.aiToolReceipts);
   if(value.gameDesign!==undefined)notebook.gameDesign=validateGameDesign(value.gameDesign,notebook);
-  if(value.aiLearningPlan!==undefined)notebook.aiLearningPlan=validateAILearningPlan(value.aiLearningPlan,notebook);
+  if(value.aiLearningPlan!==undefined)notebook.aiLearningPlan=validateImportedAILearningPlan(value.aiLearningPlan,notebook);
   return notebook;
 }
 
@@ -222,6 +223,46 @@ function validateStructuredResponse(input: unknown): unknown {
   return response;
 }
 
+function practiceObject(input: unknown, name: string, fields?: readonly string[]): Record<string, unknown> {
+  const value = object(input, name);
+  if (![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new Error(`${name} must be a plain object.`);
+  if (fields && (Object.keys(value).length !== fields.length || fields.some(field => !Object.hasOwn(value, field)))) throw new Error(`${name} contains missing or unsupported fields.`);
+  return value;
+}
+function validatePractice(input: unknown): NonNullable<Progress['practice']> {
+  const value = practiceObject(input, 'Practice progress', ['xp', 'awards']);
+  const raw = practiceObject(value.awards, 'Practice awards');
+  const entries = Object.entries(raw);
+  if (entries.length > MAX_PRACTICE_AWARDS) throw new Error('Too many practice awards.');
+  let total = 0;
+  const awards = Object.fromEntries(entries.map(([key, entry]) => {
+    if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('A practice award needs an exact SHA-256 content key.');
+    const item = practiceObject(entry, 'Practice award', ['kind', 'objectiveId', 'xp', 'at']);
+    if (item.kind !== 'card' && item.kind !== 'activity' && item.kind !== 'study') throw new Error('Invalid practice award kind.');
+    const xp = integer(item.xp, 'Practice award XP', 0, PRACTICE_XP[item.kind]);
+    if (xp !== 0 && xp !== PRACTICE_XP[item.kind]) throw new Error('Practice award XP differs from its fixed amount.');
+    const at = string(item.at, 'Practice award date', 40);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(at) || !Number.isFinite(Date.parse(at)) || new Date(at).toISOString() !== at) throw new Error('Practice award date must be an exact UTC timestamp.');
+    total += xp;
+    return [key, { kind: item.kind, objectiveId: identifier(item.objectiveId, 'Practice objective ID'), xp, at }];
+  })) as NonNullable<Progress['practice']>['awards'];
+  const xp = integer(value.xp, 'Practice XP', 0, MAX_PRACTICE_AWARDS * PRACTICE_XP.activity);
+  if (xp !== total) throw new Error('Practice XP must equal its saved award ledger.');
+  return { xp, awards };
+}
+
+function validateIndependentActivityAwards(input: unknown): NonNullable<Progress['independentActivityAwards']> {
+  const entries = Object.entries(practiceObject(input, 'Independent activity awards'));
+  if (entries.length > MAX_INDEPENDENT_ACTIVITY_AWARDS) throw new Error('Too many independent activity awards.');
+  return Object.fromEntries(entries.map(([key, entry]) => {
+    if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('An independent activity award needs an exact SHA-256 content key.');
+    const item = practiceObject(entry, 'Independent activity award', ['objectiveId', 'at']);
+    const at = string(item.at, 'Independent activity award date', 40);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(at) || !Number.isFinite(Date.parse(at)) || new Date(at).toISOString() !== at) throw new Error('Independent activity award date must be an exact UTC timestamp.');
+    return [key, { objectiveId: identifier(item.objectiveId, 'Independent activity objective ID'), at }];
+  }));
+}
+
 export function validateProgress(input: unknown): Progress {
   const value = object(input, 'Progress');
   const cards: Record<string, CardProgress> = {};
@@ -234,6 +275,8 @@ export function validateProgress(input: unknown): Progress {
     if (cards[id].correct > cards[id].attempts) throw new Error('Correct attempts cannot exceed all attempts.');
   }
   const progress: Progress = { cards, notebookId: identifier(value.notebookId, 'Progress notebook ID'), completedCardIds: array(value.completedCardIds, 'Completed challenges', 2000).map(id => identifier(id, 'Completed challenge ID')), attempts: array(value.attempts, 'Attempts', 10_000).map(raw => { const item = object(raw, 'Attempt'); const confidence = item.confidence; if (!['guessing', 'unsure', 'confident'].includes(String(confidence))) throw new Error('Invalid confidence level.'); return { id: identifier(item.id, 'Attempt ID'), cardId: identifier(item.cardId, 'Attempt challenge'), correct: boolean(item.correct, 'Attempt result'), at: date(item.at, 'Attempt time'), confidence: confidence as 'guessing' | 'unsure' | 'confident', xp: integer(item.xp, 'Attempt XP', 0, 1000) }; }), xp: integer(value.xp, 'XP', 0, 1_000_000_000), mastery: number(value.mastery, 'Recall progress', 0, 100), streak: integer(value.streak, 'Streak', 0, 1_000_000), bestStreak: integer(value.bestStreak, 'Best streak', 0, 1_000_000), sessions: integer(value.sessions, 'Session count', 0, 1_000_000), journal: array(value.journal, 'Journal entries', 2000).map(raw => { const item = object(raw, 'Journal entry'); return { id: identifier(item.id, 'Journal entry ID'), text: string(item.text, 'Journal entry', 10_000, true), at: date(item.at, 'Journal date'), ...(item.cardId ? { cardId: identifier(item.cardId, 'Journal challenge') } : {}) }; }), updatedAt: date(value.updatedAt, 'Progress date'), revision: integer(value.revision, 'Progress revision', 1, 1_000_000) };
+  if (value.practice !== undefined) progress.practice = validatePractice(value.practice);
+  if (value.independentActivityAwards !== undefined) progress.independentActivityAwards = validateIndependentActivityAwards(value.independentActivityAwards);
   if (value.studies !== undefined) {
     const studies = object(value.studies, 'Source field notes');
     if (Object.keys(studies).length > 2000) throw new Error('Too many source field notes.');

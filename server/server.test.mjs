@@ -7,6 +7,7 @@ import http from 'node:http';
 import {zipSync,strToU8} from 'fflate';
 import ExcelJS from 'exceljs';
 import {createService,importFile,isPublicIp} from './index.mjs';
+import {pdfPageText} from './pdf-text.mjs';
 
 let directory, service, base, host;
 before(async()=>{
@@ -151,7 +152,7 @@ test('XLSX import retains cell values and sheet provenance',async()=>{
   assert.equal(result.status,200,JSON.stringify(result.data));assert.match(result.data.source.content,/Sheet: Network glossary/);assert.match(result.data.source.content,/Resolves names/);
 });
 test('text PDF extraction reads an actual PDF fixture',async()=>{
-  const stream='BT /F1 12 Tf 50 750 Td (DNS resolves names to addresses.) Tj ET';
+  const stream='BT /F1 24 Tf 50 750 Td (Network field guide) Tj /F1 12 Tf 0 -40 Td (Part 1 of 12) Tj 0 -80 Td (DNS resolves names to addresses.) Tj 0 -15 Td (A router forwards packets between networks.) Tj ET';
   const objects=[
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -163,6 +164,21 @@ test('text PDF extraction reads an actual PDF fixture',async()=>{
   const xref=Buffer.byteLength(text);text+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(offset=>`${String(offset).padStart(10,'0')} 00000 n `).join('\n')}\ntrailer\n<< /Root 1 0 R /Size 6 >>\nstartxref\n${xref}\n%%EOF`;
   const result=await post('/api/import-file',{name:'network.pdf',dataBase64:Buffer.from(text).toString('base64')});
   assert.equal(result.status,200,JSON.stringify(result.data));assert.match(result.data.source.content,/DNS resolves names/);assert.equal(result.data.source.metadata.pages,1);
+  assert.match(result.data.source.content,/Network field guide\n\nPart 1 of 12\n\nDNS resolves names to addresses\.\nA router forwards packets/);
+});
+test('PDF text retains paragraph and title boundaries without splitting styled words',()=>{
+  const run=(str,x,y,height=12,width=str.length*6,hasEOL=false)=>({str,transform:[height,0,0,height,x,y],height,width,hasEOL});
+  const text=pdfPageText([
+    run('The World After AI',50,750,24,210,true),
+    run('Part 1 of 12',50,716,12,70,true),
+    run('A data-backed investigation',50,690,12,160,true),
+    run('Jobs combine several',50,620,12,120,true),
+    run('tasks with different requirements.',50,605,12,190,true),
+    run('Auto',50,570,12,24),run('mation',74,570,12,36),run('changes tasks.',116,570,12,85,true),
+  ]);
+  assert.equal(text,'The World After AI\n\nPart 1 of 12\n\nA data-backed investigation\n\nJobs combine several\ntasks with different requirements.\n\nAutomation changes tasks.');
+  assert.equal(pdfPageText([{str:'One line',hasEOL:true},{str:'Next line',hasEOL:true}]),'One line\nNext line');
+  assert.equal(pdfPageText([run('A fact.',50,750),run('Another fact.',50,710)]),'A fact.\n\nAnother fact.');
 });
 test('Office archive checks reject traversal names and excessive expansion declarations',async()=>{
   const bad=zipSync({'../private.txt':strToU8('no')});

@@ -3,19 +3,28 @@ import {PHASE_MIX} from './scoreTypes';
 export const SCORE_LAYERS:ScoreLayer[]=['foundation','melody','detail','pulse'];
 export interface PreparedEvent {layer:ScoreLayer;note:ScoreNote}
 export const scoreEvents=(score:InteractiveScore):PreparedEvent[]=>SCORE_LAYERS.flatMap(layer=>score.layers[layer].map(note=>({layer,note}))).sort((a,b)=>a.note[0]-b.note[0]||SCORE_LAYERS.indexOf(a.layer)-SCORE_LAYERS.indexOf(b.layer));
-/** Four phrase passes create space and response without introducing new melodies or extra tracks. */
+/** Eight phrase sections develop the supplied harmony: opening, response,
+ * contrast, space, development, return, release, reprise. These are procedural
+ * arrangements of the existing score, not extra recorded tracks. */
 export function arrangedScoreEvents(score:InteractiveScore,variation=0,cycle=0):PreparedEvent[]{
- const opening=((Math.max(0,Math.floor(variation))%4)*8)%score.beats,pass=(Math.max(0,Math.floor(cycle))+Math.floor(Math.max(0,variation)/4))%4;
+ const opening=((Math.max(0,Math.floor(variation))%4)*8)%score.beats;
+ const section=(Math.max(0,Math.floor(cycle))+Math.floor(Math.max(0,variation)/4))%8;
+ const harmonicShift=[0,0,2,0,4,0,6,0][section];
+ const scale:readonly number[]=({major:[0,2,4,5,7,9,11],dorian:[0,2,3,5,7,9,10],lydian:[0,2,4,6,7,9,11],pentatonic:[0,2,4,7,9]} as Record<string,number[]>)[score.mode]??[0,2,4,5,7,9,11];
+ const shiftDegree=(midi:number,steps:number)=>{const relative=midi-score.tonic,octave=Math.floor(relative/12),pitch=((relative%12)+12)%12;let index=0;for(let i=1;i<scale.length;i++)if(Math.abs(scale[i]-pitch)<Math.abs(scale[index]-pitch))index=i;const degree=index+steps;return score.tonic+(octave+Math.floor(degree/scale.length))*12+scale[((degree%scale.length)+scale.length)%scale.length];};
  return scoreEvents(score).flatMap(event=>{
-  const [position,duration,midi,velocity]=event.note,at=(position-opening+score.beats)%score.beats,bar=Math.floor(at/4);
-  // A sparse response follows the full phrase; the final bar leaves room to hear the next opening.
-  if(event.layer==='detail'&&(pass===0||pass===3||bar%2===0))return[];
-  if(event.layer==='melody'&&((pass===1&&bar%2===1&&at%4>=2)||(pass===3&&bar===7&&at%4>=1)))return[];
-  if(event.layer==='pulse'&&pass===3&&bar>=6)return[];
-  const dynamics=(bar<4?1:.88)*(pass===1?.86:pass===3?.78:1);
-  // Keep the prepared harmony intact; soften the highest melodic register for long listening.
-  const pitch=event.layer==='melody'&&midi>83?midi-12:midi;
-  return[{layer:event.layer,note:[at,duration,pitch,velocity*dynamics] as ScoreNote}];
+  const [position,duration,midi,velocity]=event.note,at=(position-opening+score.beats)%score.beats,bar=Math.floor(at/4),originalBar=Math.floor(position/4);
+  if(event.layer==='detail'&&([0,3,5,7].includes(section)||bar%2===0))return[];
+  if(event.layer==='melody'&&((section===1&&bar%2===1&&at%4>=2)||(section===3&&bar>=6)||(section===7&&bar===7&&at%4>=1)))return[];
+  if(event.layer==='pulse'&&((section===3&&bar>=4)||(section===7&&bar>=6)))return[];
+  const originalChord=score.harmony[originalBar%score.harmony.length],nextChord=score.harmony[(originalBar+harmonicShift)%score.harmony.length];
+  let pitch=shiftDegree(midi,nextChord-originalChord);
+  // Contrasting melodic registers sit above the same changed chord; final
+  // phrases return home. Foundation and pulse remain out of the speech range.
+  if(event.layer==='melody'&&(section===4||section===6))pitch-=12;
+  if(event.layer==='melody'&&pitch>83)pitch-=12;
+  const dynamics=(bar<4?1:.88)*(section===1?.86:section===3?.7:section===7?.78:1);
+  return[{layer:event.layer,note:[at,Math.min(duration,score.beats-at),Math.max(28,Math.min(96,pitch)),velocity*dynamics] as ScoreNote}];
  }).sort((a,b)=>a.note[0]-b.note[0]||SCORE_LAYERS.indexOf(a.layer)-SCORE_LAYERS.indexOf(b.layer));
 }
 /** Keep a cue's rhythm/intervals but place its tonal centre near the active prepared score. */

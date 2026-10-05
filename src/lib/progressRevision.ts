@@ -1,7 +1,9 @@
 import type { LearningCard, Notebook, Progress } from '../types';
 import type { StructuredActivity } from './structuredEngine';
 import { canScoreRecallCard } from './utils';
+import {hasLearningContentQuote} from './sourceContent';
 import {sourceMediaIdentity} from './mediaAssets';
+import {migrateIndependentActivityAwards} from './progression';
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
@@ -18,8 +20,11 @@ function activityModel(activity: StructuredActivity): string {
   if (model.kind === 'diagram') return stable({ ...model, targets: model.targets.map(({ id, label }) => ({ id, label })) });
   return stable(model);
 }
-function currentActivityEvidence(activity: StructuredActivity, notebook: Notebook): boolean {
+function literalCurrentActivityEvidence(activity: StructuredActivity, notebook: Notebook): boolean {
   return activity.sourceRefs.every(reference => Boolean(reference.evidence.trim()) && notebook.sources.some(source => source.id === reference.sourceId && source.status === 'ready' && source.text.includes(reference.evidence)));
+}
+function currentActivityEvidence(activity: StructuredActivity, notebook: Notebook): boolean {
+  return activity.sourceRefs.every(reference => notebook.sources.some(source => source.id === reference.sourceId && source.status === 'ready' && hasLearningContentQuote(source.text,reference.evidence)));
 }
 
 function mediaEvidence(ids: string[], notebook: Notebook): string {
@@ -60,7 +65,8 @@ export function reconcileReviewEligibility(notebook: Notebook, progress: Progres
   }));
   const clearSession = !!progress.activeSession && progress.activeSession.cardIds.some(id => !eligible.has(id));
   if (!structuredChanged && Object.keys(cards).length === Object.keys(progress.cards).length && completedCardIds.length === progress.completedCardIds.length && !clearSession) return progress;
-  const next: Progress = { ...progress, cards, completedCardIds, ...(structured === undefined ? {} : { structured }), mastery: Object.keys(cards).length ? Math.round(Object.values(cards).filter(card => card.lastCorrect).length / Object.keys(cards).length * 100) : 0, updatedAt: new Date().toISOString(), revision: Math.min(1_000_000, progress.revision + 1) };
+  const history = structuredChanged ? migrateIndependentActivityAwards(progress, notebook) : progress;
+  const next: Progress = { ...history, cards, completedCardIds, ...(structured === undefined ? {} : { structured }), mastery: Object.keys(cards).length ? Math.round(Object.values(cards).filter(card => card.lastCorrect).length / Object.keys(cards).length * 100) : 0, updatedAt: new Date().toISOString(), revision: Math.min(1_000_000, history.revision + 1) };
   if (clearSession) delete next.activeSession;
   return next;
 }
@@ -81,7 +87,7 @@ export function reconcileNotebookProgress(previous: Notebook, next: Notebook, pr
   };
   const activityUnchanged = (id: string) => {
     const before = priorActivities.get(id), after = currentActivities.get(id);
-    return !!before && !!after && !(before.reviewStatus === 'reviewed' && after.reviewStatus === 'needs-review') && currentActivityEvidence(after, next) && activityModel(before) === activityModel(after) && activityMediaEvidence(before,previous) === activityMediaEvidence(after,next);
+    return !!before && !!after && !(before.reviewStatus === 'reviewed' && after.reviewStatus === 'needs-review') && literalCurrentActivityEvidence(after, next) && activityModel(before) === activityModel(after) && activityMediaEvidence(before,previous) === activityMediaEvidence(after,next);
   };
   const cards = Object.fromEntries(Object.entries(progress.cards).filter(([id]) => cardUnchanged(id)));
   const completedCardIds = progress.completedCardIds.filter(cardUnchanged);
@@ -95,7 +101,8 @@ export function reconcileNotebookProgress(previous: Notebook, next: Notebook, pr
   const clearSession = !!progress.activeSession && progress.activeSession.cardIds.some(id => !cardUnchanged(id));
   const changed = upgraded || Object.keys(cards).length !== Object.keys(progress.cards).length || completedCardIds.length !== progress.completedCardIds.length || Object.keys(structured ?? {}).length !== Object.keys(progress.structured ?? {}).length || clearSession;
   if (!changed) return reconcileReviewEligibility(next, progress);
-  const revised: Progress = { ...progress, cards, completedCardIds, ...(structured === undefined ? {} : { structured }), mastery: Object.keys(cards).length ? Math.round(Object.values(cards).filter(card => card.lastCorrect).length / Object.keys(cards).length * 100) : 0, updatedAt: new Date().toISOString(), revision: progress.revision + 1 };
+  const history = upgraded || Object.keys(structured ?? {}).length !== Object.keys(progress.structured ?? {}).length ? migrateIndependentActivityAwards(progress, previous) : progress;
+  const revised: Progress = { ...history, cards, completedCardIds, ...(structured === undefined ? {} : { structured }), mastery: Object.keys(cards).length ? Math.round(Object.values(cards).filter(card => card.lastCorrect).length / Object.keys(cards).length * 100) : 0, updatedAt: new Date().toISOString(), revision: Math.min(1_000_000, history.revision + 1) };
   if (clearSession) delete revised.activeSession;
   // attempts, XP, journal, sessions and historical streaks are deliberately preserved.
   return reconcileReviewEligibility(next, revised);

@@ -1,10 +1,19 @@
 import {evaluateActivityForAuthoring,type StructuredActivity} from './structuredEngine';
 
 export interface ModelPracticeFeedback {score:number;maxScore:number;correct:boolean;feedback:string}
-/** Display-only feedback against generated rules. Never used for XP, mastery or room results. */
+/** Saved lesson metadata is not part of the learner's answer. Preserve every
+ * other field and the evaluator's rejection of non-plain response objects. */
+export function modelPracticeResponse(response:unknown):unknown {
+ if(!response||typeof response!=='object'||Array.isArray(response))return response;
+ const prototype=Object.getPrototypeOf(response);
+ if((prototype!==Object.prototype&&prototype!==null)||!Object.hasOwn(response,'_draft'))return response;
+ const {_draft:_metadata,...answer}=response as Record<string,unknown>;
+ return answer;
+}
+/** Feedback against generated rules may inform game participation XP, never independent mastery, review or competition. */
 export function modelPracticeFeedback(activity:StructuredActivity,response:unknown):ModelPracticeFeedback|undefined {
  if(activity.reviewStatus!=='needs-review')return;
- const evaluation=evaluateActivityForAuthoring(activity,response);
+ const evaluation=evaluateActivityForAuthoring(activity,modelPracticeResponse(response));
  if(!evaluation.valid||evaluation.correct===null||evaluation.maxScore<=0)return;
  return {score:evaluation.score,maxScore:evaluation.maxScore,correct:evaluation.correct,feedback:evaluation.correct?'Your solution satisfies the game’s current rules.':'Some game rules are not satisfied yet. Use the feedback to revise your solution.'};
 }

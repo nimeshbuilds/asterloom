@@ -6,6 +6,7 @@ import {sourceRevision,textDigest} from '../lib/evidence';
 import {answerAsterContext,buildAsterAwareness,type AsterAwarenessContext,type AsterLearningState} from '../lib/asterAwareness';
 import {asterMissionHelp,contextualAsterTip,dismissAsterTip,getAsterPreferences,setAsterPreferences,shouldOfferAsterTip,type AsterGuideContext,type AsterMode,type AsterPreferences,type AsterSessionPolicy} from '../lib/asterGuidePolicy';
 import {ASTER_BASE_PORTRAIT,resolveAsterEmotion,type AsterEmotionId,type AsterEmotionOptions,type AsterMoment} from '../lib/asterEmotions';
+import {asterFeedback,getSoundPreferences} from '../lib/music';
 import './aster-guide.css';
 export interface AsterGuideProps {
  notebook?:Notebook;mode:AsterMode;activityId?:string;creationStage?:string;
@@ -24,7 +25,7 @@ type SearchResult=Awaited<ReturnType<typeof askAster>>;
 let automaticSession:AsterSessionPolicy={shown:0,lastShownAt:-Infinity};
 export default function AsterGuide({notebook,mode,activityId,creationStage,contextKey,feedback,progress,creationRunning,creationConnection,learningState,expressions,onOpenSource,onAssistance,portraitUrl=ASTER_BASE_PORTRAIT}:AsterGuideProps){
  const assistance=useRef(onAssistance);assistance.current=onAssistance;
- const id=useId().replace(/:/g,''),launcher=useRef<HTMLButtonElement>(null),input=useRef<HTMLInputElement>(null),request=useRef(0),searchAbort=useRef<AbortController|null>(null);
+ const id=useId().replace(/:/g,''),launcher=useRef<HTMLButtonElement>(null),input=useRef<HTMLInputElement>(null),request=useRef(0),searchAbort=useRef<AbortController|null>(null),hintInFlight=useRef<number|null>(null);
  const [preferences,setPreferences]=useState<AsterPreferences>(getAsterPreferences),[open,setOpen]=useState(false),[bubble,setBubble]=useState(false),[question,setQuestion]=useState(''),[result,setResult]=useState<SearchResult|null>(null),[searching,setSearching]=useState(false),[error,setError]=useState(''),[showHint,setShowHint]=useState(false),[portraitFailed,setPortraitFailed]=useState(false),[failedExpression,setFailedExpression]=useState('');
  const [contextQuestion,setContextQuestion]=useState<string|null>(null);
  const context:AsterGuideContext={notebook,mode,activityId,creationStage,creationRunning,feedback},tip=contextualAsterTip(context),young=notebook?.ageGroup==='3-5'||notebook?.ageGroup==='6-8';
@@ -45,26 +46,30 @@ export default function AsterGuide({notebook,mode,activityId,creationStage,conte
  // questions across those saves, while task/evidence changes still invalidate source help.
  const materialScope=useMemo(()=>textDigest(JSON.stringify([notebook?.sources.map(source=>[source.id,source.title,source.status,sourceRevision(source)]),activity,help])),[notebook?.sources,activity,help]);
  const scope=`${notebook?.id??'library'}:${materialScope}:${activityId??''}:${mode}:${contextKey??''}`;
+ // Register the persisted-effects gesture listener without creating an audio context.
+ // An automatic tip may make a sound only after the learner has unlocked audio.
+ useEffect(()=>{getSoundPreferences();},[]);
  useEffect(()=>{request.current++;searchAbort.current?.abort();setResult(null);setContextQuestion(null);setSearching(false);setError('');setShowHint(false);setQuestion('');return()=>{request.current++;searchAbort.current?.abort();};},[scope]);
  useEffect(()=>{const changed=()=>setPreferences(getAsterPreferences());window.addEventListener('asterloom:guide-preferences',changed);return()=>window.removeEventListener('asterloom:guide-preferences',changed);},[]);
  useEffect(()=>{
   if(preferences.mode!=='helpful'||open||!shouldOfferAsterTip(context,preferences,automaticSession,Date.now())){setBubble(false);return;}
-  const timeout=setTimeout(()=>{if(document.visibilityState==='hidden'||!shouldOfferAsterTip(context,getAsterPreferences(),automaticSession,Date.now()))return;automaticSession={shown:automaticSession.shown+1,lastShownAt:Date.now()};dismissAsterTip(tip);setBubble(true);},1800);
+  const timeout=setTimeout(()=>{if(document.visibilityState==='hidden'||!shouldOfferAsterTip(context,getAsterPreferences(),automaticSession,Date.now()))return;automaticSession={shown:automaticSession.shown+1,lastShownAt:Date.now()};dismissAsterTip(tip);setBubble(true);asterFeedback('notice',notebook?.ageGroup);},1800);
   return()=>clearTimeout(timeout);
  },[tip.id,preferences.mode,open,creationRunning]);
  useEffect(()=>{if(!bubble)return;const timeout=setTimeout(()=>setBubble(false),14000);return()=>clearTimeout(timeout);},[bubble]);
  useEffect(()=>{if(open)input.current?.focus();},[open]);
  const close=()=>{request.current++;searchAbort.current?.abort();setSearching(false);setOpen(false);launcher.current?.focus();};
- const reveal=()=>{setBubble(false);setOpen(true);};
- const revealHint=async()=>{const version=request.current;try{if(await assistance.current?.()===false)throw Error('Help save failed');if(version!==request.current)return;setShowHint(true);setError('');}catch{if(version===request.current)setError('This mission could not open source help. Try again after returning to the mission.');}};
+ const reveal=()=>{if(open)return;asterFeedback('open',notebook?.ageGroup);setBubble(false);setOpen(true);};
+ const revealHint=async()=>{const version=request.current;if(showHint||hintInFlight.current===version)return;hintInFlight.current=version;asterFeedback('ask',notebook?.ageGroup);try{if(await assistance.current?.()===false)throw Error('Help save failed');if(version!==request.current)return;setShowHint(true);setError('');asterFeedback('answer',notebook?.ageGroup);}catch{if(version===request.current){setError('This mission could not open source help. Try again after returning to the mission.');asterFeedback('answer',notebook?.ageGroup);}}finally{if(hintInFlight.current===version)hintInFlight.current=null;}};
  const search=async(asked=question)=>{
-  if(searching)return;
-  if(answerAsterContext(asked,awarenessContext)){request.current++;searchAbort.current?.abort();setError('');setResult(null);setContextQuestion(asked);return;}
+  if(searching||!asked.trim())return;
+  asterFeedback('ask',notebook?.ageGroup);
+  if(answerAsterContext(asked,awarenessContext)){request.current++;searchAbort.current?.abort();setError('');setResult(null);setContextQuestion(asked);asterFeedback('answer',notebook?.ageGroup);return;}
   setContextQuestion(null);
-  if(!notebook){setError('Open a notebook to search its learning material. You can ask me what is happening or what to do next here.');return;}
+  if(!notebook){setError('Open a notebook to search its learning material. You can ask me what is happening or what to do next here.');asterFeedback('answer');return;}
   const version=++request.current;searchAbort.current?.abort();const controller=new AbortController();searchAbort.current=controller;setSearching(true);setError('');setResult(null);
-  try{const answer=await askAster(notebook,asked,{limit:4,activityId,signal:controller.signal});if(version!==request.current)return;if(answer.passages.length&&await assistance.current?.()===false)throw Error('Help save failed');if(version===request.current)setResult(answer);}
-  catch{if(version===request.current)setError('I could not search these materials. Your game is safe; try opening a source directly.');}
+  try{const answer=await askAster(notebook,asked,{limit:4,activityId,signal:controller.signal});if(version!==request.current)return;if(answer.passages.length&&await assistance.current?.()===false)throw Error('Help save failed');if(version===request.current){setResult(answer);asterFeedback('answer',notebook?.ageGroup);}}
+  catch{if(version===request.current){setError('I could not search these materials. Your game is safe; try opening a source directly.');asterFeedback('answer',notebook?.ageGroup);}}
   finally{if(version===request.current)setSearching(false);}
  };
  const openEvidence=async(reference:EvidenceReference)=>{const version=request.current;try{if(await assistance.current?.()===false)throw Error('Help save failed');if(version!==request.current)return;onOpenSource?.(reference.sourceId,reference.quote);}catch{if(version===request.current)setError('This source could not be opened. You can read the excerpt here.');}};

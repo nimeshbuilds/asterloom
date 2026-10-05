@@ -3,18 +3,32 @@ import AxeBuilder from '@axe-core/playwright';
 import {createNotebook} from '../src/lib/utils';
 import type {LearningCard,Notebook,Source} from '../src/types';
 import {learnBeforeQuest} from './teachingDriver.mjs';
+import {campaignTeachingFixture,coverMetadata} from './campaignTeaching.fixture';
 const at='2026-10-04T12:00:00.000Z';
 const source:Source={id:'field-source',title:'Field notes',kind:'text',status:'ready',addedAt:at,text:'# First observations\nThe observer watched the river after several hours of rain. She recorded the water level and left the cause of the change unresolved.\n\n# A further question\nA second observer suggested comparing another day with the same measurements. The notes do not report the result of that comparison.'};
 const notebook=()=>createNotebook({id:'field-guide-e2e',title:'An evidence expedition',sources:[source],cards:[],activities:[],ageGroup:'adult',scaffoldIds:['recall-escape-mission']});
 async function open(page:Page,n:Notebook){await page.addInitScript(value=>{(window as any).__ASTERLOOM_NOTEBOOK__=value;},n);await page.goto('/');await expect(page.getByRole('heading',{name:n.title,exact:true})).toBeVisible();}
 async function progress(page:Page,id:string){return page.evaluate(id=>new Promise<any>((resolve,reject)=>{const r=indexedDB.open('asterloom-local-v1',1);r.onsuccess=()=>{const db=r.result,q=db.transaction('records','readonly').objectStore('records').get('progress:'+id);q.onsuccess=()=>{db.close();resolve(q.result);};q.onerror=()=>reject(q.error);};r.onerror=()=>reject(r.error);}),id);}
 
+test('an existing generated game presents its teaching and excludes the reported cover-page passage',async({page},info)=>{
+ const n=campaignTeachingFixture();await open(page,n);
+ await expect(page.locator('.campaign-invitation')).toContainText('Understand tasks before choosing a tool');
+ await expect(page.locator('.campaign-chapters')).not.toContainText(coverMetadata);
+ await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Learning briefing',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Learn the ideas',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Start with the task',exact:true})).toBeVisible();
+ await expect(page.locator('.lesson-teaching-card')).toContainText('Read the supplied task before comparing');
+ await expect(page.locator('.lesson-teaching-card')).not.toContainText(coverMetadata);
+ await page.screenshot({path:info.outputPath('source-teaching-entry.png'),fullPage:true});
+});
+
 test('ordinary prose becomes a complete source expedition with a durable, ungraded field guide',async({page})=>{
  const n=notebook();await open(page,n);await expect(page.locator('.campaign-chapter')).toHaveCount(2);await expect(page.locator('.campaign-chapters').getByRole('heading',{name:'First observations',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'A further question',exact:true})).toBeVisible();
  await page.getByRole('button',{name:/^(?:Play game|Continue game)$/,exact:false}).click();await expect(page.getByRole('heading',{name:'Investigate the source'})).toBeVisible();
  await page.getByRole('button',{name:'Pin passage 1',exact:true}).click();await page.getByLabel('Explain what this passage helps you understand').fill('The observation describes a change, but it does not establish its cause.');await page.getByLabel('What would you investigate next? (optional)').fill('Would a comparison day show the same change?');await page.getByRole('button',{name:'Save this discovery',exact:true}).click();await expect(page.getByRole('heading',{name:'A discovery worth keeping.'})).toBeVisible();
- let p=await progress(page,n.id);expect(p.xp).toBe(0);expect(p.completedCardIds).toEqual([]);expect(Object.values(p.studies)).toHaveLength(1);expect(Object.values(p.studies)[0]).toMatchObject({completed:true,note:'The observation describes a change, but it does not establish its cause.'});
- await page.reload();await page.getByRole('button',{name:'Open your field note',exact:true}).click();await expect(page.getByLabel('What would you investigate next? (optional)')).toHaveValue('Would a comparison day show the same change?');await expect(page.getByRole('button',{name:'Pinned to your field guide',exact:true})).toHaveAttribute('aria-pressed','true');
+ let p=await progress(page,n.id);expect(p.xp).toBe(0);expect(p.practice.xp).toBe(5);await expect(page.locator('[data-hud=total-xp]')).toContainText('5 XP');await expect(page.locator('.source-study .reaction-effects')).toHaveAttribute('data-outcome','complete');expect(p.completedCardIds).toEqual([]);expect(Object.values(p.studies)).toHaveLength(1);expect(Object.values(p.studies)[0]).toMatchObject({completed:true,note:'The observation describes a change, but it does not establish its cause.'});
+ await page.reload();await page.getByRole('button',{name:'Open your field note',exact:true}).click();await expect(page.getByLabel('What would you investigate next? (optional)')).toHaveValue('Would a comparison day show the same change?');await expect(page.getByRole('button',{name:'Pinned to your field guide',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.locator('.source-study .reaction-effects')).toHaveCount(0);expect((await progress(page,n.id)).practice.xp).toBe(5);
  await page.getByRole('button',{name:'Next chapter',exact:true}).click();await expect(page.getByRole('heading',{name:'A further question',exact:true})).toBeVisible();await expect(page.getByLabel('Explain what this passage helps you understand')).toHaveValue('');
 });
 

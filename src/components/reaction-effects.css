@@ -22,6 +22,7 @@
 @keyframes ae-water-spread{from{opacity:0;scale:.8}50%{opacity:.3}to{opacity:.18;scale:1}}
 @keyframes ae-reconsider{from{opacity:.1}to{opacity:.65}}
 .aster-reaction[data-motion=reduced] *,:root[data-reduced=true] .aster-reaction *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.aster-reaction[data-motion=reduced] .ae-mote,:root[data-reduced=true] .aster-reaction .ae-mote{opacity:.3}
+.aster-reaction[data-motion=still] *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.aster-reaction[data-motion=still] .ae-mote{opacity:.3}
 @media(prefers-reduced-motion:reduce){.aster-reaction *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.aster-reaction .ae-mote{opacity:.3}}
 @media(max-width:520px){.aster-reaction{border-radius:16px}.aster-reaction svg{height:105px}.aster-reaction.ae-young svg{height:120px}.aster-reaction.ae-compact svg{height:80px}}
 

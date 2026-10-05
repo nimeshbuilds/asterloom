@@ -5,11 +5,23 @@ import {ACTIVITY_EXAMPLES,EXAMPLE_ACTIVITY_SOURCE} from '../src/lib/structuredEn
 import {emptyProgress} from '../src/lib/storage';
 import {parseProgress,serializeProgress} from '../src/lib/package';
 import type {LearningCard,Notebook,Source} from '../src/types';
+import {campaignTeachingFixture,coverMetadata} from './campaignTeaching.fixture';
 const at='2026-10-04T12:00:00.000Z';
 const source:Source={id:'source-network',title:'Network notebook',kind:'text',status:'ready',addedAt:at,text:'# Names\nDNS: Resolves a domain name to a network address.\n\nThis lookup keeps a memorable name separate from its destination address.\n\n# Paths\nRouter: Forwards packets between different networks.\n\nA route determines the next hop for the packet.'};
 const card=(id:string,answer:string,evidence:string):LearningCard=>({id,prompt:'Which term fits this description?',answer,options:['DNS','Router'],correctIndex:answer==='DNS'?0:1,explanation:evidence,evidence,sourceId:source.id,concept:answer,tags:['source-recall'],questionType:'definition',reviewStatus:'extractive'});
 const notebook=():Notebook=>createNotebook({id:'campaign-notebook',title:'Network expedition',sources:[source],cards:[card('dns','DNS','DNS: Resolves a domain name to a network address.'),card('router','Router','Router: Forwards packets between different networks.')],activities:[],ageGroup:'adult'});
 describe('source-shaped learning campaign',()=>{
+ it('routes a generated game into its actual teaching before optional source notes',()=>{
+  const n=campaignTeachingFixture(),campaign=buildCampaign(n),p=emptyProgress(n.id);
+  const taught=campaign.chapters.find(c=>c.teaching);
+  expect(taught?.teaching).toMatchObject({activityId:'task-review-mission',title:'Understand tasks before choosing a tool'});
+  expect(expeditionInvitation(n,campaign,p)).toMatchObject({kind:'activity',activityId:'task-review-mission',label:'Learn & play this mission'});
+  expect(campaign.chapters.every(c=>!c.unit.quote.includes(coverMetadata))).toBe(true);
+  expect(n.sources[0].text).toContain(coverMetadata);
+  const stale={...n,sources:[{...n.sources[0],text:n.sources[0].text+'\n\nA later note adds context.'}]};
+  const revised=buildCampaign(stale);expect(revised.chapters.every(c=>!c.teaching)).toBe(true);
+  expect(expeditionInvitation(stale,revised,p)?.kind).toBe('study');
+ });
  it('keeps explanations with the right heading and maps challenges to their actual evidence',()=>{const plan=buildCampaign(notebook());expect(plan.chapters).toHaveLength(2);expect(plan.chapters.map(c=>c.title)).toEqual(['Names','Paths']);expect(plan.chapters[0].unit.quote).toContain('memorable name');expect(plan.chapters[0].unit.quote).not.toContain('next hop');expect(plan.chapters.map(c=>c.cardIds)).toEqual([['dns'],['router']]);});
  it('keeps unsupported prose discoverable without claiming it has a scored model',()=>{const plan=buildCampaign(createNotebook({sources:[{...source,text:'# Observations\nThe river changed after the rain. The observer recorded several possibilities and left the cause unresolved.'}],cards:[]}));expect(plan.chapters).toHaveLength(1);expect(plan.chapters[0].cardIds).toEqual([]);expect(plan.chapters[0].unit.quote).toContain('unresolved');});
  it('preserves unsupported authored work in the notebook without proposing it as a mission',()=>{const n=notebook();n.activities=[{version:1,id:'authored-task',kind:'rubric',mode:'self-assessment',title:'Explain a boundary',instruction:'Review your explanation.',sample:'An authored sample',criteria:[{id:'scope',label:'Scope',levels:['Needs context','Has context']}],sourceRefs:[],reviewStatus:'reviewed',hint:'Keep scope clear.',explanation:'Review the explicit criterion.'}];const plan=buildCampaign(n);expect(plan.unboundActivityIds).toEqual([]);expect(nextCampaignActivity(plan,emptyProgress(n.id))).toBeUndefined();expect(n.activities[0].id).toBe('authored-task');});

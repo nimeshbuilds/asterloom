@@ -1,7 +1,13 @@
 import {describe,it,expect} from 'vitest';
 import {SCAFFOLDS} from '../src/data/scaffolds';
-import {actionCuePlan,activityActionCue,lessonActionCue,type GameActionCue} from '../src/lib/actionFeedback';
+import {actionCuePlan,asterCuePlan,activityActionCue,lessonActionCue,type GameActionCue,type AsterActionCue} from '../src/lib/actionFeedback';
 describe('action sound design',()=>{
+ it('gives Aster distinct bounded conversation cues, quieter for young learners',()=>{
+  const plans=(['notice','open','ask','answer'] as AsterActionCue[]).map(kind=>asterCuePlan(kind,'adult'));
+  expect(new Set(plans.map(plan=>JSON.stringify(plan.notes))).size).toBe(4);
+  for(const plan of plans){expect(plan.maxDuration).toBeLessThan(.55);expect(plan.notes.every(note=>note.velocity<=.14&&note.midi>=64&&note.midi<=79)).toBe(true);expect(asterCuePlan(plan.kind,'3-5').notes[0].velocity).toBeLessThan(plan.notes[0].velocity);expect(asterCuePlan(plan.kind,'6-8')).toEqual(asterCuePlan(plan.kind,'3-5'));}
+  expect(plans[0].notes).toHaveLength(2);expect(plans[2].instrument).toBe('felt');
+ });
  it('prepares distinct world identities and short, quiet gestures for every scaffold',()=>{
   const identities=new Set<string>();
   for(const scaffold of SCAFFOLDS){

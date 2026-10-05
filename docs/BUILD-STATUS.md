@@ -1,6 +1,14 @@
 # Build status and evidence
 
-Asterloom 0.6.1 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+Asterloom 0.7.2 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+
+## Source teaching, audio and progress in 0.7.2
+
+PDF extraction preserves supplied line and paragraph boundaries. Conservative source exclusions remove recognizable covers, bylines, contents, pagination and repeated page-edge furniture from teaching and AI planning while retaining original text and exact offsets. Older broad citations remain usable when their body contains substantive evidence; metadata cannot supply an extracted answer. Prepared lessons take priority over the generic source-note route.
+
+Journey XP separates saved participation/practice rewards from independent assessment credit. First successful content earns 10 practice XP for recall or 20 for a structured model; a completed source discovery earns 5 participation XP. First independent reviewed mission completion retains its separate 50 XP milestone. Content fingerprints prevent repeated checks, reopening or cosmetic review changes from issuing the same reward again. Save failures withhold score changes, sounds and celebration until the exact pending result is saved. These points represent progress in the game, not proof of learning.
+
+Adaptive recorded music advances between compatible pieces. Procedural music changes harmony, register, density and phrasing across sections; explicit pins remain repeatable. Aster uses separate short entrance, opening, question and answer cues. The shared mixer controls background music and effects independently; saved preferences do not autoplay an automatic Aster entrance. Success and retry reactions use the selected game effect profile, with quieter reading, narration ducking and reduced-motion support.
 
 ## Source-first selection in 0.6.1
 
@@ -14,7 +22,7 @@ The engine compiles explicit source structures: definitions, steps, relationship
 
 Stateful scenarios replay authored actions, resource costs, guarded transitions and observations. Prediction and campaign interfaces record commitments before reveal. Dialogue and perspective models use supplied roles and lines. Prompt comparison replays supplied outputs with model/version context and reviewed rubrics; it makes no inference calls. Construction accepts any model satisfying the stated constraints, not only a memorized layout. Explanation uses claim/evidence/reasoning alternatives; partner turns and exact code-span review have dedicated interfaces. Pictures use actual supplied raster crops. Children’s scenes support puppet turns and prop placement, and build-and-tell keeps caregiver assessment distinct from automatic checks.
 
-AI is optional. Source-grounded drafts and image briefs run through user-selected providers, with exact evidence, structural validation, and author review. Request-scoped API keys stay out of storage and exports. The personal desktop edition installs official local engines for supported subscription connections; per-tool distribution conditions and verification limits are documented in [provider-integrations.md](provider-integrations.md). Actual provider account eligibility and successful inference require account-specific validation; mocked authentication tests are not evidence of a live subscription request.
+New-game automatic creation uses the selected AI connection; existing games play offline and advanced manual authoring remains available. Source-grounded drafts and optional image briefs run through user-selected providers, with exact evidence, structural validation, and author review. Request-scoped API keys stay out of storage and exports. The personal desktop edition installs official local engines for supported subscription connections; per-tool distribution conditions and verification limits are documented in [provider-integrations.md](provider-integrations.md). Actual provider account eligibility and successful inference require account-specific validation; mocked authentication tests are not evidence of a live subscription request.
 
 ## Included in the 0.3 upgrade
 

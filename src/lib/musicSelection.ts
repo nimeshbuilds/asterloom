@@ -1,7 +1,7 @@
 import {SCAFFOLDS} from '../data/scaffolds';
 import {MUSIC_TRACKS,INTERACTIVE_SCORES} from './musicCatalog';
 import type {MusicPhase} from './scoreTypes';
-import {resolveGameAudioDirection} from './gameArtDirection';
+import {resolveGameAudioDirection,audioDirectionCatalog} from './gameArtDirection';
 import type {GameAudioDirection} from './gameArtDirection';
 
 export interface SoundtrackContext {
@@ -11,7 +11,7 @@ export interface SoundtrackContext {
 export interface MusicPreferences {mode:'adaptive'|'pinned';trackId:string}
 export interface SoundtrackSelection {
  trackId:string; variation:number; arrangement:'reading'|'gameplay'; contextKey:string;
- mode:MusicPreferences['mode']; reason:string; artDirected?:boolean; effectProfileId?:string; effects?:GameAudioDirection['effects'];
+ mode:MusicPreferences['mode']; reason:string; playlist?:string[]; progression?:number; artDirected?:boolean; effectProfileId?:string; effects?:GameAudioDirection['effects'];
 }
 const preferenceKey='asterloom:music-preferences:v1';
 let cachedPreferences:MusicPreferences|undefined;
@@ -38,13 +38,13 @@ export function setMusicPreferences(patch:Partial<MusicPreferences>):MusicPrefer
  return{...next};
 }
 /** Stable scene-aware choices, not a claim that a song teaches or interprets source content. */
-export function selectLearningSoundtrack(context:SoundtrackContext,preferences:MusicPreferences=getMusicPreferences()):SoundtrackSelection {
+function initialLearningSoundtrack(context:SoundtrackContext,preferences:MusicPreferences):SoundtrackSelection {
  const scaffold=scaffoldLookup.get(context.scaffoldId??'');
  const family=scaffold?.family??kindFamilies[context.activityKind??'']?.[0]??'recall';
- const scene=scaffold?.visual.scene??context.theme??'islands';
- const age=context.ageGroup??'adult';
+ const scene=context.theme??scaffold?.visual.scene??'islands';
+ const age=context.ageGroup==='adults'?'adult':context.ageGroup??'adult';
  const arrangement=context.phase==='intro'||context.phase==='study'?'reading':'gameplay';
- const contextKey=JSON.stringify([context.notebookId,context.missionId??'',context.scaffoldId??'',context.activityKind??'',scene,age,context.artDirection??null]);
+ const contextKey=JSON.stringify([context.notebookId,context.missionId??'',context.missionIndex??null,context.scaffoldId??'',context.activityKind??'',scene,age,context.artDirection??null]);
  const seed=hash(context.notebookId+'|'+(context.scaffoldId??context.activityKind??scene));
  const mission=Number.isSafeInteger(context.missionIndex)&&context.missionIndex!>=0?context.missionIndex!:hash(context.missionId??context.notebookId);
  const variation=(seed+mission)%8;
@@ -68,4 +68,23 @@ export function selectLearningSoundtrack(context:SoundtrackContext,preferences:M
 
  const selected=pool[(seed+mission)%pool.length]??INTERACTIVE_SCORES[0];
  return{trackId:selected.id,variation,arrangement,contextKey,mode:'adaptive',reason:pool.length>1?'A prepared score from this game’s age and mechanic palette. Chapters rotate compositions; phrases develop as you play.':'This game keeps its prepared musical identity, with different openings and phrase responses across missions.'};
+}
+
+/** A deterministic listening programme. Authored direction supplies the opening;
+ * compatible bundled pieces follow after complete phrases. A learner pin is a
+ * deliberate repeat, and neither choice enables audio or calls a provider. */
+export function selectLearningSoundtrack(context:SoundtrackContext,preferences:MusicPreferences=getMusicPreferences(),progression=0):SoundtrackSelection {
+ const first=initialLearningSoundtrack(context,preferences);
+ const step=Number.isSafeInteger(progression)&&progression>=0?progression:0;
+ if(first.mode==='pinned')return{...first,playlist:[first.trackId],progression:0};
+ const kind=MUSIC_TRACKS.find(track=>track.id===first.trackId)?.kind;
+ const catalog=audioDirectionCatalog(context);
+ const candidates=(first.arrangement==='reading'?catalog.studyTracks:catalog.playTracks).filter(track=>track.kind===kind&&track.id!==first.trackId).map(track=>track.id).sort();
+ // Rotate the alternatives by stable game identity so two games do not play the
+ // same generic alphabetical playlist after their deliberately chosen opening.
+ const offset=candidates.length?hash(first.contextKey)%candidates.length:0;
+ const playlist=[first.trackId,...candidates.slice(offset),...candidates.slice(0,offset)];
+ const trackId=playlist[step%playlist.length];
+ return{...first,trackId,variation:kind==='recording'?0:(first.variation+step*3)%16,playlist,progression:step,
+  reason:first.reason+(playlist.length>1?' Complete pieces and phrases lead into other compatible bundled music.':' Its longer arrangement develops across repeated phrases.')};
 }

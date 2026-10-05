@@ -4,6 +4,7 @@ import { parseProgress, validateProgress } from './package';
 import { canScoreRecallCard } from './utils';
 import { reconcileReviewEligibility } from './progressRevision';
 import {sourceMediaIdentity} from './mediaAssets';
+import {hasLearningContentQuote} from './sourceContent';
 
 const MAX_BYTES = 64 * 1024 * 1024;
 const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
@@ -59,7 +60,7 @@ async function modelIndex(notebook: Notebook): Promise<ModelIndex> {
   }
   const activities: [string, string][] = [];
   for (const activity of notebook.activities ?? []) {
-    if (!activity.sourceRefs.every(ref => ref.evidence.trim() && sources.get(ref.sourceId)?.status === 'ready' && sources.get(ref.sourceId)?.text.includes(ref.evidence))) continue;
+    if (!activity.sourceRefs.every(ref => ref.evidence.trim() && sources.get(ref.sourceId)?.status === 'ready' && hasLearningContentQuote(sources.get(ref.sourceId)!.text,ref.evidence))) continue;
     const citedMedia = await Promise.all(referencedSourceIds(activity).map(async id => [id, await media(sources.get(id))]));
     activities.push([activity.id, await digest({ model: activityModel(activity), media: citedMedia })]);
   }

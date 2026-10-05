@@ -1,4 +1,5 @@
 import type { LearningCard, Notebook, Source, SourceKind } from '../types';
+import {hasLearningContentQuote,hasLearningContentAnswer} from './sourceContent';
 
 export function createId(prefix = 'id'): string {
   const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -50,8 +51,8 @@ export function normalizeText(value: string): string { return value.toLocaleLowe
 export function hasCurrentCardEvidence(card: LearningCard, sources: readonly Source[]): boolean {
   if (!card.sourceId) return false;
   const source = sources.find(item => item.id === card.sourceId);
-  if (!source || source.status !== 'ready' || !card.evidence?.trim() || !source.text.includes(card.evidence)) return false;
-  return card.questionType === 'manual' || card.evidence.toLocaleLowerCase().includes(card.answer.toLocaleLowerCase());
+  if (!source || source.status !== 'ready' || !card.evidence?.trim() || !hasLearningContentQuote(source.text,card.evidence)) return false;
+  return card.questionType === 'manual' || hasLearningContentAnswer(source.text,card.evidence,card.answer);
 }
 
 /** Explicit author/assistant drafts cannot enter scored recall. Legacy status-less cards retain evidence validation. */

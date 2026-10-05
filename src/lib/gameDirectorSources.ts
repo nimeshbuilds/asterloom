@@ -2,6 +2,7 @@ import type {Notebook,Source} from '../types';
 import {sourceLearningUnits,type SourceLearningUnit} from './sourceUnits';
 import {sourceRevision,textDigest} from './evidence';
 import {isReadyLearningSource} from './scaffoldRuntime';
+import {sourceContentExclusions} from './sourceContent';
 
 /** A creation inventory, not an assertion that every passage supports a scored game. */
 export interface DirectorSourceUnit {
@@ -35,7 +36,7 @@ export function buildDirectorSourceInventory(notebook:Pick<Notebook,'sources'>):
    unavailableSources.push({sourceId:source.id,reason:source.status==='error'?'This source needs its import error repaired.':'This source needs current readable text or checked media evidence.'});continue;
   }
   const parsed=groupedUnits(source);
-  if(!parsed.length){unavailableSources.push({sourceId:source.id,reason:'No readable learning passage was found in this source.'});continue;}
+  if(!parsed.length){unavailableSources.push({sourceId:source.id,reason:sourceContentExclusions(source.text).length?'Only publication, cover, or navigation material was found; add the document’s actual explanation or examples.':'No readable learning passage was found in this source.'});continue;}
   for(const unit of parsed){
    const limitation=unit.passages.some(p=>p.fragment)?'This fragment needs its larger source context; use source study instead of inventing a standalone answer.':unit.passages.some(p=>p.kind==='code')?'This code remains available for source study; this bounded game writer does not execute or infer an unprovided program specification.':unit.quote.length<40?'This passage is too short to justify a standalone game model.':undefined;
    units.push({id:unit.id,sourceId:source.id,sourceRevision:sourceRevision(source),sourceTitle:source.title.slice(0,150),title:unit.title.slice(0,160),start:unit.start,end:unit.end,excerpt:unit.quote,headingPath:unit.headingPath.map(h=>h.slice(0,200)),kind:unit.kind,missionEligible:!limitation,...(limitation?{limitation}:{})});
@@ -52,5 +53,5 @@ export function buildDirectorSourceInventory(notebook:Pick<Notebook,'sources'>):
 /** Cached planning is invalid after content, audience, goal or selected provider/model changes. */
 export function directorInputRevision(notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,provider:{provider:string;model:string;baseUrl?:string;endpointFingerprint?:string|null}):string {
  const sources=notebook.sources.map(source=>({id:source.id,title:source.title,revision:sourceRevision(source),status:source.status,transcript:source.transcript,visualEvidence:source.visualEvidence,asset:source.asset?.sha256})).sort((a,b)=>a.id.localeCompare(b.id));
- return textDigest(JSON.stringify({version:1,sources,ageGroup:notebook.ageGroup,goal:notebook.goal,provider:provider.provider,model:provider.model,endpoint:provider.endpointFingerprint??(provider.baseUrl?textDigest(provider.baseUrl):null)}));
+ return textDigest(JSON.stringify({version:notebook.sources.some(source=>sourceContentExclusions(source.text).length)?2:1,sources,ageGroup:notebook.ageGroup,goal:notebook.goal,provider:provider.provider,model:provider.model,endpoint:provider.endpointFingerprint??(provider.baseUrl?textDigest(provider.baseUrl):null)}));
 }

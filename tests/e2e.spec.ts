@@ -47,6 +47,10 @@ async function campaignActivities(page: Page, completed = false) {
 }
 
 
+async function savedGameProgress(page:Page,title:string):Promise<any>{
+ return page.evaluate(title=>new Promise((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,read=db.transaction('records','readonly').objectStore('records').getAll();read.onerror=()=>{db.close();reject(read.error);};read.onsuccess=()=>{db.close();const notebook=read.result.find(value=>value?.title===title&&Array.isArray(value?.sources));if(!notebook){reject(Error('The expected saved notebook was not found'));return;}resolve(read.result.find(value=>value?.notebookId===notebook.id));};};}),title);
+}
+
 test('pasted notes retain locally prepared practice through explicit author customization',async({page})=>{
  await openLibrary(page);
  await page.getByRole('button',{name:'Create a game',exact:true}).last().click();
@@ -64,10 +68,13 @@ test('pasted notes retain locally prepared practice through explicit author cust
  await expect(page.getByRole('button',{name:/^Check my (answer|work)$/})).toHaveCount(0);
  await learnBeforeQuest(page);
  await expect(page.getByRole('button',{name:'Check my answer',exact:true})).toBeVisible();
- await page.locator('.answer-option').first().click();
+ const currentCard=await page.evaluate(()=>new Promise<any>((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,read=db.transaction('records','readonly').objectStore('records').getAll();read.onerror=()=>{db.close();reject(read.error);};read.onsuccess=()=>{db.close();const notebook=read.result.find(value=>value?.title==='Learn straight from my notes'&&Array.isArray(value?.sources)),progress=read.result.find(value=>value?.notebookId===notebook?.id),session=progress?.activeSession;resolve(notebook?.cards.find((card:any)=>card.id===session?.cardIds[session.index]));};};}));
+ expect(currentCard.answer).toMatch(/^(?:Evaporation|Condensation)$/);expect(currentCard.evidence).toContain(currentCard.answer+':');
+ await page.locator('.answer-option').filter({hasText:currentCard.answer}).click();
  await page.getByRole('button',{name:'Check my answer',exact:true}).click();
- await expect(page.locator('.answer-feedback')).toBeVisible();
- await expect(page.locator('.xp-pill')).toHaveText('0 XP');
+ await expect(page.locator('.answer-feedback.success')).toBeVisible();
+ await expect(page.locator('.xp-pill')).toHaveText('10 XP');
+ const saved=await savedGameProgress(page,'Learn straight from my notes');expect(saved.practice.xp).toBe(10);expect(saved.xp).toBe(0);expect(saved.mastery).toBe(0);expect(saved.completedCardIds).toEqual([]);
 });
 
 test('library initialization blocks creation and imports until persisted notebooks are loaded', async ({ page }) => {
@@ -243,7 +250,8 @@ test('dialogue and prompt comparison preserve commitments through a bundled-note
     await expect(recipient.getByRole('list', { name: 'Saved conversation transcript' })).toContainText('Quisiera un té, por favor.');
     await expect(recipient.locator('.structured-game')).toHaveCSS('opacity', '1');
     await expect(recipient.locator('.structured-feedback')).toHaveCSS('opacity', '1');
-    await expect(recipient.locator('.xp-pill')).toContainText('20 discovery points');
+    await expect(recipient.locator('.xp-pill')).toContainText('20 Journey XP');
+    const savedConversation=await savedGameProgress(recipient,'Conversation and evidence');expect(savedConversation.practice.xp).toBe(20);expect(savedConversation.xp).toBe(0);expect(savedConversation.mastery).toBe(0);
     const violations = (await new AxeBuilder({ page: recipient }).analyze()).violations.filter(v => ['critical', 'serious'].includes(v.impact ?? '')); expect(violations).toEqual([]);
   } finally { await context.close(); }
 });
@@ -352,7 +360,7 @@ test('paper puppets and prop stations preserve roles, consequences and recipient
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Your learning', exact: true }).click();
   await expect(page.locator('.insight-stats > div').filter({ hasText: 'challenges solved' }).locator('strong')).toHaveText('0');
-  await expect(page.locator('.insight-stats > div').filter({ hasText: 'discovery points' }).locator('strong')).toHaveText('0');
+  await expect(page.locator('.insight-stats > div').filter({ hasText: 'Journey XP' }).locator('strong')).toHaveText('0');
 });
 
 test('picture building saves the actual layout and keeps caregiver review separate from mastery', async ({ page, browser }, testInfo) => {
@@ -379,7 +387,8 @@ test('picture building saves the actual layout and keeps caregiver review separa
   await page.getByRole('button', { name: 'Save & return', exact: false }).click();
   await expect((await campaignActivities(page,true))).toHaveCount(1);
   await expect(page.locator('.world-statbar')).toContainText('0solved independently');
-  await expect(page.locator('.world-statbar')).toContainText('0discovery points');
+  await expect(page.locator('.world-statbar')).toContainText('20Journey XP');
+  const pictureProgress=await savedGameProgress(page,'A picture with a story');expect(pictureProgress.practice.xp).toBe(20);expect(pictureProgress.xp).toBe(0);expect(pictureProgress.mastery).toBe(0);
   const download = await exportDownload(page, 'pack'), file = testInfo.outputPath('picture-telling.learnpack'); await download.saveAs(file);
   const context = await browser.newContext(), recipient = await context.newPage();
   try {
@@ -472,14 +481,14 @@ test('hiding a hint cannot restore independent recall credit after pause and rel
   await page.locator('.answer-option').filter({ hasText: /Star$/ }).click();
   await page.getByRole('button', { name: 'Check my answer', exact: false }).click();
   await expect(page.locator('.answer-feedback.success')).toBeVisible();
-  await expect(page.locator('.xp-pill')).toHaveText('0 XP');
+  await expect(page.locator('.xp-pill')).toHaveText('10 XP');
   await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
   await exportDownload(page, 'pack');
   const event = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save my personal progress separately', exact: false }).click();
   const file = testInfo.outputPath('assisted-progress.json'); await (await event).saveAs(file);
   const saved = JSON.parse(await readFile(file, 'utf8')).progress;
-  expect(saved.xp).toBe(0); expect(saved.completedCardIds).toEqual([]);
+  expect(saved.xp).toBe(0); expect(saved.practice.xp).toBe(10); expect(saved.mastery).toBe(0); expect(saved.completedCardIds).toEqual([]);
   expect(saved.activeSession.state).toMatchObject({ assisted: true, hint: false, independentCount: 0 });
 });
 
@@ -500,7 +509,7 @@ test('editing source material blocks stale saved answers from earning credit', a
   await page.getByRole('button',{name:'Save & return',exact:true}).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /^Your games/ }).click();
   await openExampleGame(page,'A small guide to the cosmos');
-  await expect(page.locator('.world-statbar')).toContainText('0discovery points');
+  await expect(page.locator('.world-statbar')).toContainText('0Journey XP');
 });
 
 test('revised objectives clear current completion while keeping historical XP', async ({ page }) => {
@@ -518,7 +527,7 @@ test('revised objectives clear current completion while keeping historical XP', 
   await page.getByRole('button', { name: 'Save challenge', exact: false }).click();
   await page.getByRole('button', { name: 'Your games', exact: true }).last().click();
   await openExampleGame(page,'A small guide to the cosmos');
-  await expect(page.locator('.world-statbar')).toContainText('0solved independently'); await expect(page.locator('.world-statbar')).toContainText('20discovery points');
+  await expect(page.locator('.world-statbar')).toContainText('0solved independently'); await expect(page.locator('.world-statbar')).toContainText('20Journey XP');
   await page.getByRole('button', { name: 'Your games', exact: true }).last().click();
   await openExampleGame(page,'Inside the connected world');
   await (await campaignActivities(page)).filter({ hasText: 'Plan a small lab' }).click(); await learnBeforeQuest(page);
@@ -534,7 +543,7 @@ test('revised objectives clear current completion while keeping historical XP', 
   await json.fill(JSON.stringify(activity)); await page.getByRole('button', { name: 'Import activities', exact: true }).click();
   await page.getByRole('button', { name: 'Your games', exact: true }).last().click();
   await openExampleGame(page,'Inside the connected world');
-  await expect((await campaignActivities(page,true))).toHaveCount(0); await expect(page.locator('.world-statbar')).toContainText('20discovery points');
+  await expect((await campaignActivities(page,true))).toHaveCount(0); await expect(page.locator('.world-statbar')).toContainText('20Journey XP');
   await (await campaignActivities(page)).filter({ hasText: 'Plan a small lab' }).click(); await learnBeforeQuest(page);
   await expect(page.getByRole('spinbutton').nth(0)).toHaveValue('0'); await expect(page.locator('.structured-feedback')).toHaveCount(0);
 });
@@ -745,7 +754,8 @@ test('optional artwork remains a reviewed source-bound presentation asset throug
   await page.getByRole('button', { name: 'Hide learning figures', exact: true }).click();
   await page.locator('.answer-option').filter({ hasText: /Packet$/ }).click();
   await page.getByRole('button', { name: 'Check my answer', exact: false }).click();
-  await expect(page.locator('.answer-feedback.success')).toBeVisible(); await expect(page.locator('.xp-pill')).toHaveText('0 XP');
+  await expect(page.locator('.answer-feedback.success')).toBeVisible(); await expect(page.locator('.xp-pill')).toHaveText('10 XP');
+  const visualPractice=await savedGameProgress(page,'Visual learning world');expect(visualPractice.practice.xp).toBe(10);expect(visualPractice.xp).toBe(0);expect(visualPractice.mastery).toBe(0);expect(visualPractice.completedCardIds).toEqual([]);
   await page.getByRole('button', { name: 'Save & exit', exact: false }).click();
   const htmlDownload = await exportDownload(page, 'pack'); const htmlPath = testInfo.outputPath('visual.learnpack'); await htmlDownload.saveAs(htmlPath);
   const context = await browser.newContext(); const learner = await context.newPage();
@@ -893,6 +903,7 @@ test('all seven structured systems evaluate, preserve unfinished work, and trave
   await page.getByRole('button', { name: 'Save my personal progress separately', exact: false }).click();
   const progressFile = testInfo.outputPath('structured.progress.json'); await (await progressEvent).saveAs(progressFile);
   const backup = JSON.parse(await readFile(progressFile, 'utf8')); expect(Object.values(backup.progress.structured).every((entry: any) => entry.completed)).toBe(true);
+  expect(backup.progress.practice.xp).toBe(160);expect(backup.progress.xp).toBe(0);expect(backup.progress.mastery).toBe(0);
   expect(backup.progress.structured['example-budget'].response).toMatchObject({ quantities: { small: 2, large: 1 } });
   const htmlDownload = await exportDownload(page, 'pack'); const htmlPath = testInfo.outputPath('structured.learnpack'); await htmlDownload.saveAs(htmlPath);
   const context = await browser.newContext(); const recipient = await context.newPage();
@@ -910,7 +921,8 @@ test('all seven structured systems evaluate, preserve unfinished work, and trave
   await recipient.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /^Your games/ }).click();
   await openExampleGame(recipient,'Inside the connected world');
   await expect((await campaignActivities(recipient,true))).toHaveCount(8);
-  await expect(recipient.locator('.world-statbar')).toContainText('160discovery points');
+  await expect(recipient.locator('.world-statbar')).toContainText('160Journey XP');
+  const restoredProgress=await savedGameProgress(recipient,'Inside the connected world');expect(restoredProgress.practice).toEqual(backup.progress.practice);expect(restoredProgress.xp).toBe(0);
   await context.close();
 });
 
@@ -1074,8 +1086,9 @@ test('unreviewed models keep practice scores separate from learning credit throu
   await page.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(page.locator('.structured-feedback.draft-preview')).toContainText('practice checks satisfied');
   await expect(page.locator('.structured-review-note')).toContainText('meaning has not been reviewed against the source');
-  await expect(page.locator('.structured-game-header .xp-pill')).toContainText('0 discovery points');
+  await expect(page.locator('.structured-game-header .xp-pill')).toContainText('20 Journey XP');
   await expect(page.locator('.structured-next')).toContainText('Your exploration is saved');
+  const modelProgress=await savedGameProgress(page,'Inside the connected world');expect(modelProgress.practice.xp).toBe(20);expect(modelProgress.xp).toBe(0);expect(modelProgress.mastery).toBe(0);expect(modelProgress.structured['example-budget'].review).toBeUndefined();
   await expect(page.locator('.gameplay-hud')).toHaveAttribute('data-mode', 'draft');
   await page.getByRole('button', { name: 'Save & return', exact: false }).click();
   await expect((await campaignActivities(page,true))).toHaveCount(0);
@@ -1097,13 +1110,23 @@ test('unreviewed models keep practice scores separate from learning credit throu
   await recipient.locator('.structured-path button').filter({ hasText: 'Plan a small lab' }).click(); await learnBeforeQuest(recipient);
   await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(recipient.locator('.structured-feedback.correct')).toBeVisible();
-  await expect(recipient.locator('.structured-game-header .xp-pill')).toContainText('20 discovery points');
+  await expect(recipient.locator('.structured-game-header .xp-pill')).toContainText('20 Journey XP');
+  const reviewedPractice=await savedGameProgress(recipient,'Inside the connected world');expect(reviewedPractice.practice.xp).toBe(20);expect(reviewedPractice.xp).toBe(0);
   await expect(recipient.locator('.structured-review-banner')).toContainText('0 independent attempts');
   await recipient.clock.install({ time: Date.now() + 2 * 24 * 60 * 60 * 1000 });
   await recipient.getByRole('button', { name: 'Start a fresh attempt', exact: true }).click();
+  await expect(recipient.locator('.structured-feedback')).toHaveCount(0);
+  await expect(recipient.locator('.gameplay-hud')).toHaveAttribute('data-mode','learning');
+  await expect(recipient.getByRole('spinbutton').nth(0)).toHaveValue('0');await expect(recipient.getByRole('spinbutton').nth(1)).toHaveValue('0');
+  await expect(recipient.locator('.save-state')).toContainText('Saved on this device');
   await recipient.getByRole('spinbutton').nth(0).fill('2'); await recipient.getByRole('spinbutton').nth(1).fill('1');
+  await expect(recipient.getByRole('spinbutton').nth(0)).toHaveValue('2');await expect(recipient.getByRole('spinbutton').nth(1)).toHaveValue('1');
+  await expect(recipient.locator('.structured-requirements .met strong')).toHaveText(['4 / 4','6 / 6']);
   await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
+  await expect(recipient.locator('.structured-feedback.correct')).toBeVisible();
   await expect(recipient.locator('.structured-review-banner')).toContainText('1 independent attempt');
+  await expect(recipient.locator('.structured-game-header .xp-pill')).toContainText('70 Journey XP');
+  const independentProgress=await savedGameProgress(recipient,'Inside the connected world');expect(independentProgress.xp).toBe(50);expect(independentProgress.practice.xp).toBe(20);expect(independentProgress.structured['example-budget'].review.independentSuccesses).toBe(1);
   await context.close();
 });
 
@@ -1167,5 +1190,5 @@ test('a failed structured result stays in the game and retries without duplicate
  await expect(page.locator('.structured-save-error')).toBeVisible();await expect(page.locator('.structured-feedback')).toHaveCount(0);await expect(page.locator('.structured-next')).toHaveCount(0);await expect(page.locator('.save-state')).toContainText('Save needs attention');
  await page.getByRole('button',{name:'Save & return',exact:false}).click();await expect(page.getByRole('dialog')).toContainText('still needs a successful save');await page.getByRole('button',{name:'Got it',exact:true}).click();await expect(page.locator('.structured-board')).toBeVisible();
  await page.evaluate(()=>{(window as any).__failResult=false;});await page.getByRole('button',{name:'Retry saving result',exact:true}).click();await expect(page.locator('.structured-feedback.correct')).toBeVisible();await expect(page.locator('.structured-next')).toBeVisible();expect(await page.evaluate(()=>(window as any).__checkedAttempts)).toEqual([1,1]);
- await page.reload();await openExampleGame(page,'Inside the connected world');await expect(page.locator('.world-statbar')).toContainText('20discovery points');
+ await page.reload();await openExampleGame(page,'Inside the connected world');await expect(page.locator('.world-statbar')).toContainText('20Journey XP');
 });

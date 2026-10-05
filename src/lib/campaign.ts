@@ -2,10 +2,12 @@ import type { LearningCard, Notebook, Progress, SourceStudyState } from '../type
 import { sourceLearningUnits, type SourceLearningUnit } from './sourceUnits';
 import { canScoreRecallCard } from './utils';
 import { hasCurrentActivityEvidence, isReadyLearningSource } from './scaffoldRuntime';
+import {currentAILearningMission} from './aiLearningPlan';
 
 export interface CampaignChapter {
   id: string; title: string; sourceTitle: string; unit: SourceLearningUnit;
   cardIds: string[]; activityIds: string[];
+  teaching?: {activityId:string;title:string;objective:string;introduction:string};
 }
 export interface LearningCampaign { chapters: CampaignChapter[]; unboundActivityIds: string[]; unboundCardIds: string[] }
 
@@ -35,6 +37,13 @@ export function buildCampaign(notebook: Notebook): LearningCampaign {
     // Multi-source tasks appear once, after the first source they actually use.
     const chapter = chapters.find(c => activity.sourceRefs.some(ref => overlaps(c,ref.sourceId,ref.evidence)));
     if (chapter) {chapter.activityIds.push(activity.id);boundActivities.add(activity.id);}
+  }
+  for(const chapter of chapters){
+    for(const id of chapter.activityIds){
+      const activity=activities.find(a=>a.id===id)!;
+      const teaching=currentAILearningMission(notebook,activity);
+      if(teaching){chapter.teaching={activityId:id,title:teaching.title,objective:teaching.objective,introduction:teaching.conceptExplanation.text};break;}
+    }
   }
   return {chapters,unboundActivityIds:activities.filter(a=>!boundActivities.has(a.id)).map(a=>a.id),unboundCardIds:cards.filter(c=>!boundCards.has(c.id)).map(c=>c.id)};
 }
@@ -100,6 +109,10 @@ export function expeditionInvitation(notebook:Notebook,campaign:LearningCampaign
  if(dueCard)return{kind:'recall',chapter:campaign.chapters.find(c=>c.cardIds.includes(dueCard.id)),title:'Bring an idea back into focus',reason:'A previously learned idea is ready for another retrieval attempt. You can open the source whenever you need it.',label:'Start a review expedition'};
  const started=activities.filter(a=>!progress.structured?.[a.id]?.completed&&!activityExplored(progress,a.id)&&progress.structured?.[a.id]?.response).sort((a,b)=>Date.parse(progress.structured![b.id].updatedAt)-Date.parse(progress.structured![a.id].updatedAt))[0];
  if(started)return{kind:'activity',activityId:started.id,title:started.title,reason:'Your unfinished model and lesson are saved. Pick up the next decision where you left off.',label:'Continue this mission'};
+ // Generated teaching is the main journey. Source notes remain an optional
+ // reference, rather than an extra compulsory reading task before that lesson.
+ const taught=activities.find(a=>!progress.structured?.[a.id]?.completed&&!activityExplored(progress,a.id)&&currentAILearningMission(notebook,a));
+ if(taught){const teaching=currentAILearningMission(notebook,taught)!;return{kind:'activity',activityId:taught.id,title:teaching.title,reason:teaching.objective,label:'Learn & play this mission'};}
  const chapter=campaign.chapters.find(c=>!chapterProgress(c,progress).explored);
  if(chapter)return{kind:'study',chapter,title:chapter.title,reason:'Explore a new part of your own material, collect an observation, and put it to work.',label:'Explore the next chapter'};
  const nextId=nextCampaignActivity(campaign,progress),next=activities.find(a=>a.id===nextId);

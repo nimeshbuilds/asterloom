@@ -2,6 +2,7 @@ import type {Notebook,Progress} from '../types';
 import {gameDesignProgress,type GameCreationEvent} from './gameDesign';
 import {directorInputRevision} from './gameDirectorSources';
 import {isReadyLearningSource} from './scaffoldRuntime';
+import {journeyXp,practiceXp} from './progression';
 import type {AsterGuideContext} from './asterGuidePolicy';
 
 /** Live UI state supplied by the host. Saved scores come separately from Progress/feedback. */
@@ -43,6 +44,7 @@ function learningLogLines(notebook:Notebook|undefined,progress:Progress|undefine
  if(!notebook||progress?.notebookId!==notebook.id)return[];
  return[
   ...progress.attempts.slice(-20).map(attempt=>({id:`recall:${attempt.id}`,at:attempt.at,label:'Recall attempt saved',message:`${attempt.correct?'Correct':'Needs another attempt'}.${count(attempt.xp)?` ${attempt.xp} XP recorded.`:''}`})),
+  ...Object.entries(progress.practice?.awards??{}).filter(([,award])=>award.xp>0).map(([key,award])=>{const practice=award.kind==='card'||award.kind==='activity',subject=award.kind==='activity'?notebook.activities?.find(activity=>activity.id===award.objectiveId)?.title:award.kind==='card'?notebook.cards.find(card=>card.id===award.objectiveId)?.prompt:notebook.sources.find(source=>source.id===progress.studies?.[award.objectiveId]?.sourceId)?.title;return{id:`practice:${key}`,at:award.at,label:practice?'Practice XP saved':'Discovery XP saved',message:`${clean(subject,180)||(award.kind==='activity'?'Game activity':award.kind==='card'?'Recall challenge':'Source-study section')}: ${award.xp} ${practice?'practice':'discovery'} XP recorded. This game reward does not establish independent mastery.`};}),
   ...Object.entries(progress.structured??{}).map(([id,state])=>({id:`activity:${id}:${state.updatedAt}`,at:state.updatedAt,label:state.attempts?'Activity progress saved':'Activity draft saved',message:`${clean(notebook.activities?.find(activity=>activity.id===id)?.title,180)||'Game activity'}: ${state.completed?'completed':'in progress'}.${state.attempts?` ${state.attempts} saved attempts.`:''}`})),
   ...Object.values(progress.studies??{}).filter(state=>state.completed).map(state=>({id:`study:${state.unitId}:${state.updatedAt}`,at:state.updatedAt,label:'Source study saved',message:`A source-study section is complete${notebook.sources.find(source=>source.id===state.sourceId)?` in ${clean(notebook.sources.find(source=>source.id===state.sourceId)!.title,180)}`:''}.`}))
  ].filter(line=>Number.isFinite(Date.parse(line.at)));
@@ -97,7 +99,7 @@ export function buildAsterAwareness(context:AsterAwarenessContext):AsterAwarenes
  if(source)details.push(`Current source: ${clean(source.title,180)} (${source.kind}; ${isReadyLearningSource(source,notebook!.sources)?'ready':'needs preparation'}).`);
  const progress=context.progress?.notebookId===notebook?.id?context.progress:undefined;
  if(progress){
-  if(count(progress.xp))details.push(`Saved total game XP: ${progress.xp}.`);
+  if(count(progress.xp))details.push(`Saved Journey XP: ${journeyXp(progress)} (${practiceXp(progress)} practice XP; ${progress.xp} other game XP). Independent mastery is tracked separately.`);
   details.push(`Saved learning history: ${progress.attempts.length} recall attempts; ${progress.completedCardIds.length} recall challenges completed; ${Object.values(progress.structured??{}).filter(state=>state.completed).length} game activities completed; ${Object.values(progress.studies??{}).filter(state=>state.completed).length} source-study sections completed.`);
  }
  const score=context.feedback?.committed===true?context.feedback.score:undefined;
