@@ -1,3 +1,4 @@
+import {generationResult,normalizeAIUsage} from './ai-usage.mjs';
 import http from 'node:http';
 import https from 'node:https';
 import dns from 'node:dns/promises';
@@ -14,6 +15,7 @@ import {createGrokConnection} from './grok-engine.mjs';
 import {createClaudeConnection} from './claude-engine.mjs';
 import {extractWebPage} from './web-extraction.mjs';
 import {createMediaService} from './media-service.mjs';
+import {cleanupNotebookMedia,validateNotebookCleanup} from './notebook-cleanup.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_FILE = 20 * 1024 * 1024;
@@ -274,9 +276,9 @@ async function importUrl(input) {
 }
 
 async function generate(input, connection, grok, claude) {
-  if(input.provider==='chatgpt')return connection.generate(input);
-  if(input.provider==='grok')return grok.generate(input);
-  if(input.provider==='claude-code')return claude.generate(input);
+  if(input.provider==='chatgpt')return generationResult(input.provider,input.model,await connection.generate(input));
+  if(input.provider==='grok')return generationResult(input.provider,input.model,await grok.generate(input));
+  if(input.provider==='claude-code')return generationResult(input.provider,input.model,await claude.generate(input));
   const provider=bounded(input.provider,30); const apiKey=bounded(input.apiKey,2000); const model=bounded(input.model,200);
   assert(['openai','anthropic','xai','compatible'].includes(provider),'Choose a supported provider.');
   assert(model,'Choose a model identifier.');
@@ -313,10 +315,12 @@ async function generate(input, connection, grok, claude) {
   // Avoid forwarding provider diagnostics which may contain credentials or submitted private text.
   assert(response.status >= 200 && response.status < 300,`The provider returned HTTP ${response.status}. Check your model access, key, billing and quota.`,502,'PROVIDER_ERROR');
   let result; try {result=JSON.parse(response.body.toString());} catch {throw new ApiError(502,'The provider returned an unreadable response.');}
+  try {
   if(provider==='openai')assert(result.status==='completed','The provider did not complete this draft. Your notebook is unchanged.',502);
   const text=provider === 'openai' ? result.output?.flatMap(item=>item.content||[]).filter(part=>part.type==='output_text').map(part=>part.text).join('\n') : provider === 'anthropic' ? result.content?.filter(part=>part.type === 'text').map(part=>part.text).join('\n') : result.choices?.[0]?.message?.content;
   assert(typeof text === 'string' && text.length,'The model returned no text. Try a different model or a smaller request.',502);
-  return {text,usage:result.usage || null,provider,model};
+  return generationResult(provider,model,{text,usage:result.usage,model:result.model});
+  } catch(error) {error.aiUsage=normalizeAIUsage(provider,result.usage);throw error;}
 }
 
 /** Read the current provider catalog; models are not hardcoded or treated as paid-call entitlement. */
@@ -376,8 +380,10 @@ async function generateImage(input){
       else{assert(url.protocol==='https:','Remote image endpoints require HTTPS; local endpoints must be configured in LEARN_AI_ORIGINS.');response=await fetchPublic(url.href,options);}
     }else response=await requestBytes(url,options);
   }catch(error){if(error instanceof ApiError)throw error;throw new ApiError(502,'The image endpoint could not be reached. Check its address and API access.','PROVIDER_UNAVAILABLE');}
-  assert(response.status>=200&&response.status<300,`The image provider returned HTTP ${response.status}. Check model access, billing and quota.`,502,'PROVIDER_ERROR');
+  if(response.status<200||response.status>=300){const error=new ApiError(502,`The image provider returned HTTP ${response.status}. Check model access, billing and quota.`,'PROVIDER_ERROR');try{error.aiUsage=normalizeAIUsage(provider,JSON.parse(response.body.toString())?.usage);}catch{}throw error;}
   let result;try{result=JSON.parse(response.body.toString());}catch{throw new ApiError(502,'The image provider returned an unreadable response.');}
+  const tokenUsage=normalizeAIUsage(provider,result?.usage);
+  try{
   const encoded=result?.data?.[0]?.b64_json;
   assert(typeof encoded==='string'&&encoded.length>0,'The image provider must return base64 PNG data. Image URLs are not fetched automatically.',502,'IMAGE_DATA_REQUIRED');
   assert(encoded.length<=Math.ceil(10*1024*1024/3)*4&&/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)&&encoded.length%4===0,'The returned image is invalid or larger than 10 MiB.',502,'INVALID_IMAGE');
@@ -386,7 +392,8 @@ async function generateImage(input){
   const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
   assert(width>0&&height>0&&width<=4096&&height<=4096,'The returned image dimensions exceed the supported limit.',502,'INVALID_IMAGE');
   const usage=result.usage&&typeof result.usage==='object'?Object.fromEntries(['input_tokens','output_tokens','total_tokens'].filter(key=>Number.isFinite(result.usage[key])&&result.usage[key]>=0).map(key=>[key,result.usage[key]])):null;
-  return {dataUrl:`data:image/png;base64,${bytes.toString('base64')}`,mimeType:'image/png',width,height,provider,model,usage,needsReview:true};
+  return {dataUrl:`data:image/png;base64,${bytes.toString('base64')}`,mimeType:'image/png',width,height,provider,model,usage,tokenUsage,needsReview:true};
+  }catch(error){error.aiUsage=tokenUsage;throw error;}
 }
 
 function publicRoom(room, playerId) {
@@ -465,11 +472,20 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
         assert(++rate.count <= 300,'Too many requests. Wait a minute and try again.',429,'RATE_LIMITED');
       }
       if(await media.handle(request,response,url))return;
-      if(request.method === 'GET' && url.pathname === '/api/health') return send(200,{ok:true,version:'0.6.1',capabilities,limits,storage:'local',multiplayer:'persistent-private-rooms'});
+      if(request.method==='POST'&&url.pathname==='/api/notebooks/cleanup'){
+        const input=await readBody(request),checked=validateNotebookCleanup(input);
+        const result=await cleanupNotebookMedia(input,media);
+        const removed=rooms.filter(room=>room.notebookId===checked.notebookId);
+        if(checked.dryRun)return send(200,{...result,hostedRooms:removed.length});
+        rooms=rooms.filter(room=>room.notebookId!==checked.notebookId);await persist();
+        for(const room of removed){for(const stream of events.get(room.id)||[])stream.end();events.delete(room.id);}
+        return send(200,{...result,removedRooms:removed.length});
+      }
+      if(request.method === 'GET' && url.pathname === '/api/health') return send(200,{ok:true,version:'0.7.0',capabilities,limits,storage:'local',multiplayer:'persistent-private-rooms'});
       if(request.method === 'GET' && url.pathname === '/api/tor/status') return send(200,capabilities.tor);
       if(request.method === 'POST' && url.pathname === '/api/import-file') return send(200,await importFile(await readBody(request),{tesseract}));
       if(request.method === 'POST' && url.pathname === '/api/import-url') return send(200,await importUrl(await readBody(request)));
-      if(request.method === 'POST' && url.pathname === '/api/generate') return send(200,await generate(await readBody(request),connection,grok,claude));
+      if(request.method === 'POST' && url.pathname === '/api/generate') {try {return send(200,await generate(await readBody(request),connection,grok,claude));}catch(error){if(!error.aiUsage)error.aiUsage=normalizeAIUsage('',null);throw error;}}
       if(request.method==='GET'&&url.pathname==='/api/ai/engines')return send(200,{engines:await Promise.all(Object.values(engines).map(engine=>engine.status()))});
       const engineRoute=url.pathname.match(/^\/api\/ai\/engines\/(codex|grok|claude)\/(install|login|cancel|logout)$/);
       if(request.method==='POST'&&engineRoute){
@@ -542,7 +558,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       }
       send(404,{error:'This endpoint was not found.',code:'NOT_FOUND'});
     } catch(error) {
-      if(!response.headersSent) send(error.status || 500,{error:error instanceof ApiError || error.publicMessage===true ? error.message : 'The local service could not complete this operation.',code:error.code || 'SERVICE_ERROR'});
+      if(!response.headersSent) send(error.status || 500,{error:error instanceof ApiError || error.publicMessage===true ? error.message : 'The local service could not complete this operation.',code:error.code || 'SERVICE_ERROR',...(error.aiUsage?{usage:error.aiUsage}:{})});
       else response.end();
     }
   });

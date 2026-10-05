@@ -1,3 +1,4 @@
+import AsterGuide from './AsterGuide';
 import '../learning-journey.css';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Check, CheckCircle2, ChevronRight, Flag, Lightbulb, Pause, Sparkles, Volume2, X } from 'lucide-react';
@@ -218,6 +219,7 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
   const lastResult=state.submitted?sessionTotals.lastAttempt:undefined;
   const currentSupport=state.assisted||state.hint||state.evidence||scaffold.family==='explain'||lessonQuestSupport(lessonPlan,state.lesson).assisted;
   // Looking at figures after a saved answer must not relabel that answer's original support mode.
+  const companion=<AsterGuide notebook={notebook} mode={lessonUnlocked?'play':'study'} contextKey={`${session.seed}:${index}:${card?.id??'done'}`} onAssistance={async()=>{if(pendingTransition.current||criticalInFlight.current)return false;const next={...currentState.current,assisted:true};currentState.current=next;setState(next);return await persist(next);}} feedback={lastResult&&state.submitted?{outcome:lastResult.correct?'success':'retry',eventKey:lastResult.id,committed:true,score:{value:state.correctCount,max:state.answeredCount,xp:lastResult.xp}}:undefined}/>;
   const supportedNow=state.submitted?(state.resultAssisted??(lastResult?.xp?false:currentSupport)):currentSupport;
   const hudMode:GameplayHUDProps['mode']=!lessonUnlocked?'learning':scaffold.family==='explain'?'reflection':supportedNow||done&&state.correctCount>state.independentCount?'practice':'independent';
   const hudProps:GameplayHUDProps={
@@ -318,5 +320,5 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
         <p className="player-save-note" role="status"><Check size={13}/>{saveError ? 'Progress needs a successful save before continuing' : savingCount > 0 ? 'Saving progress…' : writeFailed ? 'Some progress is not saved. Use Save & exit to retry before leaving.' : 'Progress saved on this device · No AI needed to play'}</p><p className="nimeshbuilds-credit">Crafted by <a href="https://github.com/NimeshBuilds" target="_blank" rel="noreferrer">NimeshBuilds</a></p>
       </section>
     </div>
-  </div>;
+  {companion}</div>;
 }

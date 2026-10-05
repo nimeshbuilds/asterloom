@@ -1,5 +1,7 @@
 import type { Confidence, LearningCard, Notebook, Progress } from '../types';
 import { createId, stableHash } from './utils';
+import {cleanupNotebookWork,deletionDesktop,deletionWork,notebookAssetIds,type DeletionWork,type NotebookDeletionPlan,type NotebookDeletionResult} from './notebookDeletion';
+export type {NotebookDeletionPlan,NotebookDeletionResult,TrackedNotebookExport} from './notebookDeletion';
 
 const DATABASE = 'asterloom-local-v1';
 const STORE = 'records';
@@ -39,22 +41,6 @@ async function read<T>(key: string): Promise<T | undefined> {
   });
 }
 
-async function write(key: string, value: unknown): Promise<void> {
-  const db = await database();
-  if (!db) {
-    try { localStorage.setItem(PREFIX + key, JSON.stringify(value)); return; }
-    catch (error) { throw storageFailure(error); }
-  }
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE, 'readwrite');
-    transaction.objectStore(STORE).put(value, key);
-    // Only a committed transaction constitutes a successful save.
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(storageFailure(transaction.error));
-    transaction.onabort = () => reject(storageFailure(transaction.error ?? 'The storage transaction was interrupted.'));
-  });
-}
-
 async function remove(keys: string[]): Promise<void> {
   const db = await database();
   if (!db) { try { keys.forEach(key => localStorage.removeItem(PREFIX + key)); return; } catch (error) { throw storageFailure(error); } }
@@ -65,6 +51,19 @@ async function remove(keys: string[]): Promise<void> {
     transaction.onerror = () => reject(storageFailure(transaction.error));
     transaction.onabort = () => reject(storageFailure(transaction.error));
   });
+}
+
+async function mutateRecords(removals:string[],values:Record<string,unknown>,guardDeletedId?:string):Promise<void>{
+ const db=await database();
+ if(!db){const keys=[...new Set([...removals,...Object.keys(values)])],before=new Map(keys.map(key=>[key,localStorage.getItem(PREFIX+key)]));try{if(guardDeletedId&&localStorage.getItem(PREFIX+'deleted:'+guardDeletedId))throw new Error('This notebook was deleted; a late save was not written.');for(const [key,value]of Object.entries(values))localStorage.setItem(PREFIX+key,JSON.stringify(value));for(const key of removals)localStorage.removeItem(PREFIX+key);return;}catch(error){for(const [key,value]of before)try{if(value===null)localStorage.removeItem(PREFIX+key);else localStorage.setItem(PREFIX+key,value);}catch{}throw storageFailure(error);}}
+ await new Promise<void>((resolve,reject)=>{
+  let tx:IDBTransaction;try{tx=db.transaction(STORE,'readwrite');}catch(error){reject(storageFailure(error));return;}
+  const store=tx.objectStore(STORE);let cause:unknown;
+  const abort=(error:unknown)=>{cause=error;try{tx.abort();}catch{/* An already finished transaction cannot be aborted again. */}reject(storageFailure(error));};
+  const apply=()=>{try{for(const key of removals)store.delete(key);for(const [key,value]of Object.entries(values))store.put(value,key);}catch(error){abort(error);}};
+  tx.oncomplete=()=>resolve();tx.onerror=()=>reject(storageFailure(cause??tx.error));tx.onabort=()=>reject(storageFailure(cause??tx.error??'The storage transaction was interrupted.'));
+  try{if(guardDeletedId){const check=store.get('deleted:'+guardDeletedId);check.onsuccess=()=>{if(check.result)abort(new Error('This notebook was deleted; a late save was not written.'));else apply();};check.onerror=()=>abort(check.error);}else apply();}catch(error){abort(error);}
+ });
 }
 
 export async function loadNotebooks(): Promise<Notebook[]> {
@@ -86,21 +85,54 @@ export async function loadNotebooks(): Promise<Notebook[]> {
 
 export async function loadNotebook(id: string): Promise<Notebook | undefined> { return read<Notebook>(`notebook:${id}`); }
 
-export async function saveNotebook(notebook: Notebook): Promise<Notebook> {
+async function assetHistory(id:string):Promise<string[]>{const ids=await read<unknown>(`asset-history:${id}`);return Array.isArray(ids)?ids.filter((id):id is string=>typeof id==='string'&&/^[a-f0-9]{64}$/.test(id)):[];}
+async function retainedAssets(rows:Notebook[]):Promise<string[]>{return [...new Set([...notebookAssetIds(rows),...(await Promise.all(rows.map(n=>assetHistory(n.id)))).flat()])];}
+
+export async function saveNotebook(notebook: Notebook,options:{restoreDeleted?:boolean}={}): Promise<Notebook> {
+  if(!options.restoreDeleted&&await isNotebookDeleted(notebook.id))throw new Error('This notebook was deleted. Import a saved copy to restore it.');
   const previous = await loadNotebook(notebook.id);
   const saved = { ...notebook, revision: previous ? Math.max(previous.revision + 1, notebook.revision) : Math.max(1, notebook.revision), updatedAt: new Date().toISOString() };
-  await write(`notebook:${notebook.id}`, saved);
+  const ownedAssets=[...new Set([...(options.restoreDeleted?[]:await assetHistory(notebook.id)),...notebookAssetIds(previous?[previous,notebook]:[notebook])])];
+  await mutateRecords(options.restoreDeleted?[`deleted:${notebook.id}`,`cleanup:${notebook.id}`]:[],{[`notebook:${notebook.id}`]:saved,[`asset-history:${notebook.id}`]:ownedAssets},options.restoreDeleted?undefined:notebook.id);
   return saved;
 }
 
-export async function deleteNotebook(id: string): Promise<void> { await remove([`notebook:${id}`, `progress:${id}`]); }
+export async function isNotebookDeleted(id:string):Promise<boolean>{return !!await read(`deleted:${id}`);}
+export async function loadPendingNotebookCleanupIds():Promise<string[]>{
+ const db=await database();if(!db)return Object.keys(localStorage).filter(key=>key.startsWith(PREFIX+'cleanup:')).map(key=>key.slice((PREFIX+'cleanup:').length));
+ return new Promise((resolve,reject)=>{const ids:string[]=[],request=db.transaction(STORE,'readonly').objectStore(STORE).openKeyCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor){resolve(ids);return;}const key=String(cursor.key);if(key.startsWith('cleanup:'))ids.push(key.slice(8));cursor.continue();};request.onerror=()=>reject(storageFailure(request.error));});
+}
+export async function prepareNotebookDeletion(id:string):Promise<NotebookDeletionPlan>{
+ const rows=await loadNotebooks(),notebook=rows.find(n=>n.id===id);if(!notebook)throw new Error('This notebook is no longer in your library.');
+ const retained=rows.filter(n=>n.id!==id),kept=new Set(await retainedAssets(retained)),work=deletionWork(notebook,retained,Object.keys(localStorage),[],{ownedAssetIds:await assetHistory(id),retainedAssetIds:[...kept]});
+ const assets=[...new Map(notebook.sources.flatMap(s=>s.asset?[[s.asset.id,s.asset] as const]:[])).values()];
+ const plan:NotebookDeletionPlan={notebookId:id,title:notebook.title,sourceCount:notebook.sources.length,cardCount:notebook.cards.length,activityCount:notebook.activities?.length||0,mediaCount:work.assetIds.length,exclusiveMediaBytes:assets.filter(a=>!kept.has(a.id)).reduce((sum,a)=>sum+a.size,0),sharedMediaCount:work.assetIds.filter(id=>kept.has(id)).length,draftCount:work.draftKeys.length,exports:[],warnings:[]};
+ if(work.assetIds.length)try{const response=await fetch('/api/notebooks/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notebookId:id,assetIds:work.assetIds,retainedAssetIds:[...kept],dryRun:true}),signal:AbortSignal.timeout(10_000)});if(!response.ok)throw new Error();const details=await response.json();if(Number.isSafeInteger(details.exclusiveMediaBytes))plan.exclusiveMediaBytes=details.exclusiveMediaBytes;if(details.bundledAssets)plan.warnings.push('Some recordings are built into this application copy. Removing the saved game clears its working data; the bundled originals remain until that app copy is moved to Trash.');if(details.warnings?.length)plan.warnings.push('Some recording files could not be checked. Cleanup will report any files it cannot remove.');}catch{plan.warnings.push('Recording sizes are estimates because the local file service could not be checked.');}
+ try{const listed=await deletionDesktop()?.listNotebookExports?.(id);if(listed?.error)throw new Error();plan.exports=listed?.exports||[];}catch{plan.warnings.push('Saved export locations could not be read. Their copies will be kept.');}
+ return plan;
+}
+export async function retryNotebookCleanup(id:string):Promise<NotebookDeletionResult>{
+ const work=await read<DeletionWork>(`cleanup:${id}`);if(!work)return {deleted:true,pendingCleanup:false,warnings:[],removedAssets:0,removedBytes:0,trashedExports:0};
+ const rows=await loadNotebooks();if(rows.some(n=>n.id===id))throw new Error('This notebook was restored. Its current files have been preserved.');
+ const result=await cleanupNotebookWork(work,rows,await retainedAssets(rows));if(!result.pendingCleanup)await remove([`cleanup:${id}`]);return result;
+}
+export async function deleteNotebook(id:string,options:{trashExportIds?:string[]}={}):Promise<NotebookDeletionResult>{
+ const rows=await loadNotebooks(),notebook=rows.find(n=>n.id===id);if(!notebook)return retryNotebookCleanup(id);
+ if(options.trashExportIds&&(!Array.isArray(options.trashExportIds)||options.trashExportIds.some(id=>typeof id!=='string'||!/^export-[a-f0-9-]{36}$/.test(id))))throw new Error('Choose only exports listed for this notebook.');
+ const retained=rows.filter(n=>n.id!==id);
+ const work=deletionWork(notebook,retained,Object.keys(localStorage),options.trashExportIds,{ownedAssetIds:await assetHistory(id),retainedAssetIds:await retainedAssets(retained)});
+ // Commit removal and a small, content-free recovery record together. No late
+ // progress write or embedded-game bootstrap may resurrect a deleted notebook.
+ await mutateRecords([`notebook:${id}`,`progress:${id}`,`asset-history:${id}`],{[`deleted:${id}`]:{deletedAt:new Date().toISOString()},[`cleanup:${id}`]:work});
+ try{return await retryNotebookCleanup(id);}catch{return {deleted:true,pendingCleanup:true,warnings:['The game was removed. Its local-file cleanup could not finish; retry cleanup to resume safely.'],removedAssets:0,removedBytes:0,trashedExports:0};}
+}
 
 export function emptyProgress(notebookId: string): Progress {
   return { notebookId, completedCardIds: [], attempts: [], cards: {}, xp: 0, mastery: 0, streak: 0, bestStreak: 0, sessions: 0, journal: [], updatedAt: new Date().toISOString(), revision: 1 };
 }
 
 export async function loadProgress(notebookId: string): Promise<Progress> { return await read<Progress>(`progress:${notebookId}`) ?? emptyProgress(notebookId); }
-export async function saveProgress(progress: Progress): Promise<void> { await write(`progress:${progress.notebookId}`, { ...progress, updatedAt: new Date().toISOString() }); }
+export async function saveProgress(progress: Progress): Promise<void> { await mutateRecords([],{[`progress:${progress.notebookId}`]:{...progress,updatedAt:new Date().toISOString()}},progress.notebookId); }
 
 /** Deterministic review heuristic, not a validated measure of ability or examination readiness. */
 export function recordAttempt(progress: Progress, card: LearningCard, correct: boolean, confidence: Confidence = 'unsure', now = new Date()): Progress {

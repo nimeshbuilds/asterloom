@@ -1,4 +1,5 @@
 import type {Notebook} from '../types';
+import {upsertAIUsageReceipt,validateAIUsageReceipts} from './aiUsage';
 
 function same(a:unknown,b:unknown):boolean {
  if(a===b)return true;
@@ -8,15 +9,33 @@ function same(a:unknown,b:unknown):boolean {
 }
 function conflict(){throw new Error('This part of the notebook changed while the operation was running. Your newer edits were kept. Retry using the updated material.');}
 
+/** Receipts are an append/update history. Independent requests must not overwrite
+ * each other when an author changes material or runs another optional tool. */
+function mergeToolReceipts(base:Notebook,incoming:Notebook,current:Notebook) {
+ const before=validateAIUsageReceipts(base.aiToolReceipts??[]),after=validateAIUsageReceipts(incoming.aiToolReceipts??[]);
+ let merged=validateAIUsageReceipts(current.aiToolReceipts??[]);
+ const prior=new Map(before.map(item=>[item.id,item])),next=new Map(after.map(item=>[item.id,item]));
+ if(before.some(item=>!next.has(item.id)))throw new Error('Saved AI request history cannot be removed from a game.');
+ for(const item of after){
+  const previous=prior.get(item.id),latest=merged.find(value=>value.id===item.id);
+  if(previous&&same(previous,item))continue;
+  if(previous&&!latest)conflict();
+  if(latest&&!same(previous,latest)&&!same(item,latest))conflict();
+  merged=upsertAIUsageReceipt(merged,item);
+ }
+ return merged;
+}
+
 /** Apply only edits made since the operation began, preserving unrelated concurrent work. */
 export function mergeNotebookChanges(base:Notebook,incoming:Notebook,current:Notebook):Notebook {
  if(base.id!==incoming.id||base.id!==current.id)throw new Error('The notebook no longer matches this editing operation.');
  const result={...current} as Notebook;
- for(const key of ['title','description','ageGroup','goal','theme','scaffoldIds'] as const){
+ for(const key of ['title','description','ageGroup','goal','theme','themeSelection','scaffoldIds','creation','gameDesign','aiLearningPlan','generationVersion'] as const){
   if(same(base[key],incoming[key]))continue;
   if(!same(base[key],current[key])&&!same(incoming[key],current[key]))conflict();
   (result as unknown as Record<string,unknown>)[key]=incoming[key];
  }
+ if(!same(base.aiToolReceipts,incoming.aiToolReceipts))result.aiToolReceipts=mergeToolReceipts(base,incoming,current);
  for(const key of ['sources','cards','activities','artwork','learningObjectives'] as const){
   if(same(base[key],incoming[key]))continue;
   const before=base[key]||[],after=incoming[key]||[],now=current[key]||[];

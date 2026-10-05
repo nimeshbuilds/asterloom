@@ -1,3 +1,4 @@
+import {requestTrackedAITool,type AIToolUsageObserver} from './aiToolUsage';
 import type { LearningCard, Notebook } from '../types';
 import { validateLearningCard } from './package';
 
@@ -43,12 +44,11 @@ export function applyRefinementResponse(notebook: Notebook, text: string): Refin
 
 
 /** Credentials are passed for this request only. No provider config is written to storage. */
-export async function refineCards(notebook: Notebook, config: ProviderConfig, signal?: AbortSignal): Promise<RefinementResult> {
+export async function refineCards(notebook: Notebook, config: ProviderConfig, signal?: AbortSignal, onAIUsage?: AIToolUsageObserver): Promise<RefinementResult> {
   if (!config.model.trim()) throw new Error('Enter a model identifier.');
   const prompt = createRefinementPrompt(notebook);
-  const response = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...config, prompt, maxOutputTokens: 6000, jsonMode: config.provider !== 'anthropic' }), signal });
-  let payload: { text?: string; usage?: unknown; error?: string | { message?: string } };
-  try { payload = await response.json(); } catch { throw new Error('The local companion is needed for optional AI refinement. Local creation and play remain available.'); }
-  if (!response.ok) throw new Error(typeof payload.error === 'string' ? payload.error : payload.error?.message ?? `AI refinement failed (${response.status}).`);
-  return { ...applyRefinementResponse(notebook, payload.text ?? ''), usage: payload.usage ?? null };
+  return requestTrackedAITool({stage:'wording-refinement',config,signal,onAIUsage,body:{...config,prompt,maxOutputTokens:6000,jsonMode:config.provider!=='anthropic'},readResult:payload=>{
+    if(typeof payload.text!=='string')throw new Error('The provider returned no wording draft.');
+    return {...applyRefinementResponse(notebook,payload.text),usage:payload.usage??null};
+  }});
 }

@@ -13,7 +13,7 @@ const MODES={
  learning:{title:'Source preparation',note:'Build understanding before the challenge.',Icon:BookOpen},
  practice:{title:'Supported practice',note:'Source support is available. Game points are separate from independent mastery.',Icon:Compass},
  independent:{title:'Independent attempt',note:'Attempt the challenge without opening the source or hints.',Icon:Target},
- draft:{title:'Unreviewed preview',note:'An author must approve this activity before scored play.',Icon:LockKeyhole},
+ draft:{title:'Model practice',note:'Try the generated rules. Practice feedback is separate from verified learning credit.',Icon:LockKeyhole},
  reflection:{title:'Personal reflection',note:'Your reflection is saved without an automatic correctness grade.',Icon:MessageCircle},
 };
 /** Present committed game state only. This component never awards points or changes learning progress. */

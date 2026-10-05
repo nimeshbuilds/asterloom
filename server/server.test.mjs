@@ -188,7 +188,7 @@ test('compatible provider proxy performs an actual HTTP request without persisti
   const origin=`http://127.0.0.1:${model.address().port}`;const previous=process.env.LEARN_AI_ORIGINS;process.env.LEARN_AI_ORIGINS=origin;
   try {
     const result=await post('/api/generate',{provider:'compatible',baseUrl:origin+'/v1',apiKey:'ephemeral-secret',model:'local-test',prompt:'Create a question from: DNS resolves names.',jsonMode:true});
-    assert.equal(result.status,200,JSON.stringify(result.data));assert.match(result.data.text,/DNS/);assert.equal(received.authorization,'Bearer ephemeral-secret');assert.equal(received.url,'/v1/chat/completions');assert.equal(received.body.response_format.type,'json_object');assert.equal(result.data.usage.total_tokens,30);
+    assert.equal(result.status,200,JSON.stringify(result.data));assert.match(result.data.text,/DNS/);assert.equal(received.authorization,'Bearer ephemeral-secret');assert.equal(received.url,'/v1/chat/completions');assert.equal(received.body.response_format.type,'json_object');assert.equal(result.data.usage.totalTokens,30);
     const saved=await fs.readFile(path.join(directory,'rooms.json'),'utf8');assert.ok(!saved.includes('ephemeral-secret'));
   } finally {if(previous===undefined)delete process.env.LEARN_AI_ORIGINS;else process.env.LEARN_AI_ORIGINS=previous;model.closeAllConnections();await new Promise(resolve=>model.close(resolve));}
 });
@@ -203,7 +203,9 @@ test('optional image proxy returns exactly one bounded PNG and never follows ima
   await new Promise(resolve=>model.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${model.address().port}`,previous=process.env.LEARN_AI_ORIGINS;process.env.LEARN_AI_ORIGINS=origin;
   const input={provider:'compatible',baseUrl:origin+'/v1',apiKey:'image-key-memory-only',model:'test-image',prompt:'A small educational diagram',n:10};
   try{
-    const result=await post('/api/generate-image',input);assert.equal(result.status,200,JSON.stringify(result.data));assert.equal(result.data.dataUrl,`data:image/png;base64,${png}`);assert.equal(result.data.width,1);assert.equal(result.data.height,1);assert.equal(result.data.needsReview,true);assert.deepEqual(result.data.usage,{total_tokens:8});
+    // This credential audit must also work when image tests run in isolation.
+    assert.equal((await post('/api/rooms',{notebookId:'image-credential-audit',playerName:'Test host'})).status,201);
+    const result=await post('/api/generate-image',input);assert.equal(result.status,200,JSON.stringify(result.data));assert.equal(result.data.dataUrl,`data:image/png;base64,${png}`);assert.equal(result.data.width,1);assert.equal(result.data.height,1);assert.equal(result.data.needsReview,true);assert.deepEqual(result.data.usage,{total_tokens:8});assert.deepEqual(result.data.tokenUsage,{status:'partial',inputTokens:null,outputTokens:null,cachedInputTokens:null,cacheWriteTokens:null,reasoningTokens:null,totalTokens:8});
     assert.equal(received.url,'/v1/images/generations');assert.equal(received.authorization,'Bearer image-key-memory-only');assert.equal(received.body.n,1);assert.equal(received.body.output_format,'png');assert.equal(received.body.quality,'low');assert.equal(received.body.response_format,undefined);
     mode='url';const missing=await post('/api/generate-image',input);assert.equal(missing.status,502);assert.equal(missing.data.code,'IMAGE_DATA_REQUIRED');
     mode='svg';const invalid=await post('/api/generate-image',input);assert.equal(invalid.status,502);assert.equal(invalid.data.code,'INVALID_IMAGE');
@@ -211,5 +213,46 @@ test('optional image proxy returns exactly one bounded PNG and never follows ima
     mode='redirect';const before=calls;const redirected=await post('/api/generate-image',input);assert.equal(redirected.status,502);assert.equal(calls,before+1);
     const untouched=calls;assert.equal((await post('/api/generate-image',{...input,provider:'anthropic'})).status,400);assert.equal((await post('/api/generate-image',{...input,baseUrl:'http://169.254.169.254/v1'})).status,400);assert.equal((await post('/api/generate-image',{...input,baseUrl:'https://127.0.0.1/v1'})).status,400);assert.equal(calls,untouched);
     assert.ok(!(await fs.readFile(path.join(directory,'rooms.json'),'utf8')).includes('image-key-memory-only'));
+  }finally{if(previous===undefined)delete process.env.LEARN_AI_ORIGINS;else process.env.LEARN_AI_ORIGINS=previous;model.closeAllConnections();await new Promise(resolve=>model.close(resolve));}
+});
+test('image proxy preserves measured tokens across success and rejection without inventing counters or exposing diagnostics',async()=>{
+  const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',largeDimensions=Buffer.from(png,'base64');largeDimensions.writeUInt32BE(4097,16);
+  const unknown={status:'unavailable',inputTokens:null,outputTokens:null,cachedInputTokens:null,cacheWriteTokens:null,reasoningTokens:null,totalTokens:null};
+  const partial={...unknown,status:'partial',totalTokens:8};
+  const measured={status:'reported',inputTokens:100,outputTokens:30,cachedInputTokens:80,cacheWriteTokens:10,reasoningTokens:7,totalTokens:130};
+  const rawMeasured={input_tokens:100,output_tokens:30,total_tokens:130,input_tokens_details:{cached_tokens:80,cache_write_tokens:10,image_tokens:90,private:'private-image-diagnostic'},output_tokens_details:{reasoning_tokens:7,private:'private-image-diagnostic'},private:'private-image-diagnostic'};
+  const rawZero={input_tokens:0,output_tokens:0,total_tokens:0,input_tokens_details:{cached_tokens:0,cache_write_tokens:0},output_tokens_details:{reasoning_tokens:0}};
+  const explicitZero={status:'reported',inputTokens:0,outputTokens:0,cachedInputTokens:0,cacheWriteTokens:0,reasoningTokens:0,totalTokens:0};
+  const rawMalformed={input_tokens:'100',output_tokens:-1,total_tokens:'130',private:'private-image-diagnostic'};
+  const cases=[
+    {name:'total only',status:200,payload:{data:[{b64_json:png}],usage:{total_tokens:8,private:'private-image-diagnostic'}},expected:partial,legacy:{total_tokens:8}},
+    {name:'explicit zero',status:200,payload:{data:[{b64_json:png}],usage:rawZero},expected:explicitZero,legacy:{input_tokens:0,output_tokens:0,total_tokens:0}},
+    {name:'measured input includes cache subsets',status:200,payload:{data:[{b64_json:png}],usage:rawMeasured,diagnostics:'private-image-diagnostic'},expected:measured,legacy:{input_tokens:100,output_tokens:30,total_tokens:130}},
+    {name:'successful image without counters',status:200,payload:{data:[{b64_json:png}]},expected:unknown,legacy:null},
+    {name:'successful image with malformed counters',status:200,payload:{data:[{b64_json:png}],usage:rawMalformed},expected:unknown,legacy:{}},
+    {name:'successful image with nonobject usage',status:200,payload:{data:[{b64_json:png}],usage:'private-image-diagnostic'},expected:unknown,legacy:null},
+    {name:'missing image',status:200,payload:{data:[{url:'https://example.invalid/private-image-diagnostic'}],usage:rawMeasured},expected:measured,code:'IMAGE_DATA_REQUIRED'},
+    {name:'invalid base64',status:200,payload:{data:[{b64_json:'private-image-diagnostic!'}],usage:rawMeasured},expected:measured,code:'INVALID_IMAGE'},
+    {name:'non-PNG image',status:200,payload:{data:[{b64_json:Buffer.from('<svg>private-image-diagnostic</svg>').toString('base64')}],usage:rawMeasured},expected:measured,code:'INVALID_IMAGE'},
+    {name:'unsupported dimensions',status:200,payload:{data:[{b64_json:largeDimensions.toString('base64')}],usage:rawMeasured},expected:measured,code:'INVALID_IMAGE'},
+    {name:'invalid image without counters',status:200,payload:{data:[]},expected:unknown,code:'IMAGE_DATA_REQUIRED'},
+    {name:'provider error with measured counters',status:429,payload:{error:{message:'private-image-diagnostic test-image-credential'},usage:rawMeasured},expected:measured,code:'PROVIDER_ERROR'},
+    {name:'provider error with total only',status:503,payload:{error:{message:'private-image-diagnostic'},usage:{total_tokens:8}},expected:partial,code:'PROVIDER_ERROR'},
+    {name:'provider error with explicit zero',status:400,payload:{error:{message:'private-image-diagnostic'},usage:rawZero},expected:explicitZero,code:'PROVIDER_ERROR'},
+    {name:'provider error without counters',status:500,payload:{error:{message:'private-image-diagnostic'}},expected:unknown,code:'PROVIDER_ERROR'},
+    {name:'provider error with malformed counters',status:500,payload:{error:{message:'private-image-diagnostic'},usage:rawMalformed},expected:unknown,code:'PROVIDER_ERROR'},
+    {name:'unreadable provider error',status:500,body:'private-image-diagnostic test-image-credential',code:'PROVIDER_ERROR'},
+    {name:'unreadable successful response',status:200,body:'private-image-diagnostic test-image-credential',code:'INVALID_REQUEST'},
+  ];
+  let current,calls=0;
+  const model=http.createServer(async(request,response)=>{calls++;for await(const _chunk of request){}response.writeHead(current.status,{'Content-Type':'application/json'});response.end(current.body??JSON.stringify(current.payload));});
+  await new Promise(resolve=>model.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${model.address().port}`,previous=process.env.LEARN_AI_ORIGINS;process.env.LEARN_AI_ORIGINS=origin;
+  try{
+    for(const fixture of cases){
+      current=fixture;const before=calls,result=await post('/api/generate-image',{provider:'compatible',baseUrl:origin+'/v1',apiKey:'test-image-credential',model:'image-usage-fixture',prompt:'Draw one learning diagram.'});assert.equal(calls,before+1,fixture.name);
+      if(fixture.code){assert.equal(result.status,502,fixture.name);assert.equal(result.data.code,fixture.code,fixture.name);assert.deepEqual(result.data.usage,fixture.expected,fixture.name);assert.equal(result.data.tokenUsage,undefined,fixture.name);assert.equal(result.data.dataUrl,undefined,fixture.name);}
+      else{assert.equal(result.status,200,fixture.name);assert.deepEqual(result.data.usage,fixture.legacy,fixture.name);assert.deepEqual(result.data.tokenUsage,fixture.expected,fixture.name);}
+      assert.doesNotMatch(JSON.stringify(result.data),/private-image-diagnostic|test-image-credential/,fixture.name);
+    }
   }finally{if(previous===undefined)delete process.env.LEARN_AI_ORIGINS;else process.env.LEARN_AI_ORIGINS=previous;model.closeAllConnections();await new Promise(resolve=>model.close(resolve));}
 });

@@ -1,0 +1,14 @@
+import {useEffect,useState} from 'react';
+import {AlertCircle,LoaderCircle,Trash2} from 'lucide-react';
+import type {Notebook} from '../types';
+import {prepareNotebookDeletion} from '../lib/storage';
+import Dialog from './Dialog';
+import {formatBytes} from '../lib/utils';
+type Plan=Awaited<ReturnType<typeof prepareNotebookDeletion>>;
+interface Props {notebook:Notebook;beforePrepare:()=>Promise<unknown>;onClose:()=>void;onDelete:(exportIds:string[])=>Promise<void>}
+export default function DeleteGameDialog({notebook,beforePrepare,onClose,onDelete}:Props){
+ const [plan,setPlan]=useState<Plan>(),[error,setError]=useState(''),[busy,setBusy]=useState(false),[selected,setSelected]=useState<string[]>([]);
+ useEffect(()=>{let active=true;void beforePrepare().then(()=>prepareNotebookDeletion(notebook.id)).then(result=>{if(active)setPlan(result);}).catch(e=>{if(active)setError((e as Error).message);});return()=>{active=false;};},[notebook.id]);
+ const confirm=async()=>{if(!plan||busy)return;setBusy(true);setError('');try{await onDelete(selected);}catch(e){setError((e as Error).message);setBusy(false);}};
+ return <Dialog title="Delete this game?" onClose={()=>{if(!busy)onClose();}}><p><strong>{notebook.title}</strong> will be removed from this device, along with its saved progress and private working files.</p>{!plan&&!error&&<p role="status"><LoaderCircle size={17} className="spin"/> Checking this game’s files…</p>}{plan&&<><div className="game-delete-summary"><span><strong>{plan.sourceCount}</strong>source copies in this game</span><span><strong>{formatBytes(plan.exclusiveMediaBytes)}</strong>of private recording files</span></div><p className="small">Your original uploads stay in their original folders. Material shared with another saved game is kept.</p>{plan.exports.length>0&&<div className="delete-exports"><strong>Also move exported copies to Trash?</strong>{plan.exports.map(item=><label key={item.id}><input type="checkbox" disabled={busy||!item.available} checked={selected.includes(item.id)} onChange={e=>setSelected(e.target.checked?[...selected,item.id]:selected.filter(id=>id!==item.id))}/><span>{item.name}<small>{item.available?item.path:'This copy is no longer available at its saved location.'}</small></span></label>)}</div>}<p className="small">Only exports tracked by this app are listed. Older exports, copies shared with other people, and progress saved inside separate game apps are independent.</p>{plan.warnings.map((warning,index)=><p className="notice" key={index}>{warning}</p>)}</>}{error&&<p role="alert" className="notice"><AlertCircle size={16}/>{error}</p>}<div className="dialog-footer"><button className="button secondary" disabled={busy} onClick={onClose}>Keep game</button><button className="button danger-button" disabled={!plan||busy} onClick={()=>void confirm()}>{busy?<LoaderCircle className="spin" size={16}/>:<Trash2 size={16}/>} {busy?'Deleting…':'Delete game'}</button></div></Dialog>;
+}

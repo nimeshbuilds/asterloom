@@ -29,7 +29,7 @@ describe('optional bounded activity drafting', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ text: JSON.stringify({ activity: raw() }) }) });
     vi.stubGlobal('fetch', fetchMock);
     try {
-      await requestActivityDraft(request(), { provider: 'compatible', model: 'local-test', apiKey: 'ephemeral-only', baseUrl: 'http://127.0.0.1:11434/v1' });
+      await requestActivityDraft(request(), { provider: 'compatible', model: 'local-test', apiKey: 'ephemeral-only', baseUrl: 'http://127.0.0.1:11434/v1' }, undefined, async()=>true);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const body = JSON.parse(fetchMock.mock.calls[0][1].body); expect(body.maxOutputTokens).toBe(3000); expect(body.prompt).not.toContain('ephemeral-only'); expect(body.prompt).not.toContain(ACTIVITY_EXAMPLES[4].sourceRefs[0].evidence);
       expect(() => validateActivityDraft(request(), '{"cannotBuild":"No supported explicit structure"}', 'draft')).toThrow('could not prepare');

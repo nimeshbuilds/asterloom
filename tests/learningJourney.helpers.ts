@@ -9,13 +9,50 @@ import type {Notebook,Progress} from '../src/types';
 
 export {learnBeforeQuest} from './teachingDriver.mjs';
 
+/** Advanced authoring is an explicit opt-in, never a prerequisite for source creation. */
+export async function customizeLearning(page:Page) {
+ const button=page.getByRole('button',{name:'Customize learning & appearance',exact:true});
+ const advanced=page.getByRole('button',{name:'Back to simple setup',exact:true});
+ await expect(button.or(advanced)).toBeVisible();
+ if(await button.isVisible()) await button.click();
+ await expect(advanced).toBeVisible();
+}
+
+/** Examples are optional and are persisted only after a learner chooses one. */
+export async function openExampleGame(page:Page,title:string) {
+ const examples=page.getByRole('region',{name:'Example games',exact:true});
+ if(!await examples.isVisible()) await page.getByRole('button',{name:'Browse examples',exact:true}).click();
+ await examples.getByRole('button',{name:`Open ${title}`,exact:true}).click();
+ await expect(page.getByRole('heading',{name:title,exact:true}).first()).toBeVisible();
+}
+export async function saveExampleForIndependentStudy(page:Page,title:string) {
+ await openExampleGame(page,title);
+ await page.getByRole('button',{name:'Your games',exact:true}).last().click();
+}
+
+/** Deliberately preview an unfinished author draft; this never certifies it as a finished game. */
+export async function previewDraftCampaign(page:Page) {
+ await customizeLearning(page);
+ await page.getByRole('button',{name:'Play game',exact:true}).click();
+ await page.getByRole('button',{name:/^Save & (?:return|exit)$/,exact:true}).click();
+ await expect(page.locator('.campaign-map')).toBeVisible();
+}
+export async function openAuthoredCampaign(page:Page,title:string) {
+ await page.getByRole('button',{name:`Open ${title}`,exact:true}).click();
+ await expect(page.getByLabel('Notebook title',{exact:true})).toHaveValue(title);
+ await previewDraftCampaign(page);
+}
+
 /** Exercise native's one-notebook bootstrap in the internal renderer test host.
  * This is a test harness, not a browser-file product or distribution format. */
-export async function openBundledNotebook(page:Page,packagePath:string) {
+export async function openBundledNotebook(page:Page,packagePath:string,options:{authorPreview?:boolean}={}) {
  const notebook=parsePackage(await readFile(packagePath,'utf8'));
  await page.addInitScript(value=>{(window as any).__ASTERLOOM_NOTEBOOK__=value;},notebook);
  await page.goto('/');
- await expect(page.getByRole('heading',{name:notebook.title,exact:true}).first()).toBeVisible();
+ if(notebook.creation?.status==='draft'){
+  await expect(page.getByLabel('Notebook title',{exact:true})).toHaveValue(notebook.title);
+  if(options.authorPreview)await previewDraftCampaign(page);
+ }else await expect(page.getByRole('heading',{name:notebook.title,exact:true}).first()).toBeVisible();
 }
 
 /** Explicit older fixture for tests whose subject is independent recall, rather

@@ -1,3 +1,5 @@
+import { restoreConstructionTrace } from './constructionTrace';
+import type { ConstructionTrace } from './constructionTrace';
 import type { ActivityBase, Evaluation } from './structuredEngine';
 import { evaluateExplanationMode, restoreExplanationMode, validateExplanationModes } from './compositionModes';
 import type { CodeReviewContract, CodeReviewState, PartnerContract, PartnerState } from './compositionModes';
@@ -35,7 +37,7 @@ export interface ExplanationArgument extends EvidenceAssociation {
 export interface ExplanationActivity extends ActivityBase { kind: 'explanation'; pieces: ExplanationPiece[]; arguments: ExplanationArgument[]; partner?: PartnerContract; codeReview?: CodeReviewContract }
 export type CompositionActivity = ConstructionActivity | ExplanationActivity;
 export interface ConstructionResponse extends ConstructionBuild {
-  draft: { selectedInstanceId: string; from: string; fromPort: string; to: string; toPort: string; message: string };
+  draft: { selectedInstanceId: string; from: string; fromPort: string; to: string; toPort: string; message: string; trace?: ConstructionTrace };
 }
 export interface ExplanationChain { claimId: string; evidenceIds: string[]; warrantId: string; counterpointId: string; rebuttalId: string }
 export interface ExplanationResponse {
@@ -309,7 +311,8 @@ export function initialCompositionResponse(activity: CompositionActivity, saved?
   if (activity.kind === 'construction') {
     const parsed = parseBuild(value, activity), build = parsed.value ?? {instances: [], edges: []};
     const existing = (key: string) => build.instances.some(item => item.id === draft[key]) ? boundedText(key) : '';
-    return {...structuredClone(build), draft: {selectedInstanceId: existing('selectedInstanceId'), from: existing('from'), fromPort: boundedText('fromPort'), to: existing('to'), toPort: boundedText('toPort'), message: boundedText('message', 500)}};
+    const trace = restoreConstructionTrace(activity, build, draft.trace);
+    return {...structuredClone(build), draft: {selectedInstanceId: existing('selectedInstanceId'), from: existing('from'), fromPort: boundedText('fromPort'), to: existing('to'), toPort: boundedText('toPort'), message: boundedText('message', 500), ...(trace ? {trace} : {})}};
   }
   const parsed = parseExplanation(value, activity), empty: ExplanationChain = {claimId: '', evidenceIds: [], warrantId: '', counterpointId: '', rebuttalId: ''};
   return restoreExplanationMode(activity, saved, {arguments: structuredClone(parsed.value ?? Object.fromEntries(activity.arguments.map(argument => [argument.id, {...empty, evidenceIds: []}]))), draft: {selectedPieceId: activity.pieces.some(piece => piece.id === draft.selectedPieceId) ? boundedText('selectedPieceId') : '', activeArgumentId: activity.arguments.some(argument => argument.id === draft.activeArgumentId) ? boundedText('activeArgumentId') : activity.arguments[0]?.id ?? '', role: ROLES.includes(draft.role as ExplanationRole) ? draft.role as ExplanationRole : 'claim', message: boundedText('message', 500)}});

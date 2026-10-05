@@ -1,0 +1,458 @@
+{
+  "tool": "Built-in image_gen",
+  "reference": "../aster-guide.png",
+  "note": "50 separately generated decorative portrait expressions/poses. Generation receipts name original image_gen output files without machine-specific home paths.",
+  "assets": [
+    {
+      "id": "welcome-wave",
+      "file": "welcome-wave.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: friendly wave with right hand, warm smile. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the welcome-wave expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "a799b2c7bda775e2890d51cb6dd9e7aed464be5d110a79951f507f34435da826",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-f86f5284-41d6-4d40-b387-15d502ebd715.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-f86f5284-41d6-4d40-b387-15d502ebd715.png"
+    },
+    {
+      "id": "warm-smile",
+      "file": "warm-smile.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: relaxed warm closed-mouth smile, hands together at waist. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the warm-smile expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "6a062d56ad7cd325e719cda464878aecb188091496cfec5e2cd1cb7f2ef7e3a6",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-1a5d3dd5-c35c-46e6-9a18-d5b867eb083a.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-1a5d3dd5-c35c-46e6-9a18-d5b867eb083a.png"
+    },
+    {
+      "id": "curious-tilt",
+      "file": "curious-tilt.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: curious head tilt and gently raised eyebrow, notebook under arm. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the curious-tilt expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "fe0ab29bc5f2dff7d405523cc9fdd5792568879d84ace9ecd907ced61cf51f82",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-d8977192-5dc2-42dc-9950-0015380c468d.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-d8977192-5dc2-42dc-9950-0015380c468d.png"
+    },
+    {
+      "id": "ready-to-begin",
+      "file": "ready-to-begin.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: confident ready expression, modest forward hand invitation. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the ready-to-begin expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "1efd3dc1debc11554a738aa0ac71a8552ccb4b6f1e046d89a3f54de10ec5cf7c",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-8c213c11-c027-4681-82d4-8f4e19304aac.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-8c213c11-c027-4681-82d4-8f4e19304aac.png"
+    },
+    {
+      "id": "open-palms",
+      "file": "open-palms.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: both palms open in a welcoming explanatory gesture. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the open-palms expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "1ddde9b7239e1d3a060e744d520cc56cb1a0f739b6cabb060a9713e7d13a4144",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-724976b4-0c87-42cf-8029-3ab5bc4209b3.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-724976b4-0c87-42cf-8029-3ab5bc4209b3.png"
+    },
+    {
+      "id": "notebook-ready",
+      "file": "notebook-ready.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: holding teal notebook open and ready, alert attentive smile. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the notebook-ready expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "251393df0b02a94fe8280ac6ba319e30988273325ecd5f0cacb1e715a48e9968",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-102aa87e-668e-40f5-9dfa-71de5b80555e.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-102aa87e-668e-40f5-9dfa-71de5b80555e.png"
+    },
+    {
+      "id": "listening",
+      "file": "listening.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: listening intently, relaxed hands, head slightly inclined. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the listening expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "ed64f2e8389d21a75bcf231cfa32511ef1da79f2fc6a5c817c5e97820c8e01cc",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-e9f8d4a0-0599-428a-8f1b-19f8b707c630.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-e9f8d4a0-0599-428a-8f1b-19f8b707c630.png"
+    },
+    {
+      "id": "thinking",
+      "file": "thinking.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning companion app. Preserve the same adult woman's identity, face, hair, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New pose: thinking \u2014 a relaxed attentive expression, eyes looking slightly upward, one hand lightly raised near her temple as she considers a question. Waist-up framing with complete head and visible hands, generous clear space around the silhouette. Genuine alpha transparency, no scene or background, no text, no logos. This is a thoughtful, friendly educational guide, not a distressed expression.",
+      "generatedFile": "exec-42805db4-fcf9-49d9-911d-e291af4c46d8.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-42805db4-fcf9-49d9-911d-e291af4c46d8.png",
+      "sha256": "e3c170ba6774e9e55910acfc8f91b90922023f1941c7b72d4c36df837f209893",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "thoughtful-chin",
+      "file": "thoughtful-chin.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. Change her gesture and expression to: Thoughtful expression: one hand lightly supporting her chin, a relaxed face and curious eyes. Waist-up framing with complete head and visible hands, clear space around the silhouette. Genuine alpha transparency; no scene, background, text or logo. Friendly, calm educational character.",
+      "generatedFile": "exec-0e722b0c-6e71-439a-9897-cb937ec2232e.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-0e722b0c-6e71-439a-9897-cb937ec2232e.png",
+      "sha256": "7f2d82b59a4851e6166d923024c55f861699c2208509ee36a7fcae1025e612e1",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "idea-spark",
+      "file": "idea-spark.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: bright realization, one index finger raised, delighted eyes. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the idea-spark expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "98c8513310f955e995e951e75f1659c81e55a873c7a2d9ae4c99ed9b54dda41a",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-8995daa0-7ddd-4208-ab29-617c8ac63b23.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-8995daa0-7ddd-4208-ab29-617c8ac63b23.png"
+    },
+    {
+      "id": "focused-reading",
+      "file": "focused-reading.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: quiet focused expression reading open field notebook. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the focused-reading expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "0e6c6d9df1d9ac0c0a5b4a562daa2c5be75d5ad79336131007cab1608708446b",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-d507d7a8-d44e-44e1-b05e-268949c6b5f2.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-d507d7a8-d44e-44e1-b05e-268949c6b5f2.png"
+    },
+    {
+      "id": "source-check",
+      "file": "source-check.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. Change her gesture and expression to: Checking evidence: look down at an open teal notebook, with one finger following a line on its blank page; attentive and careful expression. Waist-up framing with complete head and visible hands, clear space around the silhouette. Genuine alpha transparency; no scene, background, text or logo. Friendly, calm educational character.",
+      "generatedFile": "exec-5306ebf4-b3ee-4b87-be53-9ab73b26582f.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-5306ebf4-b3ee-4b87-be53-9ab73b26582f.png",
+      "sha256": "8025e3b85eb81caefeedde28f1d3874ed119d9d3a8f74ea3efc65b0b90da1929",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "magnifier",
+      "file": "magnifier.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: holding small magnifying glass beside notebook, investigative expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the magnifier expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "c59302051369b45ef86b2a73377777a549b5e4b467e471fbe5fd57d973dcf15d",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-96a07733-1a87-466f-b347-f8fb18c6032e.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-96a07733-1a87-466f-b347-f8fb18c6032e.png"
+    },
+    {
+      "id": "pointing-left",
+      "file": "pointing-left.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Gently point toward the viewer's left with an inviting expression. Keep the entire hand visible inside the image. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo. Friendly educational character.",
+      "generatedFile": "exec-84af7610-628f-4a69-9f62-8172b9e0d757.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-84af7610-628f-4a69-9f62-8172b9e0d757.png",
+      "sha256": "e6a27247c8278542560337c5ba8dae4fb5e20054db545b5b123f08f70c981d36",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "pointing-right",
+      "file": "pointing-right.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. Change her gesture and expression to: Presenting an option: gently point toward the viewer's right with one hand, with an inviting expression. Keep the entire hand visible inside the image. Waist-up framing with complete head and visible hands, clear space around the silhouette. Genuine alpha transparency; no scene, background, text or logo. Friendly, calm educational character.",
+      "generatedFile": "exec-aeba50e6-0d78-43b5-a01b-f828ef6934ee.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-aeba50e6-0d78-43b5-a01b-f828ef6934ee.png",
+      "sha256": "23ce1fa83be5ca9a58db8eccb364b835934f0f2512aed923f91c2452a662499a",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "pointing-up",
+      "file": "pointing-up.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: pointing upward, encouraging alert expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the pointing-up expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "c45acb79b662c434493cfa78f1c16dcd9be1043db70b1282aa077282d1fdd4e1",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-6fdce3d8-f155-4fb8-a036-07c55700620d.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-6fdce3d8-f155-4fb8-a036-07c55700620d.png"
+    },
+    {
+      "id": "pointing-down",
+      "file": "pointing-down.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: pointing downward, gently helpful expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the pointing-down expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "526f8a7a8483759905eaa13a3c181bac8255be438763dad1bb2745836faca9c1",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-fac2918f-438a-4ae8-8681-9ac68f20301e.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-fac2918f-438a-4ae8-8681-9ac68f20301e.png"
+    },
+    {
+      "id": "presenting",
+      "file": "presenting.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: one open hand presenting an imagined lesson beside her, confident. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the presenting expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "3054abcd69b3982e9d176c6db5e70640d59dd45849099411794de8fe75e0ee70",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-eebe8074-93ca-4ab2-93e5-73e494e4d23f.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-eebe8074-93ca-4ab2-93e5-73e494e4d23f.png"
+    },
+    {
+      "id": "step-one",
+      "file": "step-one.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: one finger raised clearly, patient step-by-step teaching expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the step-one expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "05377a3049f96302db2d9cc26e3aebe3707df19df69f6d18f08fe0d8870d5e83",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-a6513aa9-2fc8-448f-9337-a4a9b58d7ee8.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-a6513aa9-2fc8-448f-9337-a4a9b58d7ee8.png"
+    },
+    {
+      "id": "step-two",
+      "file": "step-two.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: two fingers raised clearly, patient step-by-step teaching expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the step-two expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "835b4057fb4383ee7988a93ae2ec40d954633a8f5fabebcc7e98fa01d2420132",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-34150b84-f798-4243-9856-fadb6242c4b4.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-34150b84-f798-4243-9856-fadb6242c4b4.png"
+    },
+    {
+      "id": "step-three",
+      "file": "step-three.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: three fingers raised clearly, patient step-by-step teaching expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the step-three expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "c0257054fc98641c3d4487e7acc8755eb788405834f0c11bd24520fbe9620065",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-37555c8a-a50d-4072-b1d2-f7f6e10ca557.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-37555c8a-a50d-4072-b1d2-f7f6e10ca557.png"
+    },
+    {
+      "id": "small-step",
+      "file": "small-step.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: two hands close together showing a small manageable amount, gentle smile. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the small-step expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "df828e2a559ab9fc742b59709a7f7779e46c8f56ba8281cf8a2202a47da508e6",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-91a44d15-615c-4fe3-b8be-15adfc89ecb4.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-91a44d15-615c-4fe3-b8be-15adfc89ecb4.png"
+    },
+    {
+      "id": "connecting-ideas",
+      "file": "connecting-ideas.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: hands gently bringing two wooden symbolic shapes together, thoughtful. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the connecting-ideas expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "f00e9bc7ba412a675b90a787c13bf46eda925c110d9757eea9496c8293fcd93c",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-df2a1a5c-caa7-4d4b-8306-6af75105a03b.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-df2a1a5c-caa7-4d4b-8306-6af75105a03b.png"
+    },
+    {
+      "id": "compare-options",
+      "file": "compare-options.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: both palms held side by side weighing two options, discerning expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the compare-options expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "1f8405142d58b90b37a4342497374af1e08cc361ea57e96c89d8cbf6bc8d8011",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-bbd2c137-cff7-4d22-a218-77e859d53a0f.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-bbd2c137-cff7-4d22-a218-77e859d53a0f.png"
+    },
+    {
+      "id": "puzzle-piece",
+      "file": "puzzle-piece.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: holding one simple wooden puzzle piece, interested gentle smile. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the puzzle-piece expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "48ebc2606e0c18641cbe1be85c38672046dcf94e2dbf3b63afb19cb20293d14a",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-52f6ab0e-bcd1-4dde-afda-b47f4c53a736.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-52f6ab0e-bcd1-4dde-afda-b47f4c53a736.png"
+    },
+    {
+      "id": "building",
+      "file": "building.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: assembling two small teal wooden blocks in her hands, concentrated. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the building expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "0329fd4f676403ae07364e4179600adc9743f88b3636ed0e17b2553abb3a2efd",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-fe34360c-a2f9-4cf4-afbc-69510cd6f3bf.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-fe34360c-a2f9-4cf4-afbc-69510cd6f3bf.png"
+    },
+    {
+      "id": "map-guide",
+      "file": "map-guide.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Hold a small folded paper map at waist height, glancing toward the viewer with a confident guiding smile. The map contains only simple unlabeled route marks, no text. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo. Friendly educational character.",
+      "generatedFile": "exec-f286ba98-d43a-44ec-9bae-5f6f9457cbde.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-f286ba98-d43a-44ec-9bae-5f6f9457cbde.png",
+      "sha256": "ad85ccd44adb2b23525b2b8e20fbbc63f26ae792584b57aad25be7fd497f3c49",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "planning",
+      "file": "planning.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: making a plan in notebook with pencil, composed purposeful expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the planning expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "16b79cfc628968cf1793ed9d79c0fb2dba11ae34b156b4d2c1500b5b897e9ba9",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-de5b2f64-82b4-40c6-ba6d-7dc34ec89e49.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-de5b2f64-82b4-40c6-ba6d-7dc34ec89e49.png"
+    },
+    {
+      "id": "hypothesis",
+      "file": "hypothesis.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: considering a possibility, one palm up, subtly inquisitive eyebrow. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the hypothesis expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "fc0c49e7471814ac5a2a574404ca2fe5d0fbf600eedb0ed22bdee8ffd702f68e",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-e268163f-c886-4b0c-908c-f163c23f3934.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-e268163f-c886-4b0c-908c-f163c23f3934.png"
+    },
+    {
+      "id": "test-and-observe",
+      "file": "test-and-observe.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Hold a small clear magnifying lens in one hand and her notebook in the other, inspecting with a curious attentive expression. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo. Friendly educational character.",
+      "generatedFile": "exec-8779e8b2-accc-4948-bb00-97988bc94068.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-8779e8b2-accc-4948-bb00-97988bc94068.png",
+      "sha256": "3dda0a9cd52d354af492dab015cbc85e3534d3a40920d918dcbabaa0fa1aa15a",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "pause-and-think",
+      "file": "pause-and-think.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: relaxed contemplative look with one hand lightly near chin. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the pause-and-think expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "178ba61b097e81a7a49677555c8c0367a757538b88df1191b9bf73cf39771461",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-8fc40d0b-8591-4580-b7b7-ce1ec359682b.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-8fc40d0b-8591-4580-b7b7-ce1ec359682b.png"
+    },
+    {
+      "id": "question-invite",
+      "file": "question-invite.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: one open inviting hand and curious friendly expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the question-invite expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "f3bbf2a170889981c12982c3e092e95f958e6cec9fb14223c282d2ca8aabc322",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-13278e6e-3eb8-44c3-81e4-b44ca020d0da.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-13278e6e-3eb8-44c3-81e4-b44ca020d0da.png"
+    },
+    {
+      "id": "gentle-hint",
+      "file": "gentle-hint.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: small subtle pointing gesture toward notebook, helpful whisper-like expression without secrecy. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the gentle-hint expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "e3ca6f0de0478a58c6e77c2c3309829d21466455d3ab543a6c35897d584accd3",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-d53b7767-a1a2-4399-909b-d8dfb852717f.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-d53b7767-a1a2-4399-909b-d8dfb852717f.png"
+    },
+    {
+      "id": "try-another-way",
+      "file": "try-another-way.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: encouraging expression, tracing an alternate path with finger in open air. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the try-another-way expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "ef0ff49c3059ecffe30a8c4c8beff01f1f1b576e78669f5e765a2c94222b7b71",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-724a4def-be78-44ea-aa9d-b9dac8fe875e.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-724a4def-be78-44ea-aa9d-b9dac8fe875e.png"
+    },
+    {
+      "id": "patient-support",
+      "file": "patient-support.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Patient support: a soft reassuring smile, relaxed eyebrows, shoulders at ease, one hand offered palm-up at a comfortable waist height. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo.",
+      "generatedFile": "exec-2831ed46-41c1-44d6-a9b6-1446288efad9.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-2831ed46-41c1-44d6-a9b6-1446288efad9.png",
+      "sha256": "25d05f8d9ffebba045d4de8644457c4e5e244dc491df2c2a9106b691a53f4e5d",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "reset-and-retry",
+      "file": "reset-and-retry.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: gentle upbeat reset gesture tracing small circle with finger. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the reset-and-retry expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "5aeb46b9c0b61c929d08d49e71e8d8584c47e42df53fcbea755ea412ff00ac55",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-d42a83e7-7d3d-4f55-ab26-c92eb099cdb3.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-d42a83e7-7d3d-4f55-ab26-c92eb099cdb3.png"
+    },
+    {
+      "id": "reassuring-nod",
+      "file": "reassuring-nod.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: reassuring small smile, head gently nodded forward. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the reassuring-nod expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "6a1f342f6d56ed164f14ecf10615236c329bbb10ab115f39395dc72972ef5350",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-7289dcf3-26a3-4aae-83d6-0ca0bd6c1673.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-7289dcf3-26a3-4aae-83d6-0ca0bd6c1673.png"
+    },
+    {
+      "id": "progress-notice",
+      "file": "progress-notice.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Noticing progress: a pleased, attentive smile, holding her notebook while pointing gently to one small completed checkmark on a loose note. No words. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo.",
+      "generatedFile": "exec-aec52322-7955-4bd3-851f-6c003dd38dd5.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-aec52322-7955-4bd3-851f-6c003dd38dd5.png",
+      "sha256": "a4b3b05a9ec4d510e050b7058981680d25560e96b93df7ebec15c003bba664de",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "quiet-celebration",
+      "file": "quiet-celebration.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Quiet celebration: a small satisfied smile, eyes gently relaxed, notebook hugged lightly to her chest with both hands. A calm moment of achievement without dramatic gesture. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo.",
+      "generatedFile": "exec-9f482da9-cb16-4170-bdb4-48585aa0c519.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-9f482da9-cb16-4170-bdb4-48585aa0c519.png",
+      "sha256": "ffeec1e7c81b5e13ffff5f18aef719606b224ab58b294ce7fdf379bb6ddb8c04",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "bright-celebration",
+      "file": "bright-celebration.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Celebrate a completed learning task: a bright happy smile with one hand raised in a small enthusiastic fist near her shoulder. Friendly and dignified, no exaggerated open-mouth pose. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo.",
+      "generatedFile": "exec-d3480237-a221-4187-be07-43334e8e1f78.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-d3480237-a221-4187-be07-43334e8e1f78.png",
+      "sha256": "7756268cb820805fda457d8e475ad9ac1147600f58fe7dd555da8685ea07f473",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "thumbs-up",
+      "file": "thumbs-up.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: one clear thumbs-up, genuine encouraging smile. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the thumbs-up expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "ac195a7b04414497cf5e3563682b2f27583a2b20ed074bf0ab6429627e3c4849",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-0953d235-b0b2-4123-b163-707134ae5bdc.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-0953d235-b0b2-4123-b163-707134ae5bdc.png"
+    },
+    {
+      "id": "achievement-star",
+      "file": "achievement-star.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Acknowledging achievement: gently present a small golden star token on one open palm, with a warm pleased smile. Her notebook rests in her other arm. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo.",
+      "generatedFile": "exec-ec277ccd-910b-486e-81fd-6e50813d78f3.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-ec277ccd-910b-486e-81fd-6e50813d78f3.png",
+      "sha256": "080ca1a14a0556db30f95617ec3084881842d047f98724fa53d79fb32323aab6",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "understood-nod",
+      "file": "understood-nod.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: understanding expression with small nod, relaxed hands. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the understood-nod expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "758b29c467b3c93b79920a4a7cc1c27d1c702b06749f47b3e03dcdb29dca3a58",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-e11273da-d439-4a3a-9a63-e24125416925.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-e11273da-d439-4a3a-9a63-e24125416925.png"
+    },
+    {
+      "id": "reflective",
+      "file": "reflective.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: reflective gaze down toward notebook, peaceful expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the reflective expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "7e600066121d29fa74fdbbb37d2d789364b39380c0003586871c0166c779ea0d",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-3c94390e-8e8c-4570-a6a4-9cf06e7ed86d.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-3c94390e-8e8c-4570-a6a4-9cf06e7ed86d.png"
+    },
+    {
+      "id": "explain-it-back",
+      "file": "explain-it-back.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: open palm toward learner inviting them to explain, attentive interested face. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the explain-it-back expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "b7f1def69ddbdd4deab14e1942a1a3c60c42afd63e15ea8ad3a9025a84a127ee",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-a6bc67e4-7ef2-443a-ab35-d95a02b0a352.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-a6bc67e4-7ef2-443a-ab35-d95a02b0a352.png"
+    },
+    {
+      "id": "curious-question",
+      "file": "curious-question.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: curious raised eyebrows, slight head tilt, question gesture with open hand. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the curious-question expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "4b5dfe3c4804efc6e931af937ae058c41be2720a68fa336063d5e5d7c4eb87d1",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-06402840-d029-4242-9b96-39207006329c.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-06402840-d029-4242-9b96-39207006329c.png"
+    },
+    {
+      "id": "note-taking",
+      "file": "note-taking.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: writing thoughtful note in notebook with pencil. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the note-taking expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "df7ab9d343a0d1a41c426d89ac2f2e861bb0306eebc8b730d336f5835a20985f",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-1760c100-8d54-485c-94f0-d00424165dc1.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-1760c100-8d54-485c-94f0-d00424165dc1.png"
+    },
+    {
+      "id": "summary",
+      "file": "summary.png",
+      "prompt": "Create one transparent PNG portrait variation of the supplied Aster reference character for a learning app. Preserve the same adult woman's identity, face, dark wavy hair with subtle violet strand, indigo explorer jacket with teal edging, cream blouse, star pin, teal notebook, proportions and polished stylized 3D illustration finish. New gesture and expression: Summarizing an idea: hold an open teal notebook with one arm, and gather the fingertips of the free hand in a small composed explanatory gesture at chest height. Attentive, confident and friendly expression. Waist-up framing with complete head and visible hands, clear space around silhouette. Genuine alpha transparency; no scene, background, text or logo.",
+      "generatedFile": "exec-3735c3b7-aaf1-46ff-8c6f-53285b755c70.png",
+      "generationReceipt": "01a104b0-5466-7432-bca9-4a67813eaf06/exec-3735c3b7-aaf1-46ff-8c6f-53285b755c70.png",
+      "sha256": "4521df3337b6e512c364f4f857f71ea400a6502811aca2e34d8ef49af54b8693",
+      "reference": "../aster-guide.png"
+    },
+    {
+      "id": "ready-next",
+      "file": "ready-next.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: ready to move forward, pointing gently ahead, energized expression. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the ready-next expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "bd2a1ebb62f750cf919589bb521eac671f10fec6ab7efe62a663cc7471b69505",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-152b841c-815e-4baf-a9e0-eb684ce1c3a4.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-152b841c-815e-4baf-a9e0-eb684ce1c3a4.png"
+    },
+    {
+      "id": "farewell-wave",
+      "file": "farewell-wave.png",
+      "prompt": "Edit the reference Aster character to create one expression/gesture variant: friendly goodbye wave, warm relaxed smile. Preserve EXACT same adult female identity, face, medium-brown skin, dark wavy hair with subtle violet streak, indigo explorer jacket with teal piping, ivory shirt, small golden star clasp, and premium 3D animated-film rendering. Preserve original genuine alpha transparency. One single waist-up portrait, centered on a square canvas, head and ALL hands fully inside image, 10% transparent padding around silhouette, consistent camera and soft studio lighting. Change ONLY facial expression, head angle and upper-body gesture/prop as specified; preserve adult proportions. No background, no lettering, no speech bubbles, no floor, no extra characters. This is the farewell-wave expression for the same learning game guide, polished, friendly and sophisticated, never babyish. Return a clean transparent PNG cutout.",
+      "sha256": "7236ff7426dd055b31f34a0a3871f172473ff1a6d7ee3d50f558d01e0c71e600",
+      "reference": "../aster-guide.png",
+      "generatedFile": "exec-3d59ebc6-73c7-4082-8749-90a412c15443.png",
+      "generationReceipt": "01a10466-3226-79f3-b85b-0d952f567509/exec-3d59ebc6-73c7-4082-8749-90a412c15443.png"
+    }
+  ],
+  "pending": []
+}

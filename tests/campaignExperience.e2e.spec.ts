@@ -11,7 +11,7 @@ async function progress(page:Page,id:string){return page.evaluate(id=>new Promis
 
 test('ordinary prose becomes a complete source expedition with a durable, ungraded field guide',async({page})=>{
  const n=notebook();await open(page,n);await expect(page.locator('.campaign-chapter')).toHaveCount(2);await expect(page.locator('.campaign-chapters').getByRole('heading',{name:'First observations',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'A further question',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Begin adventure',exact:false}).click();await expect(page.getByRole('heading',{name:'Investigate the source'})).toBeVisible();
+ await page.getByRole('button',{name:/^(?:Play game|Continue game)$/,exact:false}).click();await expect(page.getByRole('heading',{name:'Investigate the source'})).toBeVisible();
  await page.getByRole('button',{name:'Pin passage 1',exact:true}).click();await page.getByLabel('Explain what this passage helps you understand').fill('The observation describes a change, but it does not establish its cause.');await page.getByLabel('What would you investigate next? (optional)').fill('Would a comparison day show the same change?');await page.getByRole('button',{name:'Save this discovery',exact:true}).click();await expect(page.getByRole('heading',{name:'A discovery worth keeping.'})).toBeVisible();
  let p=await progress(page,n.id);expect(p.xp).toBe(0);expect(p.completedCardIds).toEqual([]);expect(Object.values(p.studies)).toHaveLength(1);expect(Object.values(p.studies)[0]).toMatchObject({completed:true,note:'The observation describes a change, but it does not establish its cause.'});
  await page.reload();await page.getByRole('button',{name:'Open your field note',exact:true}).click();await expect(page.getByLabel('What would you investigate next? (optional)')).toHaveValue('Would a comparison day show the same change?');await expect(page.getByRole('button',{name:'Pinned to your field guide',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -32,7 +32,7 @@ test('a chapter keeps its recall topics together and lets a learner repair a mis
  await page.locator('.campaign-chapter').filter({has:page.getByRole('heading',{name:'Names',exact:true})}).getByRole('button',{name:'Retrieve the key ideas',exact:false}).click();await learnBeforeQuest(page);await expect(page.locator('.answer-option')).toHaveCount(2);await expect(page.locator('.player-sidebar h2')).toHaveText('Names');
  await page.locator('.answer-option').filter({hasText:'Cache'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.retry')).toBeVisible();await page.getByRole('button',{name:'Try again with the source',exact:true}).click();await expect(page.locator('.hint-box')).toContainText('DNS: Resolves');
  await page.locator('.answer-option').filter({hasText:'DNS'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.success')).toBeVisible();const p=await progress(page,n.id);expect(p.attempts).toHaveLength(2);expect(p.completedCardIds).toEqual([]);expect(p.xp).toBe(0);expect(p.activeSession.cardIds).toEqual(['dns','cache']);expect(p.activeSession.state.answeredCount).toBe(1);expect(p.activeSession.state.correctCount).toBe(1);
- await page.getByRole('button',{name:'Save & exit',exact:true}).click();await page.reload();await page.getByRole('button',{name:'Continue adventure',exact:false}).click();await expect(page.locator('.player-sidebar h2')).toHaveText('Names');await expect(page.locator('.answer-feedback.success')).toBeVisible();
+ await page.getByRole('button',{name:'Save & exit',exact:true}).click();await page.reload();await page.getByRole('button',{name:'Continue game',exact:false}).click();await expect(page.locator('.player-sidebar h2')).toHaveText('Names');await expect(page.locator('.answer-feedback.success')).toBeVisible();
 });
 
 
@@ -43,7 +43,7 @@ test('leaving a source chapter before its debounce saves the latest field note w
  await page.evaluate(()=>{const schedule=window.setTimeout.bind(window);window.setTimeout=((callback:TimerHandler,delay?:number,...args:any[])=>schedule(callback,delay===800?60_000:delay,...args)) as typeof window.setTimeout;});
  const note='The observed change is recorded, while its cause remains unresolved.';
  await page.getByLabel('Explain what this passage helps you understand').fill(note);
- await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Your worlds/}).click();
+ await page.getByRole('button',{name:'Save & return',exact:true}).click();
  await expect.poll(async()=>Object.values((await progress(page,n.id))?.studies??{}).map((x:any)=>x.note)).toContain(note);
  await page.reload();await expect(page.getByRole('heading',{name:n.title,exact:true})).toBeVisible();await page.getByRole('button',{name:'Explore this chapter',exact:true}).first().click();
  await expect(page.getByLabel('Explain what this passage helps you understand')).toHaveValue(note);

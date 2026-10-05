@@ -1,0 +1,12 @@
+{
+  "name": "Aster",
+  "tool": "Built-in image_gen",
+  "representation": "3D-style rendered character image, not a rigged 3D model",
+  "prompt": "Use case: stylized-concept. Asset type: transparent character cutout for Asterloom desktop learning adventure companion. Primary request: Design Aster, an original warm, confident adult female learning guide as an exceptionally polished 3D animated-film character render. Subject: friendly woman around 30, warm medium brown skin, expressive brown eyes with natural proportions, dark wavy shoulder-length hair with one subtle violet streak, wearing a sophisticated midnight-indigo explorer jacket with teal piping and a small star-shaped clasp, ivory shirt, fully clothed, practical and elegant. She is thoughtful and capable, not a toy, not a child. Waist-up three-quarter view facing slightly left toward the learner, face clearly visible, relaxed smile, one hand open in a gentle welcoming gesture, other hand holding a small closed teal field notebook. Composition: one single character centered, all hands and hair fully in frame, generous transparent margin, character fills 85% of height. Style: premium sculpted 3D character art, fine fabric and hair details, soft cinematic studio lighting and gentle teal rim light, clean silhouette readable when small. Transparent background with genuine alpha, no floor, no environment, no cast shadow outside character, no lettering, no speech bubble, no watermark, no logos. Avoid sexualization, exaggerated anatomy, anime, baby proportions, glossy plastic doll appearance, excessive jewelry, magic particles.",
+  "asset": "aster-guide.png",
+  "research": [
+    "https://journals.sagepub.com/doi/10.3102/003465430298487",
+    "https://www.sciencedirect.com/science/article/pii/S0360131513001103"
+  ],
+  "guidance": "Offer task/process guidance with learner control; avatar artwork alone is not evidence of improved learning."
+}

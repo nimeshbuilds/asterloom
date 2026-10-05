@@ -1,3 +1,4 @@
+import type {AIToolUsageObserver} from '../lib/aiToolUsage';
 import { useEffect, useRef, useState } from 'react';
 import { Copy, Download, Sparkles } from 'lucide-react';
 import type { Source,EvidenceReference } from '../types';
@@ -24,8 +25,8 @@ export function parseActivityAuthorDraft(text: string): ActivityAuthorDraft {
   return { sourceId: value.sourceId, excerpt: value.excerpt, kind: value.kind as ActivityDraftRequest['kind'], reply: value.reply };
 }
 
-export default function ActivityAssistant({ notebookId = 'preview', sources, ageGroup = 'adult', goal = 'Apply the material', onCreate, onError, initialEvidence }: {
-  initialEvidence?: EvidenceReference; notebookId?: string; sources: Source[]; ageGroup?: string; goal?: string; onCreate: (activity: StructuredActivity) => void; onError: (message: string) => void;
+export default function ActivityAssistant({ notebookId = 'preview', sources, ageGroup = 'adult', goal = 'Apply the material', onCreate, onError, initialEvidence, onAIUsage }: {
+  onAIUsage?: AIToolUsageObserver; initialEvidence?: EvidenceReference; notebookId?: string; sources: Source[]; ageGroup?: string; goal?: string; onCreate: (activity: StructuredActivity) => void; onError: (message: string) => void;
 }) {
   const key = `asterloom:activity-assistant:${notebookId}`;
   const [initial] = useState(() => { try { const v = JSON.parse(localStorage.getItem(key) ?? '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; } });
@@ -59,7 +60,7 @@ export default function ActivityAssistant({ notebookId = 'preview', sources, age
     try {
       const input = request(); createActivityDraftPrompt(input);
       setBusy(true); setMessage('Preparing one draft. Your existing activities stay saved.'); controller.current = new AbortController();
-      const text = await requestActivityDraft(input, config, controller.current.signal);
+      const text = await requestActivityDraft(input, config, controller.current.signal, onAIUsage);
       const current = latest.current.sources.find(s => s.id === input.source.id);
       if (!current || current.text !== input.source.text) throw new Error('The source changed during drafting. Your edits were kept; prepare a new request from the current source.');
       setReply(text); setMessage('Draft received. Validate it, then review every rule and answer against the source.');
@@ -96,7 +97,7 @@ export default function ActivityAssistant({ notebookId = 'preview', sources, age
     <div className="activity-builder-actions"><button type="button" className="structured-secondary" disabled={!excerpt.trim()} onClick={() => void copy()}><Copy size={16}/>Copy activity prompt</button><button type="button" className="structured-secondary" disabled={!excerpt.trim()} onClick={() => { try { download(createActivityDraftPrompt(request()), 'asterloom-activity-prompt.txt', 'text/plain'); } catch (error) { report(error); } }}><Download size={16}/>Save activity prompt</button></div>
     <details><summary>Or use an API / local model</summary><p>Connect an available provider below. You can also use the prepared prompt with your existing assistant.</p>
       <ProviderConnection config={config} onChange={setConfig} disabled={busy}/>
-      <button type="button" className="structured-secondary" disabled={busy || !excerpt.trim() || !canRequest(config)} onClick={() => void generate()}><Sparkles size={16}/>{busy ? 'Preparing a draft…' : 'Request one activity draft'}</button>
+      <button type="button" className="structured-secondary" disabled={busy || !excerpt.trim() || !canRequest(config) || !onAIUsage} onClick={() => void generate()}><Sparkles size={16}/>{busy ? 'Preparing a draft…' : 'Request one activity draft'}</button>
       {busy && <button type="button" className="structured-secondary" onClick={() => controller.current?.abort()}>Cancel request</button>}
     </details>
     <label>Activity assistant JSON reply<textarea aria-label="Activity assistant JSON reply" rows={8} maxLength={100_000} value={reply} disabled={busy} onChange={event => setReply(event.target.value)} placeholder={'{"activity":{…}}'}/></label>

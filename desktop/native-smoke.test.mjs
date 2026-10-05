@@ -84,7 +84,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const archivePath=path.join(directory,'speech-notebook.learnzip');await application.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},archivePath);
     const archived=await page.evaluate(text=>window.asterloomDesktop.exportNotebookArchive(text),mediaPackage);assert.equal(archived.assetCount,1,JSON.stringify(archived));
     await application.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},archivePath);const restoredArchive=await page.evaluate(()=>window.asterloomDesktop.importNotebookArchive());assert.equal(restoredArchive.assetCount,1,JSON.stringify(restoredArchive));assert.equal(JSON.parse(restoredArchive.packageText).notebook.sources.find(source=>source.id==='native-speech').asset.id,speechAsset.id);
-    await page.getByRole('button',{name:'Create a world',exact:true}).last().click();
+    await page.getByRole('button',{name:'Create a game',exact:true}).last().click();
     await page.getByLabel('Notebook title').fill('Native continuity test');
     // Small Windows runner displays trigger the compact layout, which hides
     // this status label visually. Its saved state must still be reached; the
@@ -101,6 +101,9 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
     await page.getByRole('heading',{name:fixtureNotebook.title,exact:true}).waitFor({timeout:20000});
     const bootstrap=await page.evaluate(()=>({id:window.__ASTERLOOM_NOTEBOOK__?.id,isGame:window.asterloomDesktop?.isExportedGame}));assert.equal(bootstrap.id,fixtureNotebook.id);assert.equal(bootstrap.isGame,true);
+    await page.waitForFunction(()=>document.querySelector('.aster-launcher-portrait img')?.naturalWidth>0);
+    const bundledAster=await page.evaluate(async()=>{const response=await fetch('/assets/aster/emotions/provenance.json');const manifest=await response.json();return {count:manifest.assets.length,pending:manifest.pending.length};});
+    assert.equal(bundledAster.count,50);assert.equal(bundledAster.pending,0);features.asterArtwork={portraits:50,loadedOffline:true};
     const bundledSpeech=await page.evaluate(async id=>{const response=await fetch('/api/media/assets/'+id);const bytes=await response.arrayBuffer();return {status:response.status,size:bytes.byteLength,hash:[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(byte=>byte.toString(16).padStart(2,'0')).join('')};},speechAsset.id);assert.equal(bundledSpeech.status,200);assert.equal(bundledSpeech.size,mediaBytes.length);assert.equal(bundledSpeech.hash,speechAsset.sha256);
     const exportedHealth=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(exportedHealth.ok,true);
     const exportedPdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'exported-native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
@@ -128,7 +131,9 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const draftCheck=page.getByRole('button',{name:'Check my work',exact:true});
     assert.equal(await draftCheck.isEnabled(),true,'An unreviewed model remains available for author preview');
     await draftCheck.click();
-    await page.getByText(/^Draft preview only\./).first().waitFor();
+    await page.locator('.structured-feedback.draft-preview').filter({hasText:'Mission rules satisfied'}).waitFor();
+    assert.match(await page.locator('.model-practice-score').innerText(),/no mastery or competition credit/);
+    assert.match(await page.getByRole('region',{name:'Game progress',exact:true}).innerText(),/Model practice score/);
     assert.equal(await page.locator('.structured-feedback.correct').count(),0,'An unreviewed model must not show successful grading');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
     await application.close();application=await launch(exportedExecutable(exported.path));page=await application.firstWindow();
@@ -168,7 +173,8 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:'Return to my notebook',exact:true}).click();
     assert.match(await page.locator('.world-statbar').innerText(),/20\s*discovery points/,'First-day quests award supported completion points and no independent recall credit');
     assert.match(await page.locator('.world-statbar').innerText(),/0\s*solved independently/,'First-day teaching cannot grant independent mastery');
-    await page.getByRole('button',{name:'Open studio',exact:true}).click();
+    await page.getByRole('button',{name:'Edit materials',exact:true}).click();
+    await page.getByRole('button',{name:'Customize learning & appearance',exact:true}).click();
     await page.getByRole('tab',{name:/Materials/}).click();
     await page.getByText('Advanced editing · focus a lesson on selected passages',{exact:true}).click();
     await page.locator('.evidence-status').filter({hasText:'Local meaning + exact word search ready.'}).waitFor({timeout:120000});
@@ -202,7 +208,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.match(await page.locator('.structured-review-banner').innerText(),/0 independent attempts/,'Preserved draft feedback remains supported after author approval');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
     assert.match(await page.locator('.world-statbar').innerText(),/40\s*discovery points/,'Author approval permits supported practice; seeing draft feedback must not become independent credit');
-    await page.getByRole('button',{name:'Open studio',exact:true}).click();
+    await page.getByRole('button',{name:'Edit materials',exact:true}).click();
     await page.getByLabel('Notebook title').fill('A remixed native game');
     await page.locator('.save-state').filter({hasText:'Saved on this device'}).waitFor({state:'attached'});
     await page.evaluate(()=>window.scrollTo(0,0));
@@ -237,7 +243,40 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(remixedBootstrap.title,'A remixed native game');assert.equal(remixedBootstrap.isGame,true);
     const remixedProfile=await application.evaluate(({app})=>app.getPath('userData'));
     assert.match(remixedProfile,/games[/\\][a-f0-9]{24}$/);assert.notEqual(remixedProfile,profile,'Remixed content must start in its own game profile');
-    assert.equal(await page.getByRole('button',{name:'Continue adventure',exact:true}).count(),0,'Original game progress must not travel in a remix');
+    assert.equal(await page.getByRole('button',{name:'Continue game',exact:true}).count(),0,'Original game progress must not travel in a remix');
+    // Delete only the temporary remixed fixture. The test intercepts the OS
+    // Trash boundary and moves this one registered archive into its own temp
+    // directory; no real user's app, upload, profile or Trash is touched.
+    await page.getByRole('button',{name:'Edit materials',exact:true}).click();
+    const originalUpload=path.join(directory,'delete-me.wav'),wav=Buffer.alloc(84);wav.write('RIFF');wav.writeUInt32LE(76,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(16000,24);wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(40,40);wav.writeInt16LE(123,44);await fs.writeFile(originalUpload,wav);
+    await page.getByLabel('Upload source files',{exact:true}).setInputFiles(originalUpload);
+    await page.locator('.source-main').filter({hasText:'delete-me.wav'}).waitFor();
+    const recordingDialog=page.getByRole('dialog',{name:'delete-me.wav',exact:true});await recordingDialog.waitFor();
+    await recordingDialog.getByRole('button',{name:'Done',exact:true}).click();
+    const readSaved=()=>page.evaluate(id=>new Promise((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onsuccess=()=>{const db=request.result,q=db.transaction('records','readonly').objectStore('records').get('notebook:'+id);q.onsuccess=()=>{db.close();resolve(q.result);};q.onerror=()=>reject(q.error);};request.onerror=()=>reject(request.error);}),fixtureNotebook.id);
+    let localNotebook;for(let attempt=0;attempt<40;attempt++){localNotebook=await readSaved();if(localNotebook?.sources.some(source=>source.asset?.name==='delete-me.wav'))break;await new Promise(resolve=>setTimeout(resolve,100));}
+    const localAsset=localNotebook?.sources.find(source=>source.asset?.name==='delete-me.wav')?.asset;assert.ok(localAsset,'The uploaded recording must be durably linked before deletion');
+    const localRecording=path.join(remixedProfile,'service','media','assets',localAsset.id);await fs.access(localRecording);
+    const deleteArchive=path.join(directory,'delete-native-archive.learnzip'),trashArchive=path.join(directory,'test-trash.learnzip');
+    await application.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},deleteArchive);
+    const deletePackage=JSON.stringify({format:'learnpack',version:1,exportedAt:new Date().toISOString(),notebook:localNotebook});
+    const deletionArchive=await page.evaluate(text=>window.asterloomDesktop.exportNotebookArchive(text),deletePackage);assert.equal(deletionArchive.path,deleteArchive,JSON.stringify(deletionArchive));
+    await application.evaluate(({shell},{expected,destination})=>{shell.trashItem=async filename=>{if(filename!==expected)throw new Error('The test only permits its registered archive');await process.getBuiltinModule('fs').promises.rename(filename,destination);};},{expected:await fs.realpath(deleteArchive),destination:trashArchive});
+    await page.getByRole('button',{name:'Your games',exact:true}).click();
+    await page.getByRole('button',{name:'Open A remixed native game',exact:true}).click();
+    await page.getByRole('button',{name:'Delete game',exact:true}).click();
+    let deletionDialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Delete this game?',exact:true})});
+    await deletionDialog.getByRole('button',{name:'Keep game',exact:true}).click();assert.ok(await readSaved());await fs.access(localRecording);await fs.access(deleteArchive);
+    await page.getByRole('button',{name:'Delete game',exact:true}).click();deletionDialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Delete this game?',exact:true})});
+    await deletionDialog.locator('.delete-exports label').filter({hasText:'delete-native-archive.learnzip'}).getByRole('checkbox').check();
+    await deletionDialog.getByRole('button',{name:'Delete game',exact:true}).click();await deletionDialog.waitFor({state:'hidden'});
+    await assert.rejects(()=>fs.access(localRecording),{code:'ENOENT'});await assert.rejects(()=>fs.access(deleteArchive),{code:'ENOENT'});await fs.access(trashArchive);assert.deepEqual(await fs.readFile(originalUpload),wav);
+    await application.close();application=await launch(exportedExecutable(remixedPath));page=await application.firstWindow();
+    await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
+    assert.equal(await readSaved(),undefined,'Deleted embedded notebooks must not return after a real native restart');
+    assert.equal(await page.locator('.notebook-card').count(),0,'Deleting the last game must not automatically add sample games');
+    features.deletion={cancelPreserved:true,privateRecordingRemoved:true,originalUploadPreserved:true,trackedArchiveMoved:true,trashBoundary:'isolated test adapter',embeddedReseedBlocked:true};
+    await fs.writeFile(path.join(ROOT,'.qa',`native-features-${actual.platform}-${actual.arch}.json`),JSON.stringify(features,null,2));
     assert.deepEqual(errors,[]);
     console.log('Native product workflow verified; closing the final application and removing isolated test files.');
   }catch(error){

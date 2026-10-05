@@ -67,21 +67,37 @@ export function getScaffoldRuntimeDefinition(scaffoldId: string): ScaffoldRuntim
 export function compatibleScaffoldsForActivity(activity: Pick<StructuredActivity, 'kind'>) {
   return SCAFFOLDS.filter(scaffold => { const runtime = getScaffoldRuntimeDefinition(scaffold.id); return runtime.engineReady && runtime.mode === 'structured' && runtime.activityKinds.includes(activity.kind); });
 }
+/** Additional model data required by a recipe, shared by authoring and playback.
+ * Engine kind alone does not implement a specialized presentation or protocol. */
+export type ScaffoldCapability = 'scenario:prediction'|'scenario:transfer-debrief'|'scenario:perspective'|'scenario:dialogue'|'scenario:prompt-comparison'|'explanation:partner'|'explanation:code-review'|'picture-build:build-and-tell'|'child-play:puppet-story'|'child-play:pretend-play'|'completion:pattern'|'picture:discovery'|'picture:word-picture';
+const requiredCapabilities:Readonly<Record<string,readonly ScaffoldCapability[]>>={
+ 'competing-explanations':['scenario:prediction'],'prediction-and-experiment':['scenario:prediction'],'experiment-predictor':['scenario:prediction'],'hypothesis-casebook':['scenario:prediction'],
+ 'strategy-campaign':['scenario:transfer-debrief'],'capstone-campaign':['scenario:transfer-debrief'],
+ 'perspective-switching-drama':['scenario:perspective'],'language-dialogue-trail':['scenario:dialogue'],'prompt-experiment-bench':['scenario:prompt-comparison'],
+ 'partner-helper':['explanation:partner'],'secure-code-review':['explanation:code-review'],
+ 'build-and-tell':['picture-build:build-and-tell'],'puppet-stories':['child-play:puppet-story'],'pretend-play-stations':['child-play:pretend-play'],
+ 'pattern-parade':['completion:pattern'],'discovery-scenes':['picture:discovery'],'word-and-picture-workshop':['picture:word-picture'],
+};
+export function scaffoldRequiredCapabilities(scaffoldId:string):readonly ScaffoldCapability[]{return requiredCapabilities[scaffoldId]??[];}
+function suppliesCapability(activity:StructuredActivity,capability:ScaffoldCapability):boolean{
+ switch(capability){
+  case 'scenario:prediction':return activity.kind==='scenario'&&getScenarioCapabilities(activity).includes('prediction');
+  case 'scenario:transfer-debrief':return activity.kind==='scenario'&&getScenarioCapabilities(activity).includes('transfer-debrief');
+  case 'scenario:perspective':return activity.kind==='scenario'&&getScenarioCapabilities(activity).includes('perspective');
+  case 'scenario:dialogue':return activity.kind==='scenario'&&getScenarioCapabilities(activity).includes('dialogue');
+  case 'scenario:prompt-comparison':return activity.kind==='scenario'&&getScenarioCapabilities(activity).includes('prompt-comparison');
+  case 'explanation:partner':return activity.kind==='explanation'&&getCompositionCapabilities(activity).partnerHelper;
+  case 'explanation:code-review':return activity.kind==='explanation'&&getCompositionCapabilities(activity).secureCodeReview;
+  case 'picture-build:build-and-tell':return activity.kind==='picture-build'&&getPictureBuildCapabilities(activity).buildAndTell;
+  case 'child-play:puppet-story':return activity.kind==='child-play'&&activity.mode==='puppet-story';
+  case 'child-play:pretend-play':return activity.kind==='child-play'&&activity.mode==='pretend-play';
+  case 'completion:pattern':return activity.kind==='completion'&&Boolean(activity.pattern);
+  case 'picture:discovery':return activity.kind==='picture'&&activity.mode==='discovery';
+  case 'picture:word-picture':return activity.kind==='picture'&&activity.mode==='word-picture';
+ }
+}
 export function fitsSpecificContract(scaffoldId: string, activity: StructuredActivity): boolean {
-  if (['competing-explanations', 'prediction-and-experiment', 'experiment-predictor', 'hypothesis-casebook'].includes(scaffoldId)) return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('prediction');
-  if (['strategy-campaign', 'capstone-campaign'].includes(scaffoldId)) return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('transfer-debrief');
-  if (scaffoldId === 'perspective-switching-drama') return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('perspective');
-  if (scaffoldId === 'language-dialogue-trail') return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('dialogue');
-  if (scaffoldId === 'prompt-experiment-bench') return activity.kind === 'scenario' && getScenarioCapabilities(activity).includes('prompt-comparison');
-  if (scaffoldId === 'partner-helper') return activity.kind === 'explanation' && getCompositionCapabilities(activity).partnerHelper;
-  if (scaffoldId === 'secure-code-review') return activity.kind === 'explanation' && getCompositionCapabilities(activity).secureCodeReview;
-  if (scaffoldId === 'build-and-tell') return activity.kind === 'picture-build' && getPictureBuildCapabilities(activity).buildAndTell;
-  if (scaffoldId === 'puppet-stories') return activity.kind === 'child-play' && activity.mode === 'puppet-story';
-  if (scaffoldId === 'pretend-play-stations') return activity.kind === 'child-play' && activity.mode === 'pretend-play';
-  if (scaffoldId === 'pattern-parade') return activity.kind === 'completion' && Boolean(activity.pattern);
-  if (scaffoldId === 'discovery-scenes') return activity.kind === 'picture' && activity.mode === 'discovery';
-  if (scaffoldId === 'word-and-picture-workshop') return activity.kind === 'picture' && activity.mode === 'word-picture';
-  return true;
+ return scaffoldRequiredCapabilities(scaffoldId).every(capability=>suppliesCapability(activity,capability));
 }
 /** Readiness and byte/text provenance, never a test of semantic entailment. */
 export function isReadyLearningSource(source:Source|undefined,sources:Source[]):boolean {

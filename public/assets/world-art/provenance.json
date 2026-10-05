@@ -1,0 +1,51 @@
+{
+  "tool": "Built-in image_gen",
+  "assets": [
+    {
+      "id": "trail",
+      "file": "trail.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A sweeping exploration archipelago at sunrise, elegant stone bridges and footpaths connecting lush islands, a distant observatory and small harbor, a quiet clear foreground path for a learner expedition. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "workbench",
+      "file": "workbench.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A premium maker's atelier with a beautiful wooden and brass workbench, modular geometric components, soft industrial lamps and large windows showing mountains, thoughtful crafted tools stored neatly at edges, central workspace open. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "network",
+      "file": "network.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. An elegant science-fiction systems conservatory, luminous teal energy conduits connecting modular platforms beneath a glass canopy, subtle violet lights, sophisticated invented technology with no labels, a broad calm central work area. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "stage",
+      "file": "stage.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A beautiful small open-air pavilion for storytelling and explaining ideas, sculptural arches, rich indigo curtains drawn aside, warm amber spotlights and soft hanging stars, calm central presentation space, sophisticated theatrical architecture. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "archive",
+      "file": "archive.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A magnificent evidence archive and exploration library, sweeping shelves and brass balconies, warm lamps, teal-glass reading alcoves and a large central wooden research table, rich deep blue and warm gold lighting, calm open center. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "garden",
+      "file": "garden.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A lush discovery conservatory with terraced botanical gardens, elegant glass pavilions, water channels and stepping stones, sunlight filtering through leaves, inviting calm open central clearing. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "junior-discovery",
+      "file": "junior-discovery.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A delightful high-quality 3D storybook discovery garden for children ages3–8, rounded wooden treehouses, colorful simple stepping stones, small gentle stream, friendly toy blocks and flowers at edges, safe inviting sunny world, simple readable shapes, no characters. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "console",
+      "file": "console.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A breathtaking cliffside observatory and analysis laboratory at twilight, panoramic windows with a starry sky, thoughtful circular brass instrument stations and glass data sculptures, abstract geometric lights without graphs or labels, calm open central laboratory. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "junior-expedition",
+      "file": "junior-expedition.png",
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A richly crafted 3D illustrated adventure island for children ages9–11, treehouse laboratory, rope bridge, little explorer harbor and hillside discovery trails, playful but sophisticated detail, warm sunlight, calm central path, no characters. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    }
+  ],
+  "pending": []
+}

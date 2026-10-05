@@ -61,3 +61,9 @@ export function worldBackdropMarkup(world:WorldComposition,theme='islands',age='
  };
  return `<rect width="800" height="360" fill="${p.sky}"/><circle cx="669" cy="72" r="43" fill="${p.paper}" opacity=".7"/><circle cx="669" cy="72" r="63" fill="${p.paper}" opacity=".25"/><path d="M0 288Q180 216 385 281T800 270V360H0Z" fill="${p.ground}" opacity=".55"/>${bases[world.layout]}${(includeObjects?world.objects:[]).map((o,i)=>`<g transform="translate(${o.x*8} ${o.y*3.6}) scale(${o.size/43*(young?1.1:1)})"><ellipse cy="40" rx="34" ry="9" fill="${p.ink}" opacity=".08"/><circle r="41" fill="${p.paper}" opacity=".9"/>${glyphMarkup(o.glyph,p.accent,i===1?p.ground:p.paper)}</g>`).join('')}<path d="M42 69v14M35 76h14M731 285v14M724 292h14" stroke="${p.paper}" stroke-width="3"/>`;
 }
+/** These scaffold-specific symbolic objects sit over decorative environment art.
+ * Learner-authored model nodes remain a separate, interactive layer. */
+export function worldArtworkOverlayMarkup(world:WorldComposition,theme='islands',age='adult',includeObjects=true):string {
+ const p=worldPalette(theme,age),young=getAgePresentation(age).largeControls;
+ return `<path d="M25 53V25H53M747 25H775V53M25 307V335H53M747 335H775V307" stroke="${p.paper}" stroke-width="2" fill="none" opacity=".65"/>${(includeObjects?world.objects:[]).map((o,i)=>`<g transform="translate(${o.x*8} ${o.y*3.6}) scale(${o.size/43*(young?1.1:1)})"><ellipse cy="40" rx="34" ry="9" fill="${p.ink}" opacity=".12"/><circle r="41" fill="${p.paper}" opacity=".94"/><circle r="44" stroke="${p.accent}" stroke-width="1.2" fill="none" opacity=".5"/>${glyphMarkup(o.glyph,p.accent,i===1?p.ground:p.paper)}</g>`).join('')}`;
+}

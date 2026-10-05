@@ -263,9 +263,9 @@ describe('optional AI refinement validates model output', () => {
     const notebook = fixture();
     const selected = notebook.cards.slice(0, 12);
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ text: JSON.stringify({ cards: selected.map(card => ({ ...card, explanation: 'Review the quoted evidence.' })) }) }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
-    const output = await refineCards(notebook, { provider: 'compatible', apiKey: '', model: 'local' });
+    const output = await refineCards(notebook, { provider: 'compatible', apiKey: '', model: 'local' }, undefined, async()=>true);
     expect(output.cards[0].reviewStatus).toBe('needs-review');
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ text: JSON.stringify({ cards: selected.map((card, at) => at ? card : { ...card, evidence: 'An invented quotation.' }) }) }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
-    await expect(refineCards(notebook, { provider: 'compatible', apiKey: '', model: 'local' })).rejects.toThrow('absent');
+    await expect(refineCards(notebook, { provider: 'compatible', apiKey: '', model: 'local' }, undefined, async()=>true)).rejects.toThrow('absent');
   });
 });

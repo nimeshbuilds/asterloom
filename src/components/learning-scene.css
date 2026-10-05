@@ -49,3 +49,19 @@
 .learning-scene.scene-overview:has(.scene-mode[aria-pressed=true]){grid-template-columns:1fr}
 .learning-scene.scene-overview:has(.scene-mode[aria-pressed=true])>.scene-title,.learning-scene.scene-overview:has(.scene-mode[aria-pressed=true])>.scene-workspace{grid-column:1}
 @media(max-width:650px){.learning-scene.scene-overview{grid-template-columns:82px minmax(0,1fr)}.learning-scene.scene-overview .scene-title h3{font-size:15px}.learning-scene.scene-overview .scene-mode{padding:6px}.learning-scene.scene-overview>.scene-title{gap:6px;padding:10px 10px 0}.learning-scene.scene-overview>.scene-workspace{padding:4px 10px 10px}.learning-scene.scene-overview .scene-metrics{gap:6px}}
+/* The same local environment stays beneath Pixi and SVG. Interactive nodes and
+   their accessible controls are unchanged; raster settings never carry evidence. */
+.scene-environment{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;z-index:-1}
+.learning-scene[data-renderer=pixi-webgl] .scene-fallback{visibility:hidden}
+.scene-stage{overflow:hidden}
+/* Each scene remains legible when embedded without a surrounding player theme. */
+.learning-scene .scene-state-summary p,.learning-scene .scene-selected p,.learning-scene .scene-setting-note p{color:inherit}
+.scene-density-studio .scene-title{background:#1d3545}
+.scene-density-studio .scene-mode{background:#284959;border-color:#63838d;color:#e0edf0}
+.scene-density-studio .scene-metrics>div{background:#2b4a5a}
+.scene-density-studio .scene-object-tray button{background:#243f50;border-color:#658893;color:#d8e6ed}
+.scene-density-studio .scene-object-tray button[aria-pressed=true]{background:#345766;border-color:var(--scene-accent)}
+.scene-density-studio .scene-object-tray .is-active{color:#132331}
+.scene-density-studio .scene-selected{background:#2b4a58;color:#e0edf0}
+.scene-density-studio .scene-actions button{background:var(--scene-accent);color:#132331}
+.scene-density-studio .scene-object-picker select{background:#243f50;color:#e0edf0}

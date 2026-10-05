@@ -7,6 +7,7 @@ import {createService} from '../server/index.mjs';
 import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,normalizeTarget} from './bundles.mjs';
 import {isUniversalMacApp} from './architectures.mjs';
 import {exportNotebookArchive,importNotebookArchive} from './media-archive.mjs';
+import {createExportRegistry} from './export-registry.mjs';
 
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
@@ -74,6 +75,10 @@ app.whenReady().then(async()=>{try{
   let distributionMode='disabled';try{const distribution=JSON.parse(await fs.readFile(path.join(HERE,'distribution.json'),'utf8'));if(distribution.mode==='personal-local')distributionMode=distribution.mode;}catch{}
   service=await createService({port:0,distributionMode,dataDir:path.join(app.getPath('userData'),'service'),distDir:path.join(ROOT,'dist'),mediaAssetDir:path.join(resources,'media-assets'),mediaModelDir:process.env.ASTERLOOM_MEDIA_MODELS||path.join(storageBase,'speech-models'),enableTor:process.argv.includes('--tor')||savedTor,torBinary:await bundledTor(),onTorChange:state=>{void configureTorProxy(state).catch(()=>{proxyConfigured=false;});}});
   await configureTorProxy(service.torStatus());
+  const exportRegistry=await createExportRegistry({directory:app.getPath('userData'),currentBundle:currentBundle(),trashItem:filename=>shell.trashItem(filename)});
+  ipcMain.handle('asterloom:clear-notebook-cache',async event=>{if(!ownFrame(event))return {error:'This action is unavailable.'};try{await window.webContents.session.clearCache();return {cleared:true};}catch{return {error:'The local playback cache could not be cleared.'};}});
+  ipcMain.handle('asterloom:list-notebook-exports',async(event,id)=>{if(!ownFrame(event)||typeof id!=='string'||id.length>200)return {error:'Choose a notebook in this application.'};try{return {exports:await exportRegistry.list(id)};}catch{return {error:'Saved export locations could not be read. Their copies were kept.'};}});
+  ipcMain.handle('asterloom:trash-notebook-exports',async(event,id,ids)=>{if(!ownFrame(event)||exporting)return {error:'Finish the current export before removing its copies.'};try{return await exportRegistry.trash(id,ids);}catch{return {error:'An export changed or is not owned by this notebook. Its files were kept.'};}});
   ipcMain.handle('asterloom:tor-status',event=>ownFrame(event)?{...service.torStatus(),proxyConfigured}:{error:'This action is unavailable.'});
   ipcMain.handle('asterloom:set-tor',async(event,enabled)=>{
     if(!ownFrame(event)||typeof enabled!=='boolean')return {error:'This action is unavailable.'};
@@ -94,6 +99,7 @@ app.whenReady().then(async()=>{try{
       const chosen=await dialog.showOpenDialog(window,{title:'Choose where to save your learning game',buttonLabel:'Export game here',properties:['openDirectory','createDirectory']});
       if(chosen.canceled||!chosen.filePaths[0])return {canceled:true};
       const result=await createGameBundle({packageText,target,template,destination:chosen.filePaths[0],resolveAsset:service.media.resolveAsset});
+      try{await exportRegistry.track({notebookId:result.notebookId,output:result.path,kind:'game',platform:target});}catch{result.warning=(result.warning||'')+' This copy was saved, but its location could not be registered for later removal. Keep track of the saved location.';}
       return result;
     }catch(error){return {error:error.message||'This game could not be exported.'};}
     finally{exporting=false;}
@@ -101,7 +107,7 @@ app.whenReady().then(async()=>{try{
   ipcMain.handle('asterloom:export-notebook-archive',async(event,packageText)=>{
     if(!ownFrame(event)||exporting)return {error:'Another export is in progress or this action is unavailable.'};
     exporting=true;
-    try{const game=readGame(packageText);const chosen=await dialog.showSaveDialog(window,{title:'Save notebook with original recordings',defaultPath:game.notebook.title.replace(/[\\/:*?"<>|]/g,'-')+'.learnzip',filters:[{name:'Asterloom recording archive',extensions:['learnzip']}]});if(chosen.canceled||!chosen.filePath)return {canceled:true};return await exportNotebookArchive({packageText,destination:chosen.filePath,resolveAsset:service.media.resolveAsset});}
+    try{const game=readGame(packageText);const chosen=await dialog.showSaveDialog(window,{title:'Save notebook with original recordings',defaultPath:game.notebook.title.replace(/[\\/:*?"<>|]/g,'-')+'.learnzip',filters:[{name:'Asterloom recording archive',extensions:['learnzip']}]});if(chosen.canceled||!chosen.filePath)return {canceled:true};const result=await exportNotebookArchive({packageText,destination:chosen.filePath,resolveAsset:service.media.resolveAsset});try{await exportRegistry.track({notebookId:game.notebook.id,output:result.path,kind:'archive'});}catch{result.warning='This archive was saved, but its location could not be registered for later removal.';}return result;}
     catch(error){return {error:error.message||'The recording archive could not be saved.'};}finally{exporting=false;}
   });
   ipcMain.handle('asterloom:import-notebook-archive',async event=>{

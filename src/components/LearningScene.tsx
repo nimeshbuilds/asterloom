@@ -1,8 +1,10 @@
 import {useEffect,useMemo,useRef,useState,type CSSProperties} from 'react';
 import {ChevronDown,Layers,Leaf,MousePointer2} from 'lucide-react';
 import {getAgePresentation,worldPalette,worldForScaffold} from '../data/worlds';
-import {worldBackdropMarkup,glyphMarkup} from '../lib/worldIllustration';
+import {worldBackdropMarkup,worldArtworkOverlayMarkup,glyphMarkup} from '../lib/worldIllustration';
 import {sceneNodePositions,type SceneAction,type SceneSnapshot} from '../lib/worldScene';
+import {worldArtworkFor} from '../lib/worldArtwork';
+import {useWorldArtwork} from './useWorldArtwork';
 import './learning-scene.css';
 export interface LearningSceneProps {scaffoldId?:string;theme?:string;ageGroup?:string;snapshot:SceneSnapshot;selectedId?:string;onSelect?:(id:string)=>void;actions?:SceneAction[];onAction?:(action:SceneAction)=>void;compact?:boolean;interaction?:'overview'|'workspace'}
 const empty=()=>{try{return localStorage.getItem('asterloom.scene.simple')==='true';}catch{return false;}};
@@ -10,11 +12,12 @@ export default function LearningScene({scaffoldId,theme='islands',ageGroup='adul
  const overview=interaction==='overview';
  const world=worldForScaffold(scaffoldId),age=getAgePresentation(ageGroup),palette=worldPalette(theme,ageGroup);
  const [simple,setSimple]=useState(empty),[engine,setEngine]=useState<'loading'|'canvas'|'fallback'>('loading'),[motion,setMotion]=useState(false),[revision,setRevision]=useState(0);
+ const artwork=worldArtworkFor(world,ageGroup),artStatus=useWorldArtwork(artwork.assetPath,!simple),artReady=artStatus==='ready';
  const animation=useRef<number>(0),previousPositions=useRef(new Map<string,{x:number;y:number}>());
  const host=useRef<HTMLDivElement>(null),runtime=useRef<{app:import('pixi.js').Application;pixi:typeof import('pixi.js')}|null>(null),draw=useRef<()=>void>(()=>{}),select=useRef(onSelect);select.current=onSelect;
  const selected=snapshot.nodes.find(n=>n.id===selectedId),page=Math.max(0,Math.floor(snapshot.nodes.findIndex(n=>n.id===selectedId)/8));
  const nodes=useMemo(()=>sceneNodePositions(overview?[]:snapshot.nodes.slice(page*8,page*8+8),snapshot.layout??world.layout),[JSON.stringify(snapshot.nodes),page,snapshot.layout,world.layout,overview]);
- const backdrop=useMemo(()=>worldBackdropMarkup(world,theme,ageGroup),[world,theme,ageGroup]);
+ const backdrop=useMemo(()=>artReady?worldArtworkOverlayMarkup(world,theme,ageGroup):worldBackdropMarkup(world,theme,ageGroup),[world,theme,ageGroup,artReady]);
  useEffect(()=>{const query=matchMedia('(prefers-reduced-motion: reduce)');const update=()=>setMotion(query.matches);update();query.addEventListener('change',update);return()=>query.removeEventListener('change',update);},[]);
  useEffect(()=>{
   let disposed=false,cleanup:(()=>void)|undefined;setEngine('loading');
@@ -37,7 +40,7 @@ export default function LearningScene({scaffoldId,theme='islands',ageGroup='adul
   const render=()=>{cancelAnimationFrame(animation.current);const r=runtime.current;if(!r||!host.current)return;const {app,pixi}=r,width=host.current.clientWidth||800,height=width*360/800;app.renderer.resize(width,height);
    for(const child of app.stage.removeChildren())child.destroy({children:true});
    const root=new pixi.Container();root.scale.set(width/800);app.stage.addChild(root);
-   root.addChild(new pixi.Graphics().svg(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="360">${worldBackdropMarkup(world,theme,ageGroup,false)}</svg>`));
+   root.addChild(new pixi.Graphics().svg(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="360">${artReady?worldArtworkOverlayMarkup(world,theme,ageGroup,false):worldBackdropMarkup(world,theme,ageGroup,false)}</svg>`));
    for(const [i,object] of world.objects.entries()){const group=new pixi.Container();group.position.set(object.x*8,object.y*3.6);group.scale.set(object.size/43*(age.largeControls?1.1:1));group.addChild(new pixi.Graphics().ellipse(0,40,34,9).fill({color:palette.ink,alpha:.08}).circle(0,0,41).fill({color:palette.paper,alpha:.94}));group.addChild(new pixi.Graphics().svg(`<svg>${glyphMarkup(object.glyph,palette.accent,i===1?palette.ground:palette.paper)}</svg>`));root.addChild(group);}
    for(const link of snapshot.links){const a=nodes.find(n=>n.id===link.from),b=nodes.find(n=>n.id===link.to);if(!a||!b)continue;root.addChild(new pixi.Graphics().moveTo(a.x!*8,a.y!*3.6).lineTo(b.x!*8,b.y!*3.6).stroke({color:palette.accent,width:3,alpha:.7}));}
    const transitions:{group:import('pixi.js').Container;dx:number;dy:number}[]=[];
@@ -48,9 +51,10 @@ export default function LearningScene({scaffoldId,theme='islands',ageGroup='adul
   };draw.current=render;render();return()=>cancelAnimationFrame(animation.current);
  },[motion,revision,backdrop,JSON.stringify(nodes),JSON.stringify(snapshot.links),palette,selectedId,page,!!onSelect]);
  const toggle=(value:boolean)=>{setSimple(value);try{localStorage.setItem('asterloom.scene.simple',String(value));}catch{/* Preference is optional when storage is unavailable. */}};
- return <section className={`learning-scene ${compact?'scene-compact':''} ${overview?'scene-overview':''} scene-density-${age.density}`} data-scene-engine={engine} data-renderer={engine==='canvas'?'pixi-webgl':engine==='fallback'?'svg-dom':'initializing'} data-reduced-motion={motion} aria-label={`${world.name}: ${overview?'quest context':'live workspace'}`} style={{'--scene-ink':palette.ink,'--scene-accent':palette.accent,'--scene-paper':palette.paper,'--scene-tint':palette.sky} as CSSProperties}>
+ return <section className={`learning-scene ${compact?'scene-compact':''} ${overview?'scene-overview':''} scene-density-${age.density}`} data-scene-engine={engine} data-renderer={engine==='canvas'?'pixi-webgl':engine==='fallback'?'svg-dom':'initializing'} data-reduced-motion={motion} data-world-art={artwork.id} data-art-status={artStatus} aria-label={`${world.name}: ${overview?'quest context':'live workspace'}`} style={{'--scene-ink':palette.ink,'--scene-accent':palette.accent,'--scene-paper':palette.paper,'--scene-tint':palette.sky} as CSSProperties}>
   <div className="scene-title"><div><span><Leaf size={13}/>{age.label}</span><h3>{world.name}</h3></div><button type="button" className="scene-mode" aria-pressed={simple} onClick={()=>toggle(!simple)}><Layers size={14}/>{simple?'Illustrated view':'Simple view'}</button></div>
   {!simple&&<div className="scene-stage" data-world={world.id}>
+   {artReady&&<img className="scene-environment" src={artwork.assetPath} alt="" aria-hidden="true" draggable={false}/>}
    <svg className="scene-fallback" viewBox="0 0 800 360" aria-hidden="true"><g dangerouslySetInnerHTML={{__html:backdrop}}/>{snapshot.links.map((link,i)=>{const a=nodes.find(n=>n.id===link.from),b=nodes.find(n=>n.id===link.to);return a&&b?<line key={i} x1={a.x!*8} y1={a.y!*3.6} x2={b.x!*8} y2={b.y!*3.6} stroke={palette.accent} strokeWidth="3"/>:null;})}{nodes.map((node,i)=><g key={node.id} transform={`translate(${node.x!*8} ${node.y!*3.6})`}><circle r="24" fill={node.active?palette.accent:palette.paper} stroke={palette.accent} strokeWidth="2"/><text textAnchor="middle" dominantBaseline="middle" fontFamily="Arial" fontWeight="bold" fontSize="18" fill={node.active?palette.paper:palette.ink}>{page*8+i+1}</text></g>)}</svg>
    <div ref={host} className={`scene-canvas ${engine==='canvas'?'ready':''}`}/>
    {!overview&&<span className="scene-setting-label">Illustrated setting · your work below</span>}
@@ -62,6 +66,6 @@ export default function LearningScene({scaffoldId,theme='islands',ageGroup='adul
    {!overview&&selected&&<div className="scene-selected" aria-live="polite"><div><strong>{selected.label}</strong><p>{selected.detail}</p></div>{!!actions.length&&<div className="scene-actions">{actions.map((action,i)=><button type="button" key={i} disabled={action.disabled} onClick={()=>onAction?.(action)}>{action.label}</button>)}</div>}</div>}
    {!overview&&!snapshot.nodes.length&&<p className="scene-empty">Add a part in the workspace to bring this model to life.</p>}
   </div>
-  <details className="scene-setting-note"><summary>About this scene <ChevronDown size={12}/></summary><p>{world.settingNote} {overview?'The task below contains the controls and evidence.':'Highlighted objects show selections or available actions. They do not indicate a correct answer.'}</p></details>
+  <details className="scene-setting-note"><summary>About this scene <ChevronDown size={12}/></summary><p>{world.settingNote} The environment art is decorative fiction, not a diagram or source evidence. {overview?'The task below contains the controls and evidence.':'Highlighted objects show selections or available actions. They do not indicate a correct answer.'}</p></details>
  </section>;
 }

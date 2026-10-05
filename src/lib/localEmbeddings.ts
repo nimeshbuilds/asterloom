@@ -1,4 +1,5 @@
-/** Local inference is authoring-only. Import this module lazily; gameplay never initializes a model. */
+/** Import this module lazily for optional local meaning search in the studio or Ask Aster.
+ * Learning activities and scoring do not depend on a model; source search works offline. */
 export const RETRIEVAL_MODEL = 'Xenova/all-MiniLM-L6-v2';
 export const RETRIEVAL_REVISION = '751bff37182d3f1213fa05d7196b954e230abad9';
 export const RETRIEVAL_CACHE_VERSION = `${RETRIEVAL_MODEL}@${RETRIEVAL_REVISION}:q8:mean:normalized:v1`;

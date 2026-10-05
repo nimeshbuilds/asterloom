@@ -1,3 +1,4 @@
+import {customizeLearning} from './learningJourney.helpers';
 import {test,expect,type Page,type Locator} from '@playwright/test';
 import type {Notebook} from '../src/types';
 import {AGE_GROUPS} from '../src/data/scaffolds';
@@ -10,22 +11,22 @@ const unsupported=['incident-response-command','cloud-architecture-builder','pre
 async function saved(page:Page,title:string):Promise<Notebook|undefined>{
  return page.evaluate(title=>new Promise<any>((resolve,reject)=>{const r=indexedDB.open('asterloom-local-v1',1);r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('records','readonly').objectStore('records').getAll();q.onsuccess=()=>{db.close();resolve(q.result.find(value=>value?.title===title&&Array.isArray(value.sources)));};q.onerror=()=>{db.close();reject(q.error);};};}),title);
 }
-async function create(page:Page,title:string){await page.goto('/');await expect(page.getByRole('heading',{name:'What will you discover today?',exact:true})).toBeVisible();await page.getByRole('button',{name:'Create a world',exact:true}).last().click();await page.getByLabel('Notebook title',{exact:true}).fill(title);await expect.poll(async()=>(await saved(page,title))?.scaffoldIds).toEqual([]);}
-async function paste(page:Page,title:string,text:string){await page.getByRole('tab',{name:/Materials/}).click();await page.getByRole('button',{name:'Paste notes',exact:true}).click();await page.getByLabel('Source title',{exact:true}).fill(title);await page.getByLabel('Your material',{exact:true}).fill(text);await page.getByRole('button',{name:'Add material',exact:false}).click();}
-async function changeAge(page:Page,title:string,id:string){await page.getByRole('tab',{name:/Game design/}).click();const label=AGE_GROUPS.find(a=>a.id===id)!.label;await page.locator('.age-options').getByRole('button').filter({has:page.getByText(label,{exact:true})}).click();await expect.poll(async()=>(await saved(page,title))?.ageGroup).toBe(id);}
+async function create(page:Page,title:string){await page.goto('/');await expect(page.getByRole('heading',{name:'What will you discover today?',exact:true})).toBeVisible();await page.getByRole('button',{name:'Create a game',exact:true}).last().click();await page.getByLabel('Notebook title',{exact:true}).fill(title);await expect.poll(async()=>(await saved(page,title))?.scaffoldIds).toEqual([]);}
+async function paste(page:Page,title:string,text:string){const materials=page.getByRole('tab',{name:/Materials/});if(await materials.isVisible())await materials.click();await page.getByRole('button',{name:'Paste notes',exact:true}).click();await page.getByLabel('Source title',{exact:true}).fill(title);await page.getByLabel('Your material',{exact:true}).fill(text);await page.getByRole('button',{name:'Add material',exact:false}).click();}
+async function changeAge(page:Page,title:string,id:string){await customizeLearning(page);await page.getByRole('tab',{name:/Game design/}).click();const label=AGE_GROUPS.find(a=>a.id===id)!.label;await page.locator('.age-options').getByRole('button').filter({has:page.getByText(label,{exact:true})}).click();await expect.poll(async()=>(await saved(page,title))?.ageGroup).toBe(id);}
 function notProcedure(n:Notebook){expect(n.activities?.some(a=>a.kind==='sequence')??false).toBe(false);for(const id of ['process-reconstruction','step-train',...unsupported])expect(n.scaffoldIds).not.toContain(id);}
 
 for(const method of ['paste','upload'] as const)test(`numbered facts stay facts through ${method}, rebuilding and age changes`,async({page})=>{
  const title=`Cybersecurity cloud reset procedure · ${method} glossary`;await create(page,title);
  if(method==='paste')await paste(page,'Plant glossary',glossary);else await page.getByLabel('Upload source files',{exact:true}).setInputFiles({name:'plant-glossary.txt',mimeType:'text/plain',buffer:Buffer.from(glossary)});
  await expect.poll(async()=>(await saved(page,title))?.sources.length).toBe(1);let n=(await saved(page,title))!;expect(n.sources[0].text).toBe(glossary);expect(n.cards.length+(n.activities?.length??0)).toBeGreaterThan(0);notProcedure(n);
- await page.getByRole('tab',{name:/Challenges/}).click();await page.getByRole('button',{name:'Rebuild from sources',exact:true}).click();await expect(page.locator('.save-state')).toHaveText('Saved on this device');n=(await saved(page,title))!;notProcedure(n);
+ await customizeLearning(page);await page.getByRole('tab',{name:/Challenges/}).click();await page.getByRole('button',{name:'Rebuild from sources',exact:true}).click();await expect(page.locator('.save-state')).toHaveText('Saved on this device');n=(await saved(page,title))!;notProcedure(n);
  await changeAge(page,title,'6-8');notProcedure((await saved(page,title))!);await changeAge(page,title,'adult');notProcedure((await saved(page,title))!);
- await expect(page.locator('.scaffold-checks label').filter({hasText:'Process reconstruction'}).getByRole('checkbox')).toBeDisabled();
+ await expect(page.locator('.scaffold-checks')).toHaveCount(0);expect((await saved(page,title))!.scaffoldIds).not.toContain('process-reconstruction');
  await page.reload();await expect(page.getByRole('button',{name:`Open ${title}`,exact:true})).toBeVisible();notProcedure((await saved(page,title))!);
 });
 
-async function openManual(page:Page):Promise<Locator>{await page.getByRole('tab',{name:/Challenges/}).click();await page.getByRole('button',{name:'Write a challenge',exact:true}).click();const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Write a challenge',exact:true})});await dialog.getByLabel('Question or situation',{exact:true}).fill('Which part contains the embryo?');await dialog.getByLabel('Correct answer',{exact:true}).fill('Seed');await dialog.getByLabel('Other choices · one per line',{exact:true}).fill('Leaf\nRoot');return dialog;}
+async function openManual(page:Page):Promise<Locator>{await customizeLearning(page);await page.getByRole('tab',{name:/Challenges/}).click();await page.getByRole('button',{name:'Write a challenge',exact:true}).click();const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Write a challenge',exact:true})});await dialog.getByLabel('Question or situation',{exact:true}).fill('Which part contains the embryo?');await dialog.getByLabel('Correct answer',{exact:true}).fill('Seed');await dialog.getByLabel('Other choices · one per line',{exact:true}).fill('Leaf\nRoot');return dialog;}
 async function rejected(page:Page,dialog:Locator,title:string){const before=(await saved(page,title))!.cards;await dialog.getByRole('button',{name:'Save challenge',exact:true}).click();await expect(page.locator('.error-message')).toContainText('Choose a ready source and add the exact passage');expect((await saved(page,title))!.cards).toEqual(before);await page.getByRole('button',{name:'Got it',exact:true}).click();await expect(dialog).toBeVisible();}
 
 test('manual challenges require a ready selected source and its exact supporting passage',async({page})=>{
@@ -42,8 +43,8 @@ test('manual challenges require a ready selected source and its exact supporting
 test('an explicit procedure creates only source-supported draft recipes, regardless of title and age',async({page})=>{
  const title='Cloud architecture and incident-response simulation';await create(page,title);await paste(page,'Safe reset instructions',procedure);await expect.poll(async()=>(await saved(page,title))?.activities?.filter(a=>a.kind==='sequence').length).toBe(1);let n=(await saved(page,title))!,sequence=n.activities!.find(a=>a.kind==='sequence')!;expect(sequence.reviewStatus).toBe('needs-review');if(sequence.kind==='sequence')expect(sequence.items.map(i=>i.label)).toEqual(['Open the settings panel.','Choose the reset command.','Confirm the selected reset.']);expect(n.scaffoldIds).toContain('process-reconstruction');for(const id of unsupported)expect(n.scaffoldIds).not.toContain(id);
  const pendingModels=structuredClone(n.activities);await changeAge(page,title,'3-5');n=(await saved(page,title))!;expect(n.activities).toEqual(pendingModels);for(const id of unsupported)expect(n.scaffoldIds).not.toContain(id);expect(n.scaffoldIds).not.toContain('process-reconstruction');
- await changeAge(page,title,'adult');n=(await saved(page,title))!;expect(n.activities).toEqual(pendingModels);expect(n.scaffoldIds).toContain('process-reconstruction');await expect(page.locator('.scaffold-checks label').filter({hasText:'Process reconstruction'})).toContainText('Source-based draft · needs review');
- await page.getByRole('tab',{name:/Challenges/}).click();await page.getByRole('button',{name:'Rebuild from sources',exact:true}).click();await expect(page.locator('.save-state')).toHaveText('Saved on this device');expect((await saved(page,title))!.activities).toEqual(pendingModels);
+ await changeAge(page,title,'adult');n=(await saved(page,title))!;expect(n.activities).toEqual(pendingModels);expect(n.scaffoldIds).toContain('process-reconstruction');await expect(page.locator('.scaffold-checks')).toHaveCount(0);expect(n.activities!.find(a=>a.id===sequence.id)?.reviewStatus).toBe('needs-review');
+ await customizeLearning(page);await page.getByRole('tab',{name:/Challenges/}).click();await page.getByRole('button',{name:'Rebuild from sources',exact:true}).click();await expect(page.locator('.save-state')).toHaveText('Saved on this device');expect((await saved(page,title))!.activities).toEqual(pendingModels);
 });
 
 
@@ -65,7 +66,7 @@ test('replaced source evidence cannot launch stale missions or expose them in th
   await dialog.getByRole('button',{name:'Done',exact:false}).click();
  };
  const revised='# Revised field notes\nThe survey recorded the river level after rainfall. The observations do not establish what caused the change, so a comparison remains an open question.';
- await page.getByRole('button',{name:'Open studio',exact:true}).click();
+ await page.getByRole('button',{name:'Edit materials',exact:true}).click();await customizeLearning(page);
  await replaceSource(firstSource.title,revised);
  await page.getByRole('button',{name:'Play game',exact:true}).click();
  await expect(page.locator('.structured-path button')).toHaveCount(1);
@@ -74,7 +75,7 @@ test('replaced source evidence cannot launch stale missions or expose them in th
  await expect(page.getByRole('region',{name:'Learning briefing',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Save & return',exact:true}).click();
  await expect(page.locator(`[data-activity-id="${first.id}"]`)).toHaveCount(0);
- await page.getByRole('button',{name:'Open studio',exact:true}).click();
+ await page.getByRole('button',{name:'Edit materials',exact:true}).click();await customizeLearning(page);
  await replaceSource(secondSource.title,'The second survey remains incomplete. Its notes contain no validated order of work, so the learner should study the available observations.');
  const retained=(await saved(page,n.title))!.activities!;
  expect(retained).toHaveLength(2);expect(retained.every(activity=>activity.reviewStatus==='needs-review')).toBe(true);
@@ -85,7 +86,7 @@ test('replaced source evidence cannot launch stale missions or expose them in th
  await expect(page.locator('.structured-game')).toHaveCount(0);
  await page.getByRole('button',{name:'Save & return',exact:true}).click();
  await expect(page.locator('[data-activity-id]')).toHaveCount(0);
- await page.getByRole('button',{name:'Open studio',exact:true}).click();
+ await page.getByRole('button',{name:'Edit materials',exact:true}).click();await customizeLearning(page);
  await page.getByRole('tab',{name:/Challenges/}).click();
  await expect(page.locator('.activity-library article')).toHaveCount(2);
  await page.getByRole('button',{name:`Edit ${first.title}`,exact:true}).click();

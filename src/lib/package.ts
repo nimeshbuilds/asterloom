@@ -1,4 +1,7 @@
+import {validateAIUsageReceipts} from './aiUsage';
 import {validateLessonState} from './learningBriefing';
+import {validateGameDesign} from './gameDesign';
+import {validateAILearningPlan} from './aiLearningPlan';
 import type { CardProgress, LearnPackage, LearningCard, Notebook, NotebookArtwork, Progress, Source, SourceKind } from '../types';
 import { validateActivity } from './structuredEngine';
 import {validateLearningObjectives} from './evidence';
@@ -161,7 +164,14 @@ export function validateNotebook(input: unknown): Notebook {
     return checked.value;
   });
   if (activities) unique(activities.map(activity => activity.id), 'Structured activities');
-  return { ...(value.generationVersion !== undefined ? {generationVersion:integer(value.generationVersion,'Preparation version',1,1000)} : {}), id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), ...(value.learningObjectives!==undefined?{learningObjectives:validateLearningObjectives(value.learningObjectives,sources)}:{}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
+  if(value.themeSelection!==undefined&&!['auto','manual'].includes(String(value.themeSelection)))throw new Error('Invalid theme selection.');
+  let creation:Notebook['creation'];
+  if(value.creation!==undefined){const state=object(value.creation,'Game creation');if(state.mode!=='ai'||!['draft','ready'].includes(String(state.status)))throw new Error('Invalid game creation state.');creation={mode:'ai',status:state.status as 'draft'|'ready'};}
+  const notebook:Notebook = { ...(value.themeSelection?{themeSelection:value.themeSelection as 'auto'|'manual'}:{}), ...(creation?{creation}:{}), ...(value.generationVersion !== undefined ? {generationVersion:integer(value.generationVersion,'Preparation version',1,1000)} : {}), id: identifier(value.id, 'Notebook ID'), title: string(value.title, 'Notebook title', 300), description: string(value.description ?? '', 'Description', 10_000, true), createdAt: date(value.createdAt, 'Creation date'), updatedAt: date(value.updatedAt, 'Updated date'), ageGroup: string(value.ageGroup, 'Age group', 100), goal: string(value.goal, 'Learning goal', 2000, true), theme: string(value.theme, 'Theme', 100), scaffoldIds: array(value.scaffoldIds, 'Game scaffolds', 100).map(id => identifier(id, 'Scaffold ID')), sources, cards, ...(activities ? { activities } : {}), ...(artwork ? { artwork } : {}), ...(value.learningObjectives!==undefined?{learningObjectives:validateLearningObjectives(value.learningObjectives,sources)}:{}), revision: integer(value.revision, 'Revision', 1, 1_000_000) };
+  if(value.aiToolReceipts!==undefined)notebook.aiToolReceipts=validateAIUsageReceipts(value.aiToolReceipts);
+  if(value.gameDesign!==undefined)notebook.gameDesign=validateGameDesign(value.gameDesign,notebook);
+  if(value.aiLearningPlan!==undefined)notebook.aiLearningPlan=validateAILearningPlan(value.aiLearningPlan,notebook);
+  return notebook;
 }
 
 function parseJson(text: string, maximum = MAX_PACKAGE_BYTES): unknown {

@@ -115,12 +115,14 @@ export function compileNotebook(sources:Source[],options:CompileOptions={}):Comp
   }
   const maxCards=Math.max(1,Math.min(300,Math.floor(options.maxCards??60))),participating=spread(groups,Math.min(maxCards,groups.length)),shares=participating.map(()=>0);
   for(let remaining=maxCards;remaining>0;){let allocated=false;for(let i=0;i<participating.length&&remaining>0;i++)if(shares[i]<participating[i].length){shares[i]++;remaining--;allocated=true;}if(!allocated)break;}
-  const queues=participating.map((group,i)=>balancedCandidates(group,shares[i])),cards:LearningCard[]=[];
+  const queues=participating.map((group,i)=>balancedCandidates(group,shares[i])),cards:LearningCard[]=[],seenCardKeys=new Set<string>();
   while(queues.some(q=>q.length)&&cards.length<maxCards)for(const queue of queues){
     const candidate=queue.shift();if(!candidate)continue;
     const key=`${candidate.source.id}:${candidate.questionType}:${candidate.answer}:${candidate.evidence}`,seed=stableHash(key);
+    if(seenCardKeys.has(key))continue;seenCardKeys.add(key);
+    const cardId=cards.some(card=>card.id===`card-${seed.toString(36)}`)?`card-${textDigest(key).slice(0,32)}`:`card-${seed.toString(36)}`;
     const distractors=seededShuffle(candidate.distractors,seed).slice(0,3),optionList=seededShuffle([candidate.answer,...distractors],seed+1);
-    const card:LearningCard={id:`card-${seed.toString(36)}`,prompt:candidate.prompt,answer:candidate.answer,options:optionList,correctIndex:optionList.indexOf(candidate.answer),explanation:`Read the source’s complete statement and explanation:\n\n${candidate.evidence}`,sourceId:candidate.source.id,evidence:candidate.evidence,concept:candidate.concept,tags:['source-recall',candidate.questionType],questionType:candidate.questionType,reviewStatus:candidate.source.transcript||candidate.source.visualEvidence||['transcript','audio','video','image'].includes(candidate.source.kind)?'needs-review':'extractive'};
+    const card:LearningCard={id:cardId,prompt:candidate.prompt,answer:candidate.answer,options:optionList,correctIndex:optionList.indexOf(candidate.answer),explanation:`Read the source’s complete statement and explanation:\n\n${candidate.evidence}`,sourceId:candidate.source.id,evidence:candidate.evidence,concept:candidate.concept,tags:['source-recall',candidate.questionType],questionType:candidate.questionType,reviewStatus:candidate.source.transcript||candidate.source.visualEvidence||['transcript','audio','video','image'].includes(candidate.source.kind)?'needs-review':'extractive'};
     card.tags.push(fingerprint(card));cards.push(card);
   }
   if(cards.length)warnings.push('Recall targets use explicit source concepts and source-stated procedures. They do not certify application, transfer or the factual truth of the material.');

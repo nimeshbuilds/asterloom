@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('asterloomDesktop',{
   exportGame:(notebook,platform)=>ipcRenderer.invoke('asterloom:export-game',notebook,platform),
   exportNotebookArchive:packageText=>ipcRenderer.invoke('asterloom:export-notebook-archive',packageText),
   importNotebookArchive:()=>ipcRenderer.invoke('asterloom:import-notebook-archive'),
+  listNotebookExports:id=>ipcRenderer.invoke('asterloom:list-notebook-exports',id),
+  trashNotebookExports:(id,ids)=>ipcRenderer.invoke('asterloom:trash-notebook-exports',id,ids),
+  clearNotebookCache:()=>ipcRenderer.invoke('asterloom:clear-notebook-cache'),
   setTorEnabled:enabled=>ipcRenderer.invoke('asterloom:set-tor',enabled),
   getTorStatus:()=>ipcRenderer.invoke('asterloom:tor-status'),
 });

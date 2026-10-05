@@ -6,6 +6,7 @@ import { sourceConcepts, sourceLearningUnits } from './sourceUnits';
 import { isPictureRaster } from './pictureEngine';
 import { mediaPlaybackUrl, sourceMediaIdentity } from './mediaAssets';
 import { buildLessonStory, buildLessonActionGuide, type LessonStory, type LessonActionGuide } from './lessonStory';
+import { currentAILearningMission, aiLearningMissionKey, type AILearningMission } from './aiLearningPlan';
 
 export interface LessonPassage { id:string; title:string; role:'focus'|'context'; reference:EvidenceReference }
 export interface LessonStep { id:string; title:string; instruction:string; reference:EvidenceReference; reason?:EvidenceReference }
@@ -23,6 +24,8 @@ export interface LearningPlan {
   targets:string[]; reviewed:boolean;
   mission:{assignment:string;assignmentOrigin:'author'|'source-guide';sourceTitles:string[];evidence:EvidenceReference[];handoff:string;actionGuide:LessonActionGuide};
   rehearsal?:LessonRehearsal;
+  /** Short AI-authored explanations retain exact citations and their separate semantic review state. */
+  teaching?:AILearningMission;
   coverage:{coveredTargetIds:string[];uncoveredTargetIds:string[]};
   media:{sourceId:string;title:string;kind:'image'|'audio'|'video';url:string;alt:string}[];
 }
@@ -90,7 +93,7 @@ function modelFingerprint(cards:LearningCard[],activity?:StructuredActivity):unk
 }
 // Instructional sequence: IES/WWC Practice Guide 1 recommends worked examples with practice, explanatory questions and later retrieval.
 // https://ies.ed.gov/ncee/wwc/PracticeGuide/1. A completed note is engagement, not a comprehension score.
-/** All subject-matter statements in the lesson remain exact source spans. Fiction and study guidance are separate. */
+/** Deterministic lessons quote source spans; AI teaching remains separately labeled and reviewable. */
 export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{notebook:Notebook;scaffold:Scaffold;cardIds?:string[];activity?:StructuredActivity}):LearningPlan {
   const wanted=new Set(cardIds??notebook.cards.map(c=>c.id));
   const cards=activity?[]:notebook.cards.filter(c=>wanted.has(c.id));
@@ -136,9 +139,11 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   if(!passages.length)warnings.push('A grounded lesson needs readable source material. Add background, an example and its explanation; a source-free question cannot supply them.');
   else if(sparse)warnings.push('The supplied excerpt is too brief for a full background lesson. This is a limited source-reading orientation; ask the author for context or an explained example.');
   const currentEvidence=raw.length>0&&raw.every(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);return source?.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&!!ref.evidence?.trim()&&source.text.includes(ref.evidence);});
-  const reviewed=currentEvidence&&(activity?activity.reviewStatus==='reviewed':cards.length>0&&cards.every(c=>c.reviewStatus!=='needs-review'));
+  const teaching=activity?currentAILearningMission(notebook,activity):undefined;
+  const reviewed=currentEvidence&&(activity?activity.reviewStatus==='reviewed':cards.length>0&&cards.every(c=>c.reviewStatus!=='needs-review'))&&(!teaching||teaching.reviewStatus==='reviewed');
   if(!reviewed)warnings.push('The author has not approved every mission model. Teaching and draft preview do not grant learning credit.');
-  const story=buildLessonStory(scaffold,notebook.ageGroup);
+  const baseStory=buildLessonStory(scaffold,notebook.ageGroup),frame=teaching?.storyFrame;
+  const story=frame?{...baseStory,title:teaching!.title,setting:frame.setting,role:frame.role,mission:frame.mission,payoff:frame.success}:baseStory;
   let kind:LearningPlan['walkthrough']['kind']='source-reading',title='A worked source-reading approach',limitation='The source does not supply a complete worked solution here. This walkthrough demonstrates how to read its evidence; it does not invent a solution or causal explanation.';
   let steps:LessonStep[]=[];
   // A numbered list is a procedure only when the source labels it as one. A list alone does not prove dependency.
@@ -162,6 +167,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
       {id:'step-2',title:'Connect the surrounding context',instruction:other?'Compare this neighboring passage with the focus statement. Decide what connection the text supports and what would need more evidence.':'This is the extent of the supplied context. Identify a question the author would need to answer before you could apply it more broadly.',reference:other?.reference??first.reference}];}
   steps=steps.filter((step,i,all)=>all.findIndex(other=>other.reference.sourceId===step.reference.sourceId&&other.reference.start===step.reference.start&&other.reference.end===step.reference.end)===i);
   const rehearsal=buildRehearsal(passages,notebook.sources,kind,steps);
+  if(teaching?.workedExample){kind='source-example';title=teaching.workedExample.title;limitation='AI-prepared walkthrough of an example supplied by the source. Check each explanation against its cited evidence; exact citations alone do not validate the reasoning.';steps=teaching.workedExample.steps.map((step,i)=>({id:`step-${i}`,title:step.title,instruction:step.text,reference:step.citations[0]}));}
   const subjectLabels=rehearsal?.kind==='reference-kit'?rehearsal.tiles.map(tile=>tile.label):Array.from(new Set(passages.filter(p=>p.role==='focus').map(p=>p.title)));
   const assignment=activity?.instruction??`${story.mission} Your material: ${subjectLabels.join(' · ')}.`;
   const focusOptions=passages.flatMap(p=>fragments(p,notebook.sources).slice(0,2).map((ref,i)=>({id:`focus-${textDigest(p.id).slice(0,12)}-${i}`,passageId:p.id,reference:ref}))).slice(0,12);
@@ -170,10 +176,10 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   notebook.sources.filter(s=>mediaIds.has(s.id)).forEach(s=>{if(s.transcript)mediaIds.add(s.transcript.mediaSourceId);if(s.visualEvidence)mediaIds.add(s.visualEvidence.parentSourceId);});
   if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')mediaIds.add(activity.sceneSourceId);
   if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)mediaIds.add(r.narrationSourceId);});
-  const planData={version:2,selection:'target-source-unit',scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
+  const planData={version:2,selection:'target-source-unit',scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),...(teaching?{teaching:aiLearningMissionKey(teaching)}:{}),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
   const visualIds=new Set(mediaIds);if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')visualIds.add(activity.sceneSourceId);if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)visualIds.add(r.narrationSourceId);});
   const media=notebook.sources.filter(s=>visualIds.has(s.id)&&(s.status==='ready'||(s.kind==='audio'||s.kind==='video')&&s.status==='needs-transcript')).flatMap<LearningPlan['media'][number]>(s=>{if(s.kind==='image'&&isPictureRaster(s.dataUrl))return[{sourceId:s.id,title:s.title,kind:'image' as const,url:s.dataUrl,alt:`Original uploaded image: ${s.title}. The source annotation is quoted below.`}];if(s.kind==='audio'||s.kind==='video'){const url=mediaPlaybackUrl(s);if(url)return[{sourceId:s.id,title:s.title,kind:s.kind,url,alt:s.title}];}return[];}).slice(0,6);
-  return{id:`lesson-${textDigest(canonical(planData))}`,version:1,scaffoldId:scaffold.id,title:activity?.title??notebook.title,theme:notebook.theme,story,ageGroup:notebook.ageGroup,status:!passages.length||uncoveredTargetIds.length?'blocked':sparse||warnings.some(w=>w.startsWith('Some mission'))?'limited':'grounded',warnings:[...new Set(warnings)],passages,walkthrough:{kind,title,limitation,steps},practice:{prompt:story.reflection,focusOptions,orderIds:kind==='source-procedure'?steps.map(s=>s.id):[],spokenAllowed:notebook.ageGroup==='3-5'||notebook.ageGroup==='6-8'},targets,reviewed,mission:{assignment,assignmentOrigin:activity?'author':'source-guide',sourceTitles:Array.from(new Set(passages.map(p=>p.title))),evidence:raw.flatMap(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);const start=source?.text.indexOf(ref.evidence)??-1;return source&&source.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&start>=0&&ref.evidence.trim()?[reference(source,start,start+ref.evidence.length)]:[]}).slice(0,3),handoff:story.transfer,actionGuide:buildLessonActionGuide(activity)},...(rehearsal?{rehearsal}:{}),coverage:{coveredTargetIds,uncoveredTargetIds},media};
+  return{id:`lesson-${textDigest(canonical(planData))}`,version:1,scaffoldId:scaffold.id,title:teaching?.title??activity?.title??notebook.title,theme:notebook.theme,story,ageGroup:notebook.ageGroup,status:!passages.length||uncoveredTargetIds.length?'blocked':sparse||warnings.some(w=>w.startsWith('Some mission'))?'limited':'grounded',warnings:[...new Set(warnings)],passages,walkthrough:{kind,title,limitation,steps},practice:{prompt:teaching?.guidedApplication.prompt??story.reflection,focusOptions,orderIds:kind==='source-procedure'?steps.map(s=>s.id):[],spokenAllowed:notebook.ageGroup==='3-5'||notebook.ageGroup==='6-8'},targets,reviewed,mission:{assignment,assignmentOrigin:activity?'author':'source-guide',sourceTitles:Array.from(new Set(passages.map(p=>p.title))),evidence:raw.flatMap(ref=>{const source=notebook.sources.find(s=>s.id===ref.sourceId);const start=source?.text.indexOf(ref.evidence)??-1;return source&&source.status==='ready'&&sourceBindingCurrent(source,notebook.sources)&&start>=0&&ref.evidence.trim()?[reference(source,start,start+ref.evidence.length)]:[]}).slice(0,3),handoff:story.transfer,actionGuide:buildLessonActionGuide(activity)},...(rehearsal?{rehearsal}:{}),...(teaching?{teaching}:{}),coverage:{coveredTargetIds,uncoveredTargetIds},media};
 }
 
 /** Build only relationships explicitly represented in the material. No invented distractor facts. */
@@ -199,6 +205,7 @@ function buildRehearsal(passages:LessonPassage[],sources:Source[],kind:LearningP
 }
 export function beginLessonRehearsal(plan:LearningPlan,saved?:unknown):LessonState {
   const state=initialLessonState(plan,saved);if(!plan.rehearsal||plan.status==='blocked')return state;
+  if(plan.teaching&&(!lessonContextReady(plan,state)||state.walkthroughStep<plan.walkthrough.steps.length))return state;
   const first=plan.rehearsal.slots[0];
   return{...state,missionAccepted:true,stage:'practice',rehearsal:state.rehearsal??{answers:{[first.id]:first.acceptedTileIds[0]},revealed:[first.id],selectedTileId:'',checked:false}};
 }
@@ -228,6 +235,11 @@ export function validateLessonState(value:unknown):LessonState|undefined {
   return{version:1,...(rehearsal?{rehearsal}:{}),mediaPositions:{...positions} as Record<string,number>,planKey:value.planKey,stage:value.stage as LessonState['stage'],missionAccepted:value.missionAccepted,viewedPassageIds:[...value.viewedPassageIds],walkthroughStep:value.walkthroughStep as number,practice:{focusId:p.focusId,explanation:p.explanation,connection:p.connection,mode:p.mode as 'written'|'spoken',spokenConfirmed:p.spokenConfirmed,compared:p.compared,order:[...p.order]},...(typeof value.completedAt==='string'?{completedAt:value.completedAt}:{})};
 }
 function fresh(plan:LearningPlan):LessonState{return{version:1,mediaPositions:{},planKey:plan.id,stage:'mission',missionAccepted:false,viewedPassageIds:[],walkthroughStep:0,practice:{focusId:'',explanation:'',connection:'',mode:plan.ageGroup==='3-5'?'spoken':'written',spokenConfirmed:false,compared:false,order:[...plan.practice.orderIds].reverse()}};}
+export function lessonTeachingChunkIds(plan:LearningPlan):string[]{return(plan.teaching?.chunks??[]).map(chunk=>`teaching-${textDigest(chunk.id).slice(0,20)}`);}
+export function lessonContextReady(plan:LearningPlan,state:LessonState):boolean{
+  const required=plan.teaching?lessonTeachingChunkIds(plan):plan.passages.map(passage=>passage.id);
+  return required.length>0&&required.every(id=>state.viewedPassageIds.includes(id));
+}
 export function lessonPracticeReady(plan:LearningPlan,state:LessonState):boolean {
   if(state.rehearsal)return lessonRehearsalReady(plan,state.rehearsal);
   const p=state.practice;
@@ -236,10 +248,11 @@ export function lessonPracticeReady(plan:LearningPlan,state:LessonState):boolean
 /** Revalidate each prerequisite; a stale or hand-written completed flag cannot unlock a new source/model. */
 export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState {
   const parsed=validateLessonState(saved);if(!parsed||parsed.planKey!==plan.id)return fresh(plan);
-  const state:LessonState={...parsed,mediaPositions:Object.fromEntries(Object.entries(parsed.mediaPositions).filter(([id])=>plan.media.some(m=>m.sourceId===id))),viewedPassageIds:parsed.viewedPassageIds.filter(id=>plan.passages.some(p=>p.id===id)),walkthroughStep:Math.min(parsed.walkthroughStep,plan.walkthrough.steps.length),practice:{...parsed.practice,focusId:plan.practice.focusOptions.some(f=>f.id===parsed.practice.focusId)?parsed.practice.focusId:'',order:parsed.practice.order.length===plan.practice.orderIds.length&&parsed.practice.order.every(id=>plan.practice.orderIds.includes(id))?parsed.practice.order:[...plan.practice.orderIds].reverse()}};
+  const teachingIds=lessonTeachingChunkIds(plan);
+  const state:LessonState={...parsed,mediaPositions:Object.fromEntries(Object.entries(parsed.mediaPositions).filter(([id])=>plan.media.some(m=>m.sourceId===id))),viewedPassageIds:parsed.viewedPassageIds.filter(id=>plan.passages.some(p=>p.id===id)||teachingIds.includes(id)),walkthroughStep:Math.min(parsed.walkthroughStep,plan.walkthrough.steps.length),practice:{...parsed.practice,focusId:plan.practice.focusOptions.some(f=>f.id===parsed.practice.focusId)?parsed.practice.focusId:'',order:parsed.practice.order.length===plan.practice.orderIds.length&&parsed.practice.order.every(id=>plan.practice.orderIds.includes(id))?parsed.practice.order:[...plan.practice.orderIds].reverse()}};
   if(state.rehearsal){if(!plan.rehearsal){delete state.rehearsal;}else{const validTiles=new Set(plan.rehearsal.tiles.map(t=>t.id)),validSlots=new Set(plan.rehearsal.slots.map(s=>s.id));state.rehearsal={...state.rehearsal,answers:Object.fromEntries(Object.entries(state.rehearsal.answers).filter(([key,value])=>validSlots.has(key)&&validTiles.has(value))),revealed:state.rehearsal.revealed.filter(id=>validSlots.has(id)),selectedTileId:validTiles.has(state.rehearsal.selectedTileId)?state.rehearsal.selectedTileId:''};}}
-  const context=!!state.rehearsal||plan.passages.length>0&&plan.passages.every(p=>state.viewedPassageIds.includes(p.id));
-  const walked=!!state.rehearsal||state.walkthroughStep===plan.walkthrough.steps.length&&plan.walkthrough.steps.length>0;
+  const context=!!state.rehearsal&&!plan.teaching||lessonContextReady(plan,state);
+  const walked=!!state.rehearsal&&!plan.teaching||state.walkthroughStep===plan.walkthrough.steps.length&&plan.walkthrough.steps.length>0;
   const allowed=!state.missionAccepted?0:!context?1:!walked?2:!lessonPracticeReady(plan,state)||!state.completedAt?3:4;
   if(STAGES.indexOf(state.stage)>allowed)state.stage=STAGES[allowed];
   if(allowed<4||plan.status==='blocked'){delete state.completedAt;if(state.stage==='ready')state.stage='practice';}
@@ -247,7 +260,7 @@ export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState
 }
 export function lessonReady(plan:LearningPlan,saved?:unknown):boolean {const state=initialLessonState(plan,saved);return plan.status!=='blocked'&&state.stage==='ready'&&!!state.completedAt&&lessonPracticeReady(plan,state);}
 export function completeLesson(plan:LearningPlan,saved:unknown,now=Date.now()):LessonState {
-  const state=initialLessonState(plan,saved);if(plan.status==='blocked'||!state.missionAccepted||(!state.rehearsal&&(!plan.passages.every(p=>state.viewedPassageIds.includes(p.id))||state.walkthroughStep!==plan.walkthrough.steps.length))||!lessonPracticeReady(plan,state)||!Number.isFinite(now))return state;
+  const state=initialLessonState(plan,saved);if(plan.status==='blocked'||!state.missionAccepted||((!state.rehearsal||plan.teaching)&&(!lessonContextReady(plan,state)||state.walkthroughStep!==plan.walkthrough.steps.length))||!lessonPracticeReady(plan,state)||!Number.isFinite(now))return state;
   return{...state,stage:'ready',completedAt:new Date(now).toISOString()};
 }
 export function lessonQuestSupport(plan:LearningPlan,saved:unknown,now=Date.now()):{assisted:boolean;reason:string} {

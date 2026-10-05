@@ -1,8 +1,11 @@
+import type { AIUsageReceipt } from './lib/aiUsage';
 import type { StructuredActivity } from './lib/structuredEngine';
 import type { ReviewState } from './data/learningScience';
 import type { MediaTranscript } from './lib/mediaTranscript';
 import type { VisualEvidence } from './lib/visualEvidence';
 import type { LessonState } from './lib/learningBriefing';
+import type { GameDesign } from './lib/gameDesign';
+import type { AILearningPlan } from './lib/aiLearningPlan';
 
 export type SourceKind = 'text' | 'document' | 'website' | 'youtube' | 'notebooklm' | 'audio' | 'video' | 'image' | 'transcript';
 export type SourceStatus = 'ready' | 'needs-transcript' | 'error';
@@ -62,6 +65,11 @@ export interface NotebookArtwork {
 }
 
 export interface Notebook {
+  aiToolReceipts?: AIUsageReceipt[];
+  gameDesign?: GameDesign;
+  aiLearningPlan?: AILearningPlan;
+  /** New AI projects stay in setup until validated mission creation succeeds. Older games omit this. */
+  creation?: {mode:'ai';status:'draft'|'ready'};
   /** Version of deterministic preparation; older authored notebooks remain untouched. */
   generationVersion?: number;
   id: string;
@@ -72,6 +80,7 @@ export interface Notebook {
   ageGroup: string;
   goal: string;
   theme: string;
+  themeSelection?: 'auto'|'manual';
   scaffoldIds: string[];
   sources: Source[];
   cards: LearningCard[];

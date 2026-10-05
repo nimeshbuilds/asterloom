@@ -1,7 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 const initial=()=>[{id:'codex',provider:'chatgpt',enabled:true,installed:false,installing:false,pending:false,connected:false},{id:'grok',provider:'grok',enabled:true,installed:false,installing:false,pending:false,connected:false}];
-async function settings(page:Page){await page.goto('/');await page.getByRole('button',{name:'Studio settings',exact:true}).click();await expect(page.getByRole('heading',{name:'Optional AI connections'})).toBeVisible();}
+async function settings(page:Page){await page.goto('/');await page.getByRole('button',{name:'Studio settings',exact:true}).click();await expect(page.getByRole('heading',{name:'AI for game creation'})).toBeVisible();}
 test('subscription setup installs, completes provider login, discovers models and disconnects without leaking keys',async({page})=>{
  const engines=initial();const actions:string[]=[];let opened='';let connected=false;
  await page.addInitScript(()=>{window.open=((url?:string|URL)=>{(window as any).__openedAuth=String(url);return null;}) as typeof window.open;});

@@ -1,3 +1,4 @@
+import {normalizeAIUsage} from './ai-usage.mjs';
 import {spawn} from 'node:child_process';
 import {promises as fs} from 'node:fs';
 import path from 'node:path';
@@ -79,13 +80,15 @@ export async function createCodexConnection({dataDir,distributionMode='disabled'
   if(typeof input.prompt!=='string'||!input.prompt.trim()||input.prompt.length>300000||typeof input.model!=='string'||!input.model.trim()||input.model.length>200)throw fail('Provide a bounded prompt and a Codex model.');
   // Reserve before the first await so duplicate requests cannot produce two paid turns.
   let resolve,reject;const done=new Promise((yes,no)=>{resolve=yes;reject=no;});done.catch(()=>{});const active={reject};generation=active;
-  let client,threadId=null,turnId=null,timer;const messages=new Map();let bytes=0;
+  let client,threadId=null,turnId=null,timer;const messages=new Map();let bytes=0,usage=null;const actualModels=new Set();
   const onClosed=()=>reject(fail('Codex stopped before the draft completed. Your notebook is unchanged.'));
   const onForbidden=()=>{client.stop();reject(fail('Codex requested an unavailable tool. The text-only draft was stopped.'));};
   const onNotification=(method,p)=>{if(!threadId||p.threadId!==threadId)return;
+   if(method==='thread/tokenUsage/updated'&&(!turnId||!p.turnId||p.turnId===turnId))usage=p.tokenUsage??null;
+   if(method==='model/rerouted'&&typeof p.toModel==='string')actualModels.add(p.toModel);
    if(method==='item/started'&&p.item&&!['userMessage','agentMessage','reasoning','plan'].includes(p.item.type)){onForbidden();return;}
    if(method==='item/completed'&&p.item?.type==='agentMessage'){const item=p.item;if(typeof item.text==='string'){const old=messages.get(item.id)?.text||'';bytes+=Buffer.byteLength(item.text)-Buffer.byteLength(old);if(bytes>MAX_OUTPUT){client.stop();reject(fail('The Codex draft exceeded the output limit.'));return;}messages.set(item.id,{text:item.text,phase:item.phase});}}
-   if(method==='turn/completed'&&(!turnId||p.turn?.id===turnId)){if(p.turn?.status!=='completed'){reject(fail('Codex did not complete the draft. Check account access and usage limits.'));return;}const finals=[...messages.values()].filter(m=>m.phase!=='commentary');const answer=finals.map(m=>m.text).join('\n').trim();answer?resolve({text:answer,usage:null,provider:'chatgpt',model:input.model}):reject(fail('Codex completed without a final answer. Your notebook is unchanged.'));}
+   if(method==='turn/completed'&&(!turnId||p.turn?.id===turnId)){if(p.turn?.status!=='completed'){reject(fail('Codex did not complete the draft. Check account access and usage limits.'));return;}const finals=[...messages.values()].filter(m=>m.phase!=='commentary');const answer=finals.map(m=>m.text).join('\n').trim();answer?resolve({text:answer,usage,provider:'chatgpt',model:input.model,actualModels:[...actualModels]}):reject(fail('Codex completed without a final answer. Your notebook is unchanged.'));}
   };
   try{
    client=await startRpc();if(!await accountRead(client))throw fail('Sign in to Codex before generating a draft.');
@@ -94,7 +97,7 @@ export async function createCodexConnection({dataDir,distributionMode='disabled'
    timer=setTimeout(()=>{client.stop();reject(fail('Codex drafting timed out. Your notebook is unchanged.',504));},turnTimeout);
    const result=await client.request('turn/start',{threadId,input:[{type:'text',text:input.prompt}],model:input.model,approvalPolicy:'never',cwd:workspace,sandboxPolicy:{type:'readOnly',networkAccess:false}});turnId=result?.turn?.id;
    return await done;
-  }finally{clearTimeout(timer);client?.off('notification',onNotification);client?.off('closed',onClosed);client?.off('forbidden',onForbidden);if(generation===active)generation=null;if(threadId&&!client.dead)await client.request('thread/unsubscribe',{threadId}).catch(()=>{});}
+  }catch(error){error.aiUsage=normalizeAIUsage('chatgpt',usage);throw error;}finally{clearTimeout(timer);client?.off('notification',onNotification);client?.off('closed',onClosed);client?.off('forbidden',onForbidden);if(generation===active)generation=null;if(threadId&&!client.dead)await client.request('thread/unsubscribe',{threadId}).catch(()=>{});}
  }
  return {status,start,models,generate,cancel,install:async()=>{enabledCheck();await managed.install();return status();},disconnect:async()=>{enabledCheck();await cancel();if((await managed.status()).installed){const client=await startRpc();await client.request('account/logout');}account=null;lastError=null;return status();},close:async()=>{closed=true;await cancel();rpc?.stop();await managed.close();}};
 }

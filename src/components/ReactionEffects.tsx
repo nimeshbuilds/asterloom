@@ -1,18 +1,21 @@
 import type {CSSProperties} from 'react';
+import {resolveGameAudioDirection} from '../lib/gameArtDirection';
+import type {GameAudioDirection} from '../lib/gameArtDirection';
 import {worldForScaffold} from '../data/worlds';
 import {glyphMarkup} from '../lib/worldIllustration';
 import {reactionProfile,type ReactionOutcome} from '../data/reactionProfiles';
 import './reaction-effects.css';
-export interface ReactionEffectsProps {outcome:ReactionOutcome;scaffoldId?:string;ageGroup?:string;eventKey?:string|number;reducedMotion?:boolean;compact?:boolean}
+export interface ReactionEffectsProps {outcome:ReactionOutcome;scaffoldId?:string;ageGroup?:string;eventKey?:string|number;reducedMotion?:boolean;compact?:boolean;artDirection?:GameAudioDirection;theme?:string;activityKind?:string}
 /** Decorative feedback only. The player owns the source-grounded result and live
  * announcement. No reward is inferred from this visual or its animation. */
-export default function ReactionEffects({outcome,scaffoldId,ageGroup,eventKey,reducedMotion=false,compact=false}:ReactionEffectsProps){
- const profile=reactionProfile(scaffoldId),world=worldForScaffold(scaffoldId),young=ageGroup==='3-5'||ageGroup==='6-8',retry=outcome==='retry',complete=outcome==='complete';
+export default function ReactionEffects({outcome,scaffoldId,ageGroup,eventKey,reducedMotion=false,compact=false,artDirection,theme,activityKind}:ReactionEffectsProps){
+ const direction=resolveGameAudioDirection(artDirection,{scaffoldId,ageGroup,theme,activityKind});
+ const profile=reactionProfile(direction?.effectProfileId??scaffoldId),world=worldForScaffold(profile.id),young=ageGroup==='3-5'||ageGroup==='6-8',retry=outcome==='retry',complete=outcome==='complete';
  const palette={ '--reaction-accent':retry?'#9a7446':profile.accent,'--reaction-secondary':profile.secondary,'--reaction-ink':profile.ink,'--reaction-shift':`${profile.seed%9-4}px` } as CSSProperties;
  const points=Array.from({length:young?7:11},(_,i)=>{const angle=(i/(young?7:11))*Math.PI*2+(profile.seed%50)/50;return{x:300+Math.cos(angle)*(58+(i%3)*14),y:81+Math.sin(angle)*(30+(i%2)*13),r:young?3.6:2.3,delay:`${i*.045}s`};});
  const marker=(x:number,y:number,i:number)=><g key={i} className="ae-node" style={{animationDelay:`${i*.065}s`}}><circle cx={x} cy={y} r={young?8:5.5}/><circle className="ae-node-core" cx={x} cy={y} r={2}/></g>;
  const glyph=<g className="ae-emblem" transform="translate(300 79)">{retry?<><path d="M-12 -2a13 13 0 1 1 2 14"/><path d="M-12 -13v12h12"/></>:complete?<><path d="m0-18 6 12 14 2-10 10 2 14-12-7-12 7 2-14-10-10 14-2Z"/><path className="ae-core-check" d="m-5 1 4 4 8-9"/></>:<path d="m-12 0 8 8 17-18"/>}</g>;
- return <div key={`${eventKey??''}:${outcome}:${profile.id}`} className={`aster-reaction reaction-effects ae-${profile.family} ae-${outcome}${young?' ae-young':''}${compact?' ae-compact':''}`} data-reaction={outcome} data-outcome={outcome} data-motifs={world.objects.map(o=>o.glyph).join(" ")} data-scaffold={profile.id} data-family={profile.family} data-motion={reducedMotion?'reduced':'full'} aria-hidden="true" style={palette}>
+ return <div key={`${eventKey??''}:${outcome}:${profile.id}`} className={`aster-reaction reaction-effects ae-${profile.family} ae-${outcome}${young?' ae-young':''}${compact?' ae-compact':''}`} data-reaction={outcome} data-outcome={outcome} data-motifs={world.objects.map(o=>o.glyph).join(" ")} data-scaffold={scaffoldId??profile.id} data-effect-profile={profile.id} data-family={profile.family} data-motion={reducedMotion?'reduced':'full'} aria-hidden="true" style={palette}>
   <svg viewBox="0 0 600 156" focusable="false">
    {world.objects.map((object,i)=><g key={object.glyph} className="ae-world-mark" transform={`translate(${[43,556,300][i]} ${i===2?137:51}) scale(${i===2?.23:young?.46:.36})`} dangerouslySetInnerHTML={{__html:glyphMarkup(object.glyph,profile.ink,'none')}}/>)}
    <path className="ae-horizon" d="M12 117Q160 99 300 120T588 113"/>

@@ -117,3 +117,5 @@
 .activity-author-tabs{flex-wrap:wrap}.activity-author-tabs button{color:#536746}.activity-preview-heading>.structured-kicker{color:#365b44}
 
 .structured-workspace[inert]{opacity:.75;cursor:progress}.structured-save-error{background:#fff0e9;border:1px solid #c39178;color:#733a28;border-radius:12px;padding:13px 16px;font-size:14px;line-height:1.6}
+
+.model-practice-score{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:14px;background:#e8f0ed;border-radius:10px;color:#234f45}.model-practice-score>strong{font-size:27px}.model-practice-score small{flex-basis:100%;font-size:12px;color:#42635a}

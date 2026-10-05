@@ -7,7 +7,7 @@ export async function learnBeforeQuest(page) {
  const buildKit=briefing.getByRole('button',{name:'Build my mission kit',exact:true});
  if(await buildKit.count()){await buildKit.click();await expect(briefing.locator('.lesson-workbench')).toBeVisible();}
  const kit=briefing.locator('.lesson-workbench');
- if(await kit.count()){
+ const completeVisibleKit=async()=>{
   // Read the displayed source line for each move, just as a learner can. No hidden answer data.
   const kind=await kit.getAttribute('data-kit'),slots=kit.locator('.lesson-kit-slot');
   for(let i=0;i<await slots.count();i++){
@@ -25,22 +25,35 @@ export async function learnBeforeQuest(page) {
   await expect(kit.getByText('Your kit is ready to carry into the quest.',{exact:false})).toBeVisible();
   await briefing.getByRole('button',{name:'Save briefing & start quest',exact:true}).click();
   await expect(briefing).toHaveCount(0);return;
- }
- const explore=briefing.getByRole('button',{name:'Explore the source',exact:true});
+ };
+ if(await kit.count()){await completeVisibleKit();return;}
+ const explore=briefing.getByRole('button',{name:/^(?:Explore the source|Learn the ideas)$/,exact:true});
  if(await explore.count()){await explore.click();await expect(briefing.locator('.lesson-context')).toBeVisible();}
  const context=briefing.locator('.lesson-context');
  if(await context.count()){
+  const teaching=context.locator('.lesson-teaching');
+  if(await teaching.count()){
+   const walkthrough=context.getByRole('button',{name:'Study the walkthrough',exact:true});
+   for(let step=0;step<12&&!await walkthrough.isEnabled();step++){
+    const exploreIdea=teaching.getByRole('button',{name:/^Explore idea \d+$/});
+    if(await exploreIdea.count()){const name=await exploreIdea.innerText();await exploreIdea.click();await expect(teaching.getByRole('button',{name,exact:true})).toHaveCount(0);}
+    else await teaching.getByRole('button',{name:'Next idea',exact:true}).click();
+   }
+   await expect(walkthrough).toBeEnabled();
+  }
   const unread=context.getByRole('button',{name:/^Mark passage \d+ explored$/});
   while(await unread.count()){const name=await unread.first().innerText();await unread.first().click();await expect(context.getByRole('button',{name,exact:true})).toHaveCount(0);}
   await context.getByRole('button',{name:'Study the walkthrough',exact:true}).click();await expect(briefing.locator('.lesson-walkthrough')).toBeVisible();
  }
  const quotedSteps=[];
  while(await briefing.locator('.lesson-walkthrough').count()){
+  const sourceDetail=briefing.locator('.lesson-worked-step .lesson-teaching-evidence');if(await sourceDetail.count()&&await sourceDetail.getAttribute('open')===null)await sourceDetail.locator('summary').click();
   quotedSteps.push((await briefing.locator('.lesson-worked-step blockquote').first().innerText()).trim());
   const next=briefing.getByRole('button',{name:'Next walkthrough step',exact:true});
   if(await next.count()){const label=await briefing.locator('.lesson-section-label').textContent();await next.click();await expect(briefing.locator('.lesson-section-label')).not.toHaveText(label);}
-  else {await briefing.getByRole('button',{name:'Build my field note',exact:true}).click();await expect(briefing.locator('.lesson-practice')).toBeVisible();break;}
+  else {await briefing.getByRole('button',{name:/^(?:Build my field note|Build my mission kit)$/,exact:true}).click();await expect(briefing.locator('.lesson-practice')).toBeVisible();break;}
  }
+ if(await kit.count()){await completeVisibleKit();return;}
  if(await briefing.locator('.lesson-practice').count()){
   await briefing.locator('.lesson-focus-options input').first().check();
   // Explicit procedures use the source's displayed order, not a hidden answer key.
