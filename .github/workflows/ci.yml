@@ -50,17 +50,18 @@ jobs:
       - name: Exercise creation, learning, progress, and multiplayer
         run: npm run test:e2e
       - name: Keep browser diagnostics
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v6
         with:
           name: browser-verification
           path: |
             .qa/playwright-report/
             .qa/playwright-results/
+            !.qa/playwright-results/**/*.html
             .qa/mobile-player.png
           include-hidden-files: true
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
       - name: Keep the verified example notebooks
         uses: actions/upload-artifact@v6
         with:
@@ -68,7 +69,7 @@ jobs:
           path: |
             release/examples/*.learnpack
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
 
   windows:
     name: Windows x64 native export and replay
@@ -102,7 +103,7 @@ jobs:
           name: windows-media-runtime
           path: desktop/vendor/media/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
       - name: Verify source extraction and room services on this operating system
         run: npm run test:server
       - run: npm run assets
@@ -122,20 +123,20 @@ jobs:
       # Retain a packaged candidate for diagnosis; a failed smoke still fails this job.
       - name: Archive the packaged unsigned Windows bundle
         id: native_archive
-        if: ${{ always() && steps.native_package.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.native_package.outcome == 'success' }}
         shell: pwsh
         run: |
           "Packaged unsigned Windows candidate. Native smoke outcome: ${{ steps.native_smoke.outcome }}. This artifact is diagnostic until the complete native job passes." >> $env:GITHUB_STEP_SUMMARY
           Compress-Archive -Path release/desktop/Asterloom-win32-x64 -DestinationPath release/Asterloom-windows-x64.zip
       - name: Keep the packaged unsigned Windows development bundle
-        if: ${{ always() && steps.native_package.outcome == 'success' && steps.native_archive.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.native_package.outcome == 'success' && steps.native_archive.outcome == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: windows-x64-development-unsigned
           path: release/Asterloom-windows-x64.zip
           compression-level: 0
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
       - name: Keep Windows native screenshots
         if: always()
         uses: actions/upload-artifact@v6
@@ -147,7 +148,7 @@ jobs:
             .qa/media-build/REAL-ASR-RESULTS.json
           include-hidden-files: true
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
 
   macos:
     name: macOS native export and replay
@@ -190,20 +191,20 @@ jobs:
       # Retain a packaged candidate for diagnosis; a failed smoke still fails this job.
       - name: Archive the packaged unsigned Mac bundle with executable permissions intact
         id: native_archive
-        if: ${{ always() && steps.native_package.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.native_package.outcome == 'success' }}
         shell: bash
         run: |
           echo "Packaged unsigned Mac candidate. Native smoke outcome: ${{ steps.native_smoke.outcome }}. This artifact is diagnostic until the complete native job passes." >> "$GITHUB_STEP_SUMMARY"
           tar -czf release/Asterloom-macos-universal.tar.gz -C release/desktop Asterloom-darwin-universal
       - name: Keep the packaged unsigned macOS development bundle
-        if: ${{ always() && steps.native_package.outcome == 'success' && steps.native_archive.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.native_package.outcome == 'success' && steps.native_archive.outcome == 'success' }}
         uses: actions/upload-artifact@v6
         with:
           name: macos-development-unsigned
           path: release/Asterloom-macos-*.tar.gz
           compression-level: 0
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
       - name: Keep macOS native screenshots
         if: always()
         uses: actions/upload-artifact@v6
@@ -215,4 +216,4 @@ jobs:
             .qa/media-build/REAL-ASR-RESULTS.json
           include-hidden-files: true
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
