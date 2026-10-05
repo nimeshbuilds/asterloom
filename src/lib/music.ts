@@ -35,15 +35,27 @@ let scoreSpace:ReturnType<typeof createScoreSpace>|undefined,learningContext:Sou
 let pendingSelection:SoundtrackSelection|undefined,programmeKey='',programmeStep=0,scoreCycle=0,pausedBeat=0;
 let recording:HTMLAudioElement|undefined,recordingNode:MediaElementAudioSourceNode|undefined,currentVolume=.15,musicWanted=false,manualDuck=false;
 let currentScore:InteractiveScore|undefined,nextIndex=0,loopStart=0,generation=0,listening=false,lastCue=-Infinity,lastAction=-Infinity,lastAster=-Infinity,lastAsterKind:AsterActionCue|null=null,asterTail=0;
-const musicVoices=new Set<OscillatorNode>(),effectVoices=new Set<OscillatorNode>(),actionVoices=new Set<OscillatorNode>(),asterVoices=new Set<OscillatorNode>(),speakingMedia=new Set<HTMLMediaElement>();
+const musicVoices=new Set<OscillatorNode>(),effectVoices=new Set<OscillatorNode>(),actionVoices=new Set<OscillatorNode>(),asterVoices=new Set<OscillatorNode>(),playingSourceMedia=new Set<HTMLMediaElement>();
 const hidden=()=>typeof document!=='undefined'&&document.visibilityState==='hidden';
-const ducked=()=>manualDuck||speakingMedia.size>0||(typeof window!=='undefined'&&window.speechSynthesis?.speaking===true);
+function ducked():boolean {
+ // Media events are asynchronous. A paused element removed in the same turn
+ // cannot deliver its pause event to the document; check live state before
+ // every cue's eligibility gate, including effects-only playback.
+ let audible=false;
+ for(const media of playingSourceMedia){
+  if(media.paused||media.ended||!media.isConnected)playingSourceMedia.delete(media);
+  else if(!media.muted&&media.volume>0)audible=true;
+ }
+ // Keep connected playing but silent elements tracked, so synchronous unmute
+ // restores narration priority before its volumechange event is dispatched.
+ return manualDuck||audible||(typeof window!=='undefined'&&window.speechSynthesis?.speaking===true);
+}
 function stopVoices(voices:Set<OscillatorNode>){for(const node of voices){try{node.stop();}catch{}}voices.clear();}
 function keepVoice(node:OscillatorNode,set:Set<OscillatorNode>){set.add(node);node.addEventListener('ended',()=>set.delete(node),{once:true});}
 function listen(){if(listening||typeof document==='undefined')return;listening=true;
  const prime=()=>{if((getSoundPreferences().enabled&&getSoundPreferences().volume>0)||musicWanted)ensureContext();};document.addEventListener('pointerdown',prime,{capture:true,passive:true});document.addEventListener('keydown',prime,{capture:true,passive:true});
  document.addEventListener('visibilitychange',()=>{if(hidden()){if(currentScore&&context)pausedBeat=Math.max(0,(context.currentTime-loopStart)/(60/currentScore.bpm));if(timer)clearInterval(timer);timer=undefined;recording?.pause();stopVoices(musicVoices);stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;void context?.suspend().catch(()=>{});if(musicWanted)updateStatus({state:'suspended'});}else if(musicWanted||getSoundPreferences().enabled){ensureContext();if(musicWanted){if(recording){const version=generation;void recording.play().then(()=>{if(version===generation&&musicWanted)updateStatus({state:'playing'});}).catch(()=>{if(version===generation&&musicWanted)updateStatus({state:'suspended',reason:'Select play to enable audio.'});});}else startSchedule(true);}}});
- const media=(event:Event)=>{const node=event.target;if(!(node instanceof HTMLMediaElement)||node===recording)return;if(!node.paused&&!node.ended&&!node.muted&&node.volume>0)speakingMedia.add(node);else speakingMedia.delete(node);refreshOutput();};
+ const media=(event:Event)=>{const node=event.target;if(!(node instanceof HTMLMediaElement)||node===recording)return;if(!node.paused&&!node.ended&&node.isConnected)playingSourceMedia.add(node);else playingSourceMedia.delete(node);refreshOutput();};
  for(const event of ['play','pause','ended','volumechange'])document.addEventListener(event,media,true);
  window.addEventListener('asterloom:music-preferences',()=>{if(learningContext)applyLearningSelection();});
  window.addEventListener('storage',event=>{if(event.key===preferenceKey){preferencesLoaded=false;getSoundPreferences();if(!preferences.enabled||preferences.volume<=0){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;}refreshOutput();window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:getSoundPreferences()}));}});
@@ -59,7 +71,7 @@ function ensureContext():AudioContext|undefined {
   return context;
  }catch{updateStatus({state:'unavailable',reason:'Audio could not start in this browser.'});return;}
 }
-function refreshOutput(){if(!context)return;for(const media of speakingMedia)if(media.paused||media.ended||!media.isConnected)speakingMedia.delete(media);const suppressed=ducked()||hidden();
+function refreshOutput(){if(!context)return;const suppressed=ducked()||hidden();
  const phaseLevel=recording?({intro:.66,study:.44,practice:.82,quest:1,success:.85,retry:.5}[status.phase])*(RECORDING_PLAYBACK_GAINS[status.trackId??'']??1):1;
  musicBus?.gain.setTargetAtTime(musicWanted&&!hidden()&&!transitioning?currentVolume*phaseLevel*(suppressed?.06:1):0,context.currentTime,.055);
  const pref=getSoundPreferences(),directed=directedFeedback();effectBus?.gain.setTargetAtTime(pref.enabled&&!suppressed&&directed.policy!=='off'?pref.volume*directed.level:0,context.currentTime,.015);

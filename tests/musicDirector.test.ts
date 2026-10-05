@@ -149,6 +149,26 @@ describe('soundtrack persistence and lifecycle',()=>{
   vi.advanceTimersByTime(1000);Object.assign(document,{visibilityState:'hidden'});expect(music.asterFeedback('open')).toBe(false);music.stopMusic();
  });
 
+ it('rechecks source media before cue eligibility when lifecycle events cannot bubble to the document',async()=>{
+  class SourceMedia {paused=false;ended=false;muted=false;volume=1;isConnected=true;}
+  vi.stubGlobal('HTMLMediaElement',SourceMedia);const music=await import('../src/lib/music');music.setSoundPreferences({enabled:true,volume:.3});const audio=AudioContextMock.instances[0];
+  const play=(media:SourceMedia)=>{const event=new Event('play');Object.defineProperty(event,'target',{value:media});document.dispatchEvent(event);};
+  for(const change of [(m:SourceMedia)=>{m.paused=true;},(m:SourceMedia)=>{m.ended=true;},(m:SourceMedia)=>{m.isConnected=false;},(m:SourceMedia)=>{m.muted=true;},(m:SourceMedia)=>{m.volume=0;}]){
+   const media=new SourceMedia();play(media);const before=audio.oscillators.length;expect(music.asterFeedback('ask')).toBe(false);expect(music.gameActionFeedback('place')).toBe(false);expect(audio.oscillators).toHaveLength(before);change(media);
+   // No pause/ended/volumechange dispatch: removal can lose the event, and
+   // property changes take effect before their asynchronous event is delivered.
+   vi.advanceTimersByTime(1000);expect(music.asterFeedback('ask')).toBe(true);expect(music.asterFeedback('answer')).toBe(true);expect(music.gameActionFeedback('place')).toBe(true);expect(audio.gains[1].gain.value).toBeGreaterThan(0);expect(audio.oscillators.length).toBeGreaterThan(before);
+  }
+  music.setSoundPreferences({enabled:false});music.stopMusic();expect(vi.getTimerCount()).toBe(0);
+ });
+ it('keeps all genuinely audible sources authoritative, including synchronous unmute and manual narration',async()=>{
+  class SourceMedia {paused=false;ended=false;muted=false;volume=1;isConnected=true;}
+  vi.stubGlobal('HTMLMediaElement',SourceMedia);const music=await import('../src/lib/music');music.setSoundPreferences({enabled:true,volume:.3});const first=new SourceMedia(),second=new SourceMedia();
+  const play=(media:SourceMedia)=>{const event=new Event('play');Object.defineProperty(event,'target',{value:media});document.dispatchEvent(event);};play(first);play(second);first.paused=true;first.isConnected=false;expect(music.asterFeedback('ask')).toBe(false);expect(music.musicFeedback('success')).toBe(false);
+  second.muted=true;expect(music.asterFeedback('ask')).toBe(true);vi.advanceTimersByTime(1000);second.muted=false;expect(music.asterFeedback('ask')).toBe(false);second.volume=0;expect(music.gameActionFeedback('place')).toBe(true);vi.advanceTimersByTime(1000);second.volume=1;expect(music.gameActionFeedback('place')).toBe(false);second.paused=true;
+  music.duckMusic(true);expect(music.asterFeedback('ask')).toBe(false);music.duckMusic(false);Object.assign(window,{speechSynthesis:{speaking:true}});expect(music.asterFeedback('ask')).toBe(false);Object.assign(window,{speechSynthesis:{speaking:false}});expect(music.asterFeedback('ask')).toBe(true);music.setSoundPreferences({enabled:false});music.stopMusic();
+ });
+
  it('retries a blocked recording from an explicit gesture without replaying music after mute',async()=>{
   class Recording extends EventTarget{static all:Recording[]=[];loop=false;paused=true;currentTime=0;preload='';src='';plays=0;constructor(src=''){super();this.src=src;Recording.all.push(this);}canPlayType(){return'probably';}play(){this.plays++;if(this.plays===1)return Promise.reject(Object.assign(new Error('gesture needed'),{name:'NotAllowedError'}));this.paused=false;return Promise.resolve();}pause(){this.paused=true;}removeAttribute(){this.src='';}load(){}}
   vi.stubGlobal('Audio',Recording);const music=await import('../src/lib/music');music.syncLearningSoundtrack({...context,phase:'study'},{enabled:true,volume:.2});await Promise.resolve();await Promise.resolve();expect(music.getMusicRuntimeStatus().state).toBe('suspended');const audio=Recording.all.at(-1)!;
