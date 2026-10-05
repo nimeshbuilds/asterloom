@@ -37,7 +37,12 @@ function fixturePdf(){
 // Intel emulation includes real speech recognition, OCR, model inference and
 // several complete Universal app copies. Give Rosetta its measured headroom;
 // individual operations keep their own bounded waits and all assertions run.
+const emulatedIntel=process.platform==='darwin'&&process.arch==='arm64'&&process.env.ASTERLOOM_SMOKE_ARCH==='x64';
 const workflowTimeout=process.platform==='darwin'&&process.env.ASTERLOOM_SMOKE_ARCH==='x64'?600000:360000;
+// Rosetta can finish launching a freshly exported Universal app just as the
+// default30s debugger-attachment deadline expires. Keep an explicit bound
+// for this emulated architecture; native platform launches retain30s.
+const launchTimeout=emulatedIntel?90000:30000;
 test('native studio saves across launches, exports a standalone game, and opens its isolated studio',{skip:!enabled,timeout:workflowTimeout},async()=>{
   const directory=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-native-smoke-'));
   const output=path.join(directory,'exports');await fs.mkdir(output);
@@ -48,7 +53,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
   const errors=[],remoteRequests=[];let features={};
   const launch=async(binary=executable)=>{
     const selected=await nativeTestExecutable(binary,directory);
-    const app=await electron.launch({...(selected?{executablePath:selected}:{}),args:binary?[]:args,cwd:ROOT,env,timeout:30000});
+    const app=await electron.launch({...(selected?{executablePath:selected}:{}),args:binary?[]:args,cwd:ROOT,env,timeout:launchTimeout});
     const watched=new WeakSet();
     const watch=page=>{if(!watched.has(page)){watched.add(page);page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(/^https?:/.test(request.url()))remoteRequests.push(request.url());});}};
     app.on('window',watch);for(const page of app.windows())watch(page);
