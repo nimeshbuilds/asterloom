@@ -5,7 +5,7 @@ import {askAster} from '../lib/asterKnowledge';
 import {sourceRevision,textDigest} from '../lib/evidence';
 import {answerAsterContext,buildAsterAwareness,type AsterAwarenessContext,type AsterLearningState} from '../lib/asterAwareness';
 import {asterMissionHelp,contextualAsterTip,dismissAsterTip,getAsterPreferences,setAsterPreferences,shouldOfferAsterTip,type AsterGuideContext,type AsterMode,type AsterPreferences,type AsterSessionPolicy} from '../lib/asterGuidePolicy';
-import {ASTER_BASE_PORTRAIT,resolveAsterEmotion,type AsterEmotionId,type AsterMoment} from '../lib/asterEmotions';
+import {ASTER_BASE_PORTRAIT,resolveAsterEmotion,type AsterEmotionId,type AsterEmotionOptions,type AsterMoment} from '../lib/asterEmotions';
 import './aster-guide.css';
 export interface AsterGuideProps {
  notebook?:Notebook;mode:AsterMode;activityId?:string;creationStage?:string;
@@ -29,9 +29,16 @@ export default function AsterGuide({notebook,mode,activityId,creationStage,conte
  const [contextQuestion,setContextQuestion]=useState<string|null>(null);
  const context:AsterGuideContext={notebook,mode,activityId,creationStage,creationRunning,feedback},tip=contextualAsterTip(context),young=notebook?.ageGroup==='3-5'||notebook?.ageGroup==='6-8';
  const awarenessContext:AsterAwarenessContext={...context,progress,creationRunning,creationConnection,learningState},awareness=buildAsterAwareness(awarenessContext),contextAnswer=contextQuestion?answerAsterContext(contextQuestion,awarenessContext):undefined;
- const moment:AsterMoment=searching?'concept':showHint?'hint':feedback?.committed&&mode==='play'?feedback.outcome==='retry'?'retry':'success':mode==='play'||mode==='study'?'concept':'welcome';
+ const automaticTipVisible=bubble&&!open&&preferences.mode==='helpful'&&!(mode==='creation'&&creationRunning===true);
+ // An automatic portrait belongs to the text being offered. Hidden panel state or
+ // feedback from another screen must not turn a source-check tip into a celebration.
+ const studyingConcept=mode==='study'&&learningState?.phase==='lesson'&&(learningState.lessonStage==='context'||learningState.lessonStage==='walkthrough');
+ const manualMoment:AsterMoment=searching?'concept':showHint?'hint':feedback?.committed&&mode==='play'?feedback.outcome==='retry'?'retry':'success':mode==='study'?studyingConcept?'concept':'reflection':mode==='play'?'concept':'welcome';
+ const moment:AsterMoment=automaticTipVisible?tip.moment:manualMoment;
  const activity=notebook?.activities?.find(item=>item.id===activityId);
- const emotion=resolveAsterEmotion({moment,preferredId:searching?'thinking':expressions?.[moment],activityKind:activity?.kind,quiet:preferences.mode==='quiet'});
+ const emotionIntent:AsterEmotionOptions['intent']=automaticTipVisible?mode==='creation'&&moment==='concept'?'evidence':mode==='world'?'orient':mode==='study'?'explain':undefined:searching||showHint?'evidence':learningState?.phase==='lesson'&&learningState.lessonStage==='context'?'reading':learningState?.phase==='lesson'&&learningState.lessonStage==='practice'?'explain':undefined;
+ const emotionStep=!automaticTipVisible&&learningState?.phase==='lesson'&&learningState.lessonStage==='walkthrough'?learningState.lessonStep:undefined;
+ const emotion=resolveAsterEmotion({moment,preferredId:searching&&!automaticTipVisible?'thinking':expressions?.[moment],activityKind:activity?.kind,quiet:preferences.mode==='quiet',intent:emotionIntent,step:emotionStep,contextSeed:`${notebook?.id??'library'}:${activityId??mode}:${contextKey??''}:${automaticTipVisible?tip.id:moment}`});
  const imageUrl=portraitUrl!==ASTER_BASE_PORTRAIT?portraitUrl:failedExpression===emotion.assetPath?ASTER_BASE_PORTRAIT:emotion.assetPath;
  const help=useMemo(()=>asterMissionHelp(notebook,activityId),[notebook,activityId]);
  // Creation checkpoints change notebook revision without changing the material. Preserve
@@ -64,7 +71,7 @@ export default function AsterGuide({notebook,mode,activityId,creationStage,conte
  const changePreference=(mode:AsterPreferences['mode'])=>{setAsterPreferences({mode});setBubble(false);if(mode==='off')close();};
  const portrait=(className:string)=><span className={className}>{portraitFailed?<span className="aster-initial" aria-hidden="true">A</span>:<img src={imageUrl} alt="" onError={()=>{if(imageUrl!==portraitUrl)setFailedExpression(emotion.assetPath);else setPortraitFailed(true);}} draggable={false}/>}</span>;
  if(preferences.mode==='off')return <div className="aster-restore"><button type="button" onClick={()=>changePreference('quiet')}><MessageCircle size={13} aria-hidden="true"/>Show Aster</button></div>;
- return <aside className={`aster-guide${open?' aster-open':''}`} aria-label="Aster learning companion" data-mode={mode} data-preference={preferences.mode} data-expression={emotion.id}>
+ return <aside className={`aster-guide${open?' aster-open':''}${automaticTipVisible?' aster-automatic':''}`} aria-label="Aster learning companion" data-mode={mode} data-preference={preferences.mode} data-guidance={automaticTipVisible?'automatic':open?'manual':'idle'} data-moment={moment} data-expression={emotion.id}>
   {open&&<section id={`${id}-panel`} className="aster-panel" role="dialog" aria-modal="false" aria-labelledby={`${id}-title`} onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();close();}}}>
    <header className="aster-header">{portrait('aster-portrait')}<div><span className="aster-eyebrow">YOUR LEARNING COMPANION</span><h2 id={`${id}-title`}>Ask Aster</h2><p>{young?'We can explore your material together.':'A little guidance, when you want it.'}</p></div><button type="button" className="aster-icon" aria-label="Close Aster" onClick={close}><X size={18} aria-hidden="true"/></button></header>
    <div className="aster-panel-body">
@@ -79,7 +86,7 @@ export default function AsterGuide({notebook,mode,activityId,creationStage,conte
     <details className="aster-preferences"><summary><Settings2 size={14} aria-hidden="true"/>How Aster appears</summary><label htmlFor={`${id}-frequency`}>Guidance frequency<select id={`${id}-frequency`} value={preferences.mode} onChange={event=>changePreference(event.target.value as AsterPreferences['mode'])}><option value="helpful">Occasional tips</option><option value="quiet">Only when I ask</option><option value="off">Hide Aster</option></select></label><p>Aster never takes away saved points. Source help marks the current attempt as supported. Questions stay on this device.</p></details>
    </div>
   </section>}
-  {bubble&&!open&&<div className="aster-bubble"><button type="button" className="aster-icon" aria-label="Dismiss Aster tip" onClick={()=>{dismissAsterTip(tip);setBubble(false);}}><X size={15} aria-hidden="true"/></button><strong>{tip.title}</strong><p>{tip.text}</p><button type="button" className="aster-bubble-action" onClick={reveal}>Ask Aster <MessageCircle size={12} aria-hidden="true"/></button></div>}
+  {automaticTipVisible&&<div className="aster-bubble"><button type="button" className="aster-icon" aria-label="Dismiss Aster tip" onClick={()=>{dismissAsterTip(tip);setBubble(false);}}><X size={15} aria-hidden="true"/></button><strong>{tip.title}</strong><p>{tip.text}</p><button type="button" className="aster-bubble-action" onClick={reveal}>Ask Aster <MessageCircle size={12} aria-hidden="true"/></button></div>}
   <button type="button" ref={launcher} className="aster-launcher" aria-label={open?'Close Aster companion':'Ask Aster'} aria-expanded={open} aria-controls={open?`${id}-panel`:undefined} onClick={()=>open?close():reveal()}>{portrait('aster-launcher-portrait')}<span>{open?'Close':'Aster'}<MessageCircle size={12} aria-hidden="true"/></span></button>
  </aside>;
 }

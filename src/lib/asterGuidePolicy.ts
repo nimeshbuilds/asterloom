@@ -2,10 +2,11 @@ import type {EvidenceReference,Notebook} from '../types';
 import {currentAILearningMission} from './aiLearningPlan';
 import {hasCurrentActivityEvidence} from './scaffoldRuntime';
 import {sourceRevision} from './evidence';
+import type {AsterMoment} from './asterEmotions';
 
 export type AsterMode='library'|'creation'|'world'|'play'|'study';
 export interface AsterGuideContext {notebook?:Notebook;mode:AsterMode;activityId?:string;creationStage?:string;creationRunning?:boolean;feedback?:{outcome:'success'|'retry';eventKey:string;committed?:boolean;score?:{value:number;max?:number;xp?:number}}}
-export interface AsterTip {id:string;title:string;text:string}
+export interface AsterTip {id:string;title:string;text:string;moment:AsterMoment}
 export interface AsterPreferences {mode:'helpful'|'quiet'|'off';dismissed:string[]}
 export interface AsterSessionPolicy {shown:number;lastShownAt:number}
 const key='asterloom:guide-preferences:v1';
@@ -29,13 +30,13 @@ export function dismissAsterTip(tip:AsterTip){const preference=getAsterPreferenc
 /** The automatic bubble contains process guidance only; facts, answer hints, and sources require a deliberate reveal. */
 export function contextualAsterTip(context:AsterGuideContext):AsterTip {
  const notebook=context.notebook,scope=notebook?.id??'library';
- const make=(key:string,title:string,text:string):AsterTip=>({id:`${scope}:${key}`,title,text});
- if(context.mode==='library')return make('welcome','A small start is enough','Choose one topic and add your own material. I can help you find your way as you build and learn.');
+ const make=(key:string,title:string,text:string,moment:AsterMoment):AsterTip=>({id:`${scope}:${key}`,title,text,moment});
+ if(context.mode==='library')return make('welcome','A small start is enough','Choose one topic and add your own material. I can help you find your way as you build and learn.','welcome');
  if(context.mode==='creation'){
-  if(!notebook?.sources.length)return make('add-sources','Begin with what you want to learn','Add a file, a link, or some notes. Then choose who the game is for and what you want to practice.');
-  if(context.creationRunning===true||context.creationStage&&context.creationRunning!==false)return make('creating','Your material is becoming a game','You can let this step finish. Open my local activity log to see saved checkpoints and the current step.');
-  if(notebook.sources.some(source=>source.status!=='ready'))return make('prepare-source','One useful next step','Open material that needs preparation and add or review its readable text. Clear source material gives your game a stronger foundation.');
-  return make('review-sources','A quick source check helps','Check that the imported text says what you expect, especially captions or text read from images. Keep the source’s examples and conditions.');
+  if(!notebook?.sources.length)return make('add-sources','Begin with what you want to learn','Add a file, a link, or some notes. Then choose who the game is for and what you want to practice.','welcome');
+  if(context.creationRunning===true||context.creationStage&&context.creationRunning!==false)return make('creating','Your material is becoming a game','You can let this step finish. Open my local activity log to see saved checkpoints and the current step.','concept');
+  if(notebook.sources.some(source=>source.status!=='ready'))return make('prepare-source','One useful next step','Open material that needs preparation and add or review its readable text. Clear source material gives your game a stronger foundation.','concept');
+  return make('review-sources','A quick source check helps','Check that the imported text says what you expect, especially captions or text read from images. Keep the source’s examples and conditions.','concept');
  }
  if(context.mode==='play'){
   const score=context.feedback?.committed===true?context.feedback.score:undefined;
@@ -43,15 +44,15 @@ export function contextualAsterTip(context:AsterGuideContext):AsterTip {
    const points=score.max===undefined?`${score.value}`:`${score.value} / ${score.max}`;
    const xp=score.xp===undefined?'':score.xp>0?` This result added ${score.xp} XP.`:' This attempt adds no new XP.';
    const event=context.feedback!.eventKey.replace(/[^a-zA-Z0-9_-]/g,'').slice(0,100);
-   return make(`saved:${event}`,'Your result is saved',`Saved score: ${points}.${xp} ${context.feedback!.outcome==='retry'?'Choose one source-backed change to try next.':'Take a moment to explain what made your approach work.'}`);
+   return make(`saved:${event}`,'Your result is saved',`Saved score: ${points}.${xp} ${context.feedback!.outcome==='retry'?'Choose one source-backed change to try next.':'Take a moment to explain what made your approach work.'}`,context.feedback!.outcome);
   }
 
-  if(context.feedback?.outcome==='retry')return make(`retry:${context.activityId??'practice'}`,'Try one deliberate change','Choose one failed check, compare it with the source, and revise that part. You do not need to change everything at once.');
-  if(context.feedback?.outcome==='success')return make(`success:${context.activityId??'practice'}`,'Make the idea yours','Pause and explain why your approach worked. When you are ready, try the next challenge with a little less help.');
-  return make(`play:${context.activityId??'practice'}`,'Your next move matters','Look at the goal, try an action, and inspect what changes. Ask me for source help when you want it.');
+  if(context.feedback?.committed===true&&context.feedback.outcome==='retry')return make(`retry:${context.activityId??'practice'}`,'Try one deliberate change','Choose one failed check, compare it with the source, and revise that part. You do not need to change everything at once.','retry');
+  if(context.feedback?.committed===true&&context.feedback.outcome==='success')return make(`success:${context.activityId??'practice'}`,'Make the idea yours','Pause and explain why your approach worked. When you are ready, try the next challenge with a little less help.','success');
+  return make(`play:${context.activityId??'practice'}`,'Your next move matters','Look at the goal, try an action, and inspect what changes. Ask me for source help when you want it.','concept');
  }
- if(context.mode==='study')return make('study','Read with a question in mind','What is the main relationship here? Put it into your own words, then compare your explanation with the source.');
- return make('world','Choose your next step','Pick a mission you want to practice. You can return to the material, try a different approach, or stop and come back later.');
+ if(context.mode==='study')return make('study','Read with a question in mind','What is the main relationship here? Put it into your own words, then compare your explanation with the source.','reflection');
+ return make('world','Choose your next step','Pick a mission you want to practice. You can return to the material, try a different approach, or stop and come back later.','welcome');
 }
 export function shouldOfferAsterTip(context:AsterGuideContext,preferences:AsterPreferences,session:AsterSessionPolicy,now:number):boolean {
  if(preferences.mode!=='helpful'||session.shown>=4||now-session.lastShownAt<90_000)return false;

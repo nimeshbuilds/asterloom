@@ -59,11 +59,75 @@ const lookup=new Map(ASTER_EMOTIONS.map(emotion=>[emotion.id,emotion]));
 export const ASTER_BASE_PORTRAIT='/assets/aster/aster-guide.png';
 export function asterEmotionCatalog(moment?:AsterMoment){return ASTER_EMOTIONS.filter(emotion=>!moment||emotion.moments.includes(moment));}
 export function isAsterEmotionForMoment(id:unknown,moment:AsterMoment):id is AsterEmotionId{return typeof id==='string'&&lookup.get(id as AsterEmotionId)?.moments.includes(moment)===true;}
-export function resolveAsterEmotion(options:{moment:AsterMoment;preferredId?:unknown;activityKind?:string;quiet?:boolean}):AsterEmotion {
+export type AsterIntent='reading'|'evidence'|'compare'|'build'|'plan'|'predict'|'observe'|'question'|'explain'|'summarize'|'pause'|'restart'|'farewell'|'connect'|'record'|'orient';
+export interface AsterEmotionOptions {
+ moment:AsterMoment;preferredId?:unknown;activityKind?:string;quiet?:boolean;
+ /** Stable mission/context key, never a clock, render counter or inferred learner emotion. */
+ contextSeed?:string;intent?:AsterIntent;
+ /** Actual visible one-based step or actual interface direction, not an inferred progress level. */
+ step?:number;direction?:'left'|'right'|'up'|'down';
+}
+const momentPoses:Record<AsterMoment,readonly AsterEmotionId[]>={
+ welcome:['welcome-wave','warm-smile','ready-to-begin','open-palms','notebook-ready','presenting','question-invite','ready-next'],
+ concept:['focused-reading','thinking','thoughtful-chin','curious-tilt','presenting','notebook-ready'],
+ hint:['gentle-hint','patient-support','open-palms','listening','small-step','curious-question','question-invite'],
+ retry:['patient-support','try-another-way','small-step','reassuring-nod','open-palms','pause-and-think'],
+ success:['quiet-celebration','warm-smile','progress-notice','bright-celebration','thumbs-up','achievement-star','reassuring-nod','understood-nod','ready-next'],
+ reflection:['reflective','thoughtful-chin','curious-tilt','listening','pause-and-think','question-invite','curious-question'],
+};
+// These small pools represent the visible task. Specific gestures are never placed in a generic
+// moment pool: a numbered step, direction, restart or farewell needs that real context.
+const intentPoses:Record<AsterIntent,readonly AsterEmotionId[]>={
+ reading:['focused-reading','notebook-ready','note-taking','source-check','magnifier','thoughtful-chin'],
+ evidence:['source-check','magnifier','focused-reading','thoughtful-chin'],
+ compare:['compare-options','thinking','thoughtful-chin'],
+ build:['building','puzzle-piece'],
+ plan:['planning','notebook-ready','thoughtful-chin'],
+ predict:['hypothesis','curious-tilt'],
+ observe:['test-and-observe','curious-tilt','magnifier','note-taking'],
+ question:['listening','question-invite','curious-question','thinking'],
+ explain:['explain-it-back','connecting-ideas','presenting','thoughtful-chin','understood-nod','listening'],
+ summarize:['summary','reflective','note-taking'],
+ pause:['pause-and-think','listening'],
+ restart:['reset-and-retry','small-step','try-another-way'],
+ farewell:['farewell-wave'],
+ connect:['connecting-ideas','thoughtful-chin','idea-spark'],
+ record:['note-taking','notebook-ready','reflective'],
+ orient:['map-guide','ready-to-begin','presenting','planning'],
+};
+const activityIntents:Record<string,AsterIntent>={
+ construction:'build',completion:'build',sequence:'plan',classification:'compare',decision:'compare',dependency:'connect',
+ budget:'plan',rubric:'evidence',diagram:'evidence',scenario:'observe',data:'evidence',explanation:'connect',
+ 'picture-build':'build',media:'observe',picture:'observe','rule-switch':'compare','child-play':'observe',
+};
+function gestureMatches(id:AsterEmotionId,options:AsterEmotionOptions):boolean {
+ if(id.startsWith('pointing-'))return id===`pointing-${options.direction}`;
+ if(id==='step-one'||id==='step-two'||id==='step-three')return id===(['step-one','step-two','step-three'] as const)[(options.step??0)-1];
+ if(id==='reset-and-retry')return options.intent==='restart';
+ if(id==='farewell-wave')return options.intent==='farewell';
+ return true;
+}
+/** Select from the appropriate context pool without changing on rerender or consulting a clock. */
+function seededIndex(seed:string,length:number):number {
+ let hash=2166136261;
+ for(let i=0;i<seed.length;i++){hash^=seed.charCodeAt(i);hash=Math.imul(hash,16777619);}
+ return(hash>>>0)%length;
+}
+export function resolveAsterEmotion(options:AsterEmotionOptions):AsterEmotion {
+ // Quiet mode is a learner preference, and takes precedence over a generated celebration.
  if(options.quiet&&options.moment==='success')return lookup.get('quiet-celebration')!;
- if(isAsterEmotionForMoment(options.preferredId,options.moment))return lookup.get(options.preferredId)!;
- const defaults:Record<AsterMoment,AsterEmotionId>={welcome:'welcome-wave',concept:'focused-reading',hint:'gentle-hint',retry:'patient-support',success:'quiet-celebration',reflection:'reflective'};
- const kinds:Record<string,AsterEmotionId>={construction:'building',completion:'puzzle-piece',sequence:'step-one',classification:'compare-options',dependency:'connecting-ideas',budget:'planning',diagram:'magnifier',scenario:'test-and-observe',data:'source-check',explanation:'connecting-ideas','picture-build':'building'};
- const id=options.moment==='concept'&&kinds[options.activityKind??'']?kinds[options.activityKind!]:defaults[options.moment];
- return lookup.get(id)!;
+ if(isAsterEmotionForMoment(options.preferredId,options.moment)&&gestureMatches(options.preferredId,options))return lookup.get(options.preferredId)!;
+ if(options.moment==='concept'||options.moment==='hint'){
+  if(options.direction)return lookup.get(`pointing-${options.direction}`)!;
+  if(Number.isInteger(options.step)&&options.step!>=1&&options.step!<=3)return lookup.get((['step-one','step-two','step-three'] as const)[options.step!-1])!;
+ }
+ // An activity kind describes the task while concept/hint is visible; it must never override
+ // feedback (for example, a construction result still gets a success or retry expression).
+ const intent=options.intent??((options.moment==='concept'||options.moment==='hint')?activityIntents[options.activityKind??'']:undefined);
+ const pool=!options.intent&&options.activityKind==='completion'&&(options.moment==='concept'||options.moment==='hint')?(['puzzle-piece','thinking','magnifier'] as const):intent?intentPoses[intent]:[];
+ let candidates=pool.filter(id=>isAsterEmotionForMoment(id,options.moment)&&gestureMatches(id,options));
+ if(!candidates.length)candidates=[...momentPoses[options.moment]];
+ // Keep first-pose fallback deterministic for old callers that do not supply a context seed.
+ const index=options.contextSeed?seededIndex(`${options.moment}:${intent??''}:${options.activityKind??''}:${options.contextSeed}`,candidates.length):0;
+ return lookup.get(candidates[index])!;
 }
