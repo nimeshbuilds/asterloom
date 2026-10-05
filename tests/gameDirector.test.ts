@@ -22,10 +22,10 @@ afterEach(()=>vi.unstubAllGlobals());
 describe('resumable AI game director',()=>{
  it('covers every chapter beyond six using bounded planning, writing and checking, with source-bound teaching and chosen audio',async()=>{
   const provider=mock(),checkpoints:GameDesign[]=[],result=await prepareGameExperience(n(8),{}, {...options,onCheckpoint:async d=>{checkpoints.push(d);return true;}});
-  expect(result.creationStatus,result.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','check','plan','write','check','plan','write','check']);
+  expect(result.creationStatus,result.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','write','write','check','plan','write','write','write','check','plan','write','write','check']);
   const design=result.notebook.gameDesign!;expect(gameDesignProgress(design)).toMatchObject({totalUnits:8,coveredUnits:8,completedBatches:3,missionCount:8,pendingBatches:0});
   expect(result.notebook.aiLearningPlan?.missions).toHaveLength(8);expect(design.visualDirection?.scene).toBe(provider.requests[0].data.choices.find((c:any)=>c.kind==='sequence').scene);expect(design.audioDirection?.effects).toBe('quiet');
-  expect(design.receipts).toHaveLength(9);expect(design.receipts.every(r=>r.status==='completed'&&r.actualModels?.[0]==='actual-provider-model')).toBe(true);expect(summarizeAIUsage(design.receipts).input.value).toBe(900);expect(summarizeAIUsage(design.receipts).total.value).toBe(1440);
+  expect(design.receipts).toHaveLength(14);expect(design.receipts.every(r=>r.status==='completed'&&r.actualModels?.[0]==='actual-provider-model')).toBe(true);expect(summarizeAIUsage(design.receipts).input.value).toBe(1400);expect(summarizeAIUsage(design.receipts).total.value).toBe(2240);
   expect(checkpoints.some(d=>d.batches[0].status==='written')).toBe(true);expect(checkpoints.some(d=>d.receipts.some(r=>r.status==='started'))).toBe(true);
   const games=result.notebook.activities!.filter(a=>a.id.startsWith('director-'));expect(games).toHaveLength(8);expect(games.every(a=>a.reviewStatus==='needs-review')).toBe(true);
   expect(evaluateActivity(games[0],{order:['open','choose','confirm']})).toMatchObject({valid:false,outcome:'draft-preview',score:0});
@@ -46,16 +46,16 @@ describe('resumable AI game director',()=>{
   const provider=mock(),firstSource=n().sources[0],secondSource=createSource('# Another maintenance procedure\n1. Open the alternate panel.\n2. Choose its command.\n3. Confirm that selection.','Second procedure');
   const input=createNotebook({sources:[firstSource,secondSource]}),first=await prepareGameExperience(input,{},options);expect(first.creationStatus,first.ai.message).toBe('ready');
   const reordered={...first.notebook,sources:[...first.notebook.sources].reverse()},second=await prepareGameExperience(parsePackage(serializePackage(reordered)),{}, {aiPolicy:'required'});
-  expect(second.creationStatus,second.ai.message).toBe('ready');expect(second.ai.requestCount).toBe(0);expect(second.notebook.gameDesign!.receipts).toHaveLength(3);expect(provider.fetch).toHaveBeenCalledTimes(3);
+  expect(second.creationStatus,second.ai.message).toBe('ready');expect(second.ai.requestCount).toBe(0);expect(second.notebook.gameDesign!.receipts).toHaveLength(4);expect(provider.fetch).toHaveBeenCalledTimes(4);
  });
  it('never invokes AI without explicit Create consent, including when a connection is supplied',async()=>{
   const provider=mock();const result=await prepareGameExperience(n(),{}, {aiPolicy:'required',ai:{config} as any});expect(result.creationStatus).toBe('needs-connection');expect(provider.fetch).not.toHaveBeenCalled();
  });
  it('does not silently omit a late unit from a plan, and retains the consumed call receipt',async()=>{
-  mock((stage,_data,value)=>stage==='plan'?{...value,missions:value.missions.slice(0,1)}:value);const result=await prepareGameExperience(n(3),{},options);expect(result.creationStatus).toBe('failed');expect(result.notebook.gameDesign!.batches[0].status).toBe('pending');expect(result.notebook.gameDesign!.receipts).toHaveLength(1);expect(result.notebook.gameDesign!.receipts[0].usage.inputTokens).toBe(100);
+  mock((stage,_data,value)=>stage==='plan'?{...value,missions:value.missions.slice(0,1)}:value);const result=await prepareGameExperience(n(3),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');expect(result.notebook.gameDesign!.receipts).toHaveLength(2);expect(result.notebook.gameDesign!.receipts[0].usage.inputTokens).toBe(100);
  });
  it('rejects invented citations or teacher text without sacrificing source material or prior stages',async()=>{
-  mock((stage,_data,value)=>{if(stage==='write')value.missions[0].teaching.chunks[0].citations[0]={sourceId:'missing',evidence:'An invented statement.'};return value;});const input=n(),result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('failed');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.batches[0].status).toBe('planned');expect(result.notebook.gameDesign!.receipts).toHaveLength(2);expect(result.notebook.activities?.some(a=>a.id.startsWith('director-'))).toBe(false);
+  mock((stage,_data,value)=>{if(stage==='write')value.missions[0].teaching.chunks[0].citations[0]={sourceId:'missing',evidence:'An invented statement.'};return value;});const input=n(),result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('needs-source');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.activities?.some(a=>a.id.startsWith('director-'))).toBe(false);
  });
  it('check-stage rejection becomes explicit source study, never approved gameplay',async()=>{
   mock((stage,_data,value)=>stage==='check'?{checks:value.checks.map((c:any)=>({...c,decision:'source-study',reason:'The source does not justify this model.'}))}:value);const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.launch.kind).toBe('materials');expect(gameDesignProgress(result.notebook.gameDesign!)).toMatchObject({coveredUnits:1,missionCount:0,studyOnlyCount:1});expect(result.notebook.gameDesign!.receipts).toHaveLength(3);
@@ -87,8 +87,8 @@ describe('resumable AI game director',()=>{
   });
   const result=await prepareGameExperience(createNotebook({sources:[source],ageGroup:age}),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');const game=result.notebook.activities!.find(a=>a.id===result.ai.activityId)!;expect(game.kind).toBe(kind);expect(game.scaffoldIds).toEqual([recipe]);expect(game.reviewStatus).toBe('needs-review');expect(result.notebook.aiLearningPlan!.missions[0].ageGroup).toBe(age);expect(parsePackage(serializePackage(result.notebook)).gameDesign!.batches[0].missions![0].asterDirection?.retry).toBe('patient-support');
  });
- it('rejects an incompatible companion expression without a new inference request',async()=>{
-  mock((stage,_data,value)=>{if(stage==='plan')value.missions[0].asterDirection={retry:'bright-celebration'};return value;});const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('failed');expect(result.ai.requestCount).toBe(1);expect(result.notebook.gameDesign!.batches[0].status).toBe('pending');
+ it('bounds repair of an incompatible companion expression and never approves it',async()=>{
+  mock((stage,_data,value)=>{if(stage==='plan')value.missions[0].asterDirection={retry:'bright-celebration'};return value;});const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.ai.requestCount).toBe(2);expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');
  });
  it('strictly rejects metadata, approval, coverage and audio forgeries on portable import',async()=>{
   mock();const result=await prepareGameExperience(n(),{},options),notebook=result.notebook,design=notebook.gameDesign!;

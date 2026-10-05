@@ -1,3 +1,5 @@
+import {createGenerationStatus} from './generation-status.mjs';
+import {withGenerationControl,completionMetadata,providerHttpFailure,generationError} from './generation-control.mjs';
 import {generationResult,normalizeAIUsage} from './ai-usage.mjs';
 import http from 'node:http';
 import https from 'node:https';
@@ -61,11 +63,11 @@ async function publicTarget(value) {
   return {url, address:addresses[0]};
 }
 
-function requestBytes(url, {method = 'GET', body, headers = {}, address, maxBytes = 8 * 1024 * 1024, timeout = 20000} = {}) {
+function requestBytes(url, {method = 'GET', body, headers = {}, address, maxBytes = 8 * 1024 * 1024, timeout = 20000, signal} = {}) {
   return new Promise((resolve, reject) => {
     const transport = url.protocol === 'https:' ? https : http;
     const req = transport.request(url, {
-      method, headers: {'User-Agent':'Asterloom/0.3 (+https://github.com/NimeshBuilds/asterloom; user requested source import)', 'Accept-Encoding':'identity', ...headers},
+      method, ...(signal?{signal}:{}), headers: {'User-Agent':'Asterloom/0.3 (+https://github.com/NimeshBuilds/asterloom; user requested source import)', 'Accept-Encoding':'identity', ...headers},
       ...(address ? {lookup:(_hostname, options, callback) => options?.all ? callback(null,[address]) : callback(null,address.address,address.family)} : {}),
     }, response => {
       const chunks = []; let size = 0;
@@ -275,10 +277,10 @@ async function importUrl(input) {
   return result;
 }
 
-async function generate(input, connection, grok, claude) {
-  if(input.provider==='chatgpt')return generationResult(input.provider,input.model,await connection.generate(input));
-  if(input.provider==='grok')return generationResult(input.provider,input.model,await grok.generate(input));
-  if(input.provider==='claude-code')return generationResult(input.provider,input.model,await claude.generate(input));
+async function generate(input, connection, grok, claude, execution={}) {
+  if(input.provider==='chatgpt')return generationResult(input.provider,input.model,await connection.generate(input,execution));
+  if(input.provider==='grok')return generationResult(input.provider,input.model,await grok.generate(input,execution));
+  if(input.provider==='claude-code')return generationResult(input.provider,input.model,await claude.generate(input,execution));
   const provider=bounded(input.provider,30); const apiKey=bounded(input.apiKey,2000); const model=bounded(input.model,200);
   assert(['openai','anthropic','xai','compatible'].includes(provider),'Choose a supported provider.');
   assert(model,'Choose a model identifier.');
@@ -289,7 +291,7 @@ async function generate(input, connection, grok, claude) {
   let url,headers,payload,response;
   if(provider === 'openai') {
     url=new URL('https://api.openai.com/v1/responses');headers={'Content-Type':'application/json',Authorization:`Bearer ${apiKey}`};
-    payload={model,input:[{role:'user',content:input.prompt}],instructions:system,max_output_tokens:maxTokens,store:false};
+    payload={model,input:[{role:'user',content:input.prompt}],instructions:system,max_output_tokens:maxTokens,store:false,...(input.jsonMode?{text:{format:{type:'json_object'}}}:{})};
   } else if(provider === 'anthropic') {
     url=new URL('https://api.anthropic.com/v1/messages');
     headers={'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'};
@@ -301,10 +303,11 @@ async function generate(input, connection, grok, claude) {
     headers={'Content-Type':'application/json',...(apiKey ? {Authorization:`Bearer ${apiKey}`} : {})};
     payload={model,messages:[{role:'system',content:system},{role:'user',content:input.prompt}],max_tokens:maxTokens,...(input.jsonMode ? {response_format:{type:'json_object'}} : {})};
   }
-  const body=JSON.stringify(payload);
+  const body=JSON.stringify(payload);execution.onProgress?.({phase:'connecting'});
   assert(!url.username && !url.password,'Provider URLs must not contain embedded credentials.');
-  const options={method:'POST',headers,body,maxBytes:2*1024*1024,timeout:90000,followRedirects:false};
+  const options={method:'POST',headers,body,maxBytes:2*1024*1024,timeout:execution.timeoutMs??300000,signal:execution.signal,followRedirects:false};
   try {
+    execution.onProgress?.({phase:'generating'});
     if(provider === 'compatible') {
       // Local model servers are explicit user-selected endpoints, never fetched from source content.
       const permitted=(process.env.LEARN_AI_ORIGINS || 'http://127.0.0.1:11434,http://localhost:11434,http://127.0.0.1:1234,http://localhost:1234').split(',');
@@ -312,15 +315,16 @@ async function generate(input, connection, grok, claude) {
       else {assert(url.protocol === 'https:','Remote model endpoints require HTTPS; local endpoints must be configured in LEARN_AI_ORIGINS.');response=await fetchPublic(url.href,options);}
     } else response=await requestBytes(url,options);
   } catch(error) {if(error instanceof ApiError) throw error;throw new ApiError(502,'The model endpoint could not be reached. Check the endpoint, API key and local model service.','PROVIDER_UNAVAILABLE');}
-  // Avoid forwarding provider diagnostics which may contain credentials or submitted private text.
-  assert(response.status >= 200 && response.status < 300,`The provider returned HTTP ${response.status}. Check your model access, key, billing and quota.`,502,'PROVIDER_ERROR');
-  let result; try {result=JSON.parse(response.body.toString());} catch {throw new ApiError(502,'The provider returned an unreadable response.');}
+  // Parse only to retain measured usage and known status codes, never diagnostics.
+  let result;try{result=JSON.parse(response.body.toString());}catch{if(response.status<200||response.status>=300)throw providerHttpFailure(provider,response.status);throw generationError('PROVIDER_INVALID_RESPONSE');}
+  if(response.status<200||response.status>=300)throw providerHttpFailure(provider,response.status,result);
   try {
-  if(provider==='openai')assert(result.status==='completed','The provider did not complete this draft. Your notebook is unchanged.',502);
-  const text=provider === 'openai' ? result.output?.flatMap(item=>item.content||[]).filter(part=>part.type==='output_text').map(part=>part.text).join('\n') : provider === 'anthropic' ? result.content?.filter(part=>part.type === 'text').map(part=>part.text).join('\n') : result.choices?.[0]?.message?.content;
-  assert(typeof text === 'string' && text.length,'The model returned no text. Try a different model or a smaller request.',502);
-  return generationResult(provider,model,{text,usage:result.usage,model:result.model});
-  } catch(error) {error.aiUsage=normalizeAIUsage(provider,result.usage);throw error;}
+   const completion=completionMetadata(provider,result);
+   const text=provider === 'openai' ? result.output?.flatMap(item=>item.content||[]).filter(part=>part.type==='output_text').map(part=>part.text).join('\n') : provider === 'anthropic' ? result.content?.filter(part=>part.type === 'text').map(part=>part.text).join('\n') : result.choices?.[0]?.message?.content;
+   if(typeof text!=='string'||!text.length)throw generationError('PROVIDER_INVALID_RESPONSE');
+   execution.onProgress?.({phase:'receiving',outputCharacters:text.length,usage:normalizeAIUsage(provider,result.usage)});
+   return {...generationResult(provider,model,{text,usage:result.usage,model:result.model}),...completion};
+  }catch(error){error.aiUsage=normalizeAIUsage(provider,result.usage);throw error;}
 }
 
 /** Read the current provider catalog; models are not hardcoded or treated as paid-call entitlement. */
@@ -425,7 +429,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
   const connection=engineConnections?.codex||await createCodexConnection({dataDir:path.join(dataDir,'ai-engines'),distributionMode});
   const grok=engineConnections?.grok||await createGrokConnection({dataDir:path.join(dataDir,'ai-engines'),distributionMode});
   const claude=engineConnections?.claude||await createClaudeConnection({dataDir:path.join(dataDir,'ai-engines'),distributionMode});
-  const engines={codex:connection,grok,claude,...engineConnections};
+  const engines={codex:connection,grok,claude,...engineConnections};const generationStatus=createGenerationStatus();
   const roomFile=path.join(dataDir,'rooms.json');
   let rooms=[];
   try {const saved=await fs.readFile(roomFile,'utf8');rooms=JSON.parse(saved);assert(Array.isArray(rooms),'Saved room state is invalid.',500);} catch(error) {if(error.code !== 'ENOENT') throw error;}
@@ -485,7 +489,12 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       if(request.method === 'GET' && url.pathname === '/api/tor/status') return send(200,capabilities.tor);
       if(request.method === 'POST' && url.pathname === '/api/import-file') return send(200,await importFile(await readBody(request),{tesseract}));
       if(request.method === 'POST' && url.pathname === '/api/import-url') return send(200,await importUrl(await readBody(request)));
-      if(request.method === 'POST' && url.pathname === '/api/generate') {try {return send(200,await generate(await readBody(request),connection,grok,claude));}catch(error){if(!error.aiUsage)error.aiUsage=normalizeAIUsage('',null);throw error;}}
+      if(request.method==='GET'&&url.pathname.startsWith('/api/generate/status/'))return send(200,generationStatus.get(decodeURIComponent(url.pathname.slice('/api/generate/status/'.length))));
+      if(request.method === 'POST' && url.pathname === '/api/generate') {
+       const input=await readBody(request),requestId=generationStatus.start(input.requestId);
+       try{const result=await withGenerationControl(input,request,response,execution=>generate(input,connection,grok,claude,{...execution,onProgress:patch=>generationStatus.update(requestId,patch)}));generationStatus.update(requestId,{phase:'completed',outputCharacters:result.text.length,usage:result.usage});return send(200,{...result,requestId});}
+       catch(error){if(!error.aiUsage)error.aiUsage=normalizeAIUsage('',null);generationStatus.update(requestId,{phase:error.code==='PROVIDER_CANCELED'?'canceled':'failed',usage:error.aiUsage});throw error;}
+      }
       if(request.method==='GET'&&url.pathname==='/api/ai/engines')return send(200,{engines:await Promise.all(Object.values(engines).map(engine=>engine.status()))});
       const engineRoute=url.pathname.match(/^\/api\/ai\/engines\/(codex|grok|claude)\/(install|login|cancel|logout)$/);
       if(request.method==='POST'&&engineRoute){
@@ -558,7 +567,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       }
       send(404,{error:'This endpoint was not found.',code:'NOT_FOUND'});
     } catch(error) {
-      if(!response.headersSent) send(error.status || 500,{error:error instanceof ApiError || error.publicMessage===true ? error.message : 'The local service could not complete this operation.',code:error.code || 'SERVICE_ERROR',...(error.aiUsage?{usage:error.aiUsage}:{})});
+      if(!response.headersSent) send(error.status || 500,{error:error instanceof ApiError || error.publicMessage===true ? error.message : 'The local service could not complete this operation.',code:error.code || 'SERVICE_ERROR',...(error.aiUsage?{usage:error.aiUsage}:{}),...(typeof error.retryable==='boolean'?{retryable:error.retryable}:{}),...(typeof error.truncated==='boolean'?{truncated:error.truncated}:{}),...(error.finishReason?{finishReason:error.finishReason}:{})});
       else response.end();
     }
   });

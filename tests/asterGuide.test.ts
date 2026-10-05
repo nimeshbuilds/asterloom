@@ -15,6 +15,7 @@ describe('Aster guidance policy',()=>{
   expect(shouldOfferAsterTip(context,{mode:'helpful',dismissed:[]},{shown:4,lastShownAt:-Infinity},100000)).toBe(false);
   expect(shouldOfferAsterTip(context,{mode:'helpful',dismissed:[]},{shown:1,lastShownAt:99000},100000)).toBe(false);
   expect(shouldOfferAsterTip({...context,mode:'play'},{mode:'helpful',dismissed:[]},{shown:0,lastShownAt:-Infinity},100000)).toBe(false);
+  expect(shouldOfferAsterTip({...context,creationRunning:true},{mode:'helpful',dismissed:[]},{shown:0,lastShownAt:-Infinity},100000)).toBe(false);
  });
  it('announces only explicit committed finite scores and remembers each event separately',()=>{
   const feedback={outcome:'success' as const,eventKey:'saved-1',committed:true,score:{value:3,max:4,xp:20}};

@@ -16,7 +16,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { ArrowDown, ArrowUp, ArrowRight, BookOpen, Check, CheckCircle2, CircleHelp, GripVertical, Lightbulb, RotateCcw } from 'lucide-react';
 import { evaluateActivity, validateActivity } from '../lib/structuredEngine';
 import type { ActivityResponse, Evaluation, StructuredActivity } from '../lib/structuredEngine';
-import type { Notebook, NotebookArtwork, Source } from '../types';
+import type { Notebook, NotebookArtwork, Progress, Source } from '../types';
 import {createNotebook} from '../lib/utils';
 import {scaffoldById} from '../data/scaffolds';
 import LearningBriefing from './LearningBriefing';
@@ -45,6 +45,8 @@ export type ActivityEvaluation = Evaluation;
 export interface StructuredBoardProps {
   activity: StructuredActivity;
   notebook?: Notebook;
+  /** Only acknowledged saved progress should be supplied here. */
+  progress?: Progress;
   sources: Source[];
   artwork?: NotebookArtwork[];
   savedResponse?: unknown;
@@ -90,7 +92,7 @@ function restoredResponse(activity: StructuredActivity, saved?: unknown): Activi
   }
 }
 
-export default function StructuredBoard({ activity, notebook, sources, artwork, savedResponse, onSave, onComplete, onCommit, onRetrySave, ageGroup = 'adult', theme = 'islands', scaffoldId }: StructuredBoardProps) {
+export default function StructuredBoard({ activity, notebook, progress, sources, artwork, savedResponse, onSave, onComplete, onCommit, onRetrySave, ageGroup = 'adult', theme = 'islands', scaffoldId }: StructuredBoardProps) {
   const [response, setResponse] = useState<ActivityResponse>(() => restoredResponse(activity, savedResponse));
   const currentResponse = useRef(response);
   currentResponse.current = response;
@@ -194,7 +196,7 @@ export default function StructuredBoard({ activity, notebook, sources, artwork, 
   }
   function restart() { setShowHint(false); setSelectedLabel(''); setEdgeFrom(''); setEdgeTo(''); setEdgeRelation(''); change(restoredResponse(activity), { showHint: false, hintUsed, selectedLabel: '', edgeFrom: '', edgeTo: '', edgeRelation: '' }); setAnnouncement('A fresh attempt is ready.'); }
   if (!validation.success) return <div className="structured-notice warning" role="alert"><strong>This activity needs an author’s attention.</strong><p>{validation.errors.slice(0, 3).join(' ')}</p></div>;
-  const companion=<AsterGuide notebook={teachingNotebook} mode={lessonUnlocked?'play':'study'} activityId={activity.id} expressions={missionPresentation?.asterDirection} onAssistance={async()=>{if(checkInFlight.current||assistanceInFlight.current)return false;assistanceInFlight.current=true;asterAssisted.current=true;setHintUsed(true);try{return await persist(currentResponse.current,{hintUsed:true})!==false;}catch{return false;}finally{assistanceInFlight.current=false;}}} feedback={result&&reactionEvent>0?{outcome:result.correct===true||result.outcome==='self-reviewed'||modelPracticeFeedback(activity,response)?.correct?'success':'retry',eventKey:`${activity.id}-${reactionEvent}`,committed:true,...((modelPracticeFeedback(activity,response)?.maxScore??result.maxScore)>0?{score:{value:modelPracticeFeedback(activity,response)?.score??result.score,max:modelPracticeFeedback(activity,response)?.maxScore??result.maxScore}}:{})}:undefined}/>;
+  const companion=<AsterGuide notebook={teachingNotebook} progress={progress} learningState={{title:activity.title,phase:savingResult?'saving':!lessonUnlocked?'lesson':result?'feedback':'answering',sourceId:activity.sourceRefs[0]?.sourceId,supported:asterAssisted.current||hintUsed||lessonQuestSupport(lessonPlan,lesson).assisted,saveFailed:!!saveError,lessonStage:lesson.stage,lessonStep:lesson.walkthroughStep+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:saveError?onRetrySave?'Keep this page open and choose Retry saving result.':'Keep this page open and choose Check my work to retry saving the result.':!lessonUnlocked?lesson.stage==='mission'?'Read the mission and accept it to begin the lesson.':lesson.stage==='context'?'Read the source context and continue to the walkthrough.':lesson.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':'Prepare your explanation and compare it with the source before entering the challenge.':result?.correct?'Return to the game world and choose another mission.':result?'Read the saved feedback, revise your work, then choose Check my work.':'Try a move in this activity, then choose Check my work.'}} mode={lessonUnlocked?'play':'study'} activityId={activity.id} expressions={missionPresentation?.asterDirection} onAssistance={async()=>{if(checkInFlight.current||assistanceInFlight.current)return false;assistanceInFlight.current=true;asterAssisted.current=true;setHintUsed(true);try{return await persist(currentResponse.current,{hintUsed:true})!==false;}catch{return false;}finally{assistanceInFlight.current=false;}}} feedback={result&&reactionEvent>0?{outcome:result.correct===true||result.outcome==='self-reviewed'||modelPracticeFeedback(activity,response)?.correct?'success':'retry',eventKey:`${activity.id}-${reactionEvent}`,committed:true,...((modelPracticeFeedback(activity,response)?.maxScore??result.maxScore)>0?{score:{value:modelPracticeFeedback(activity,response)?.score??result.score,max:modelPracticeFeedback(activity,response)?.maxScore??result.maxScore}}:{})}:undefined}/>;
   if (!lessonUnlocked) return <><LearningBriefing plan={lessonPlan} saved={lesson} onSave={saveLesson} onReady={()=>{}}/>{companion}</>;
   const referencedFigure = sources.find(source => source.kind === 'image' && typeof source.dataUrl === 'string' && /^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source.dataUrl) && activity.sourceRefs.some(reference => reference.sourceId === source.id));
   const practice=result?modelPracticeFeedback(activity,response):undefined;

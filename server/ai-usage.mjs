@@ -29,5 +29,5 @@ export function normalizeAIUsage(provider,raw){
 }
 export function generationResult(provider,model,result){
  const actualModels=Array.isArray(result.actualModels)?result.actualModels.filter(v=>typeof v==='string'&&v.length<=200).slice(0,20):typeof result.model==='string'&&result.model&&result.model!==model?[result.model.slice(0,200)]:undefined;
- return {text:result.text,usage:normalizeAIUsage(provider,result.usage),provider,model,...(actualModels?.length?{actualModels}: {})};
+ return {text:result.text,finishReason:result.finishReason||'completed',truncated:false,usage:normalizeAIUsage(provider,result.usage),provider,model,...(actualModels?.length?{actualModels}: {})};
 }

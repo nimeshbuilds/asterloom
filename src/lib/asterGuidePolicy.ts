@@ -4,7 +4,7 @@ import {hasCurrentActivityEvidence} from './scaffoldRuntime';
 import {sourceRevision} from './evidence';
 
 export type AsterMode='library'|'creation'|'world'|'play'|'study';
-export interface AsterGuideContext {notebook?:Notebook;mode:AsterMode;activityId?:string;creationStage?:string;feedback?:{outcome:'success'|'retry';eventKey:string;committed?:boolean;score?:{value:number;max?:number;xp?:number}}}
+export interface AsterGuideContext {notebook?:Notebook;mode:AsterMode;activityId?:string;creationStage?:string;creationRunning?:boolean;feedback?:{outcome:'success'|'retry';eventKey:string;committed?:boolean;score?:{value:number;max?:number;xp?:number}}}
 export interface AsterTip {id:string;title:string;text:string}
 export interface AsterPreferences {mode:'helpful'|'quiet'|'off';dismissed:string[]}
 export interface AsterSessionPolicy {shown:number;lastShownAt:number}
@@ -33,7 +33,7 @@ export function contextualAsterTip(context:AsterGuideContext):AsterTip {
  if(context.mode==='library')return make('welcome','A small start is enough','Choose one topic and add your own material. I can help you find your way as you build and learn.');
  if(context.mode==='creation'){
   if(!notebook?.sources.length)return make('add-sources','Begin with what you want to learn','Add a file, a link, or some notes. Then choose who the game is for and what you want to practice.');
-  if(context.creationStage)return make('creating','Your material is becoming a game','You can let this step finish. The game designer uses your source material to prepare the learning activities.');
+  if(context.creationRunning===true||context.creationStage&&context.creationRunning!==false)return make('creating','Your material is becoming a game','You can let this step finish. Open my local activity log to see saved checkpoints and the current step.');
   if(notebook.sources.some(source=>source.status!=='ready'))return make('prepare-source','One useful next step','Open material that needs preparation and add or review its readable text. Clear source material gives your game a stronger foundation.');
   return make('review-sources','A quick source check helps','Check that the imported text says what you expect, especially captions or text read from images. Keep the source’s examples and conditions.');
  }
@@ -55,6 +55,7 @@ export function contextualAsterTip(context:AsterGuideContext):AsterTip {
 }
 export function shouldOfferAsterTip(context:AsterGuideContext,preferences:AsterPreferences,session:AsterSessionPolicy,now:number):boolean {
  if(preferences.mode!=='helpful'||session.shown>=4||now-session.lastShownAt<90_000)return false;
+ if(context.mode==='creation'&&context.creationRunning===true)return false;
  if(context.mode==='play'&&(!context.feedback||context.feedback.committed!==true))return false;
  return !preferences.dismissed.includes(contextualAsterTip(context).id);
 }
