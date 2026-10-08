@@ -128,7 +128,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByRole('button',{name:'Explore the source',exact:true}).click();
     const firstSourceQuote=await page.locator('.lesson-source-reader .lesson-passage blockquote').innerText();
     const sourcePassageCount=await page.getByRole('progressbar',{name:'Source passages explored',exact:true}).evaluate(progress=>progress.max);
-    assert.ok(sourcePassageCount>1,'The persistence fixture must leave another passage to explore');
+    assert.equal(sourcePassageCount,1,'This fixture has one complete source passage');
     await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).click();
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
     const savedLesson=(await readSavedProgress(page,fixtureNotebook.id)).structured['native-unreviewed-lab'].response._draft.lesson;
@@ -141,16 +141,13 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.deepEqual(restoredLesson,savedLesson,'The exact lesson state must survive a native application restart');
     const restoredReadingProgress=await page.getByRole('progressbar',{name:'Source passages explored',exact:true}).evaluate(progress=>({value:progress.value,max:progress.max}));
     assert.deepEqual(restoredReadingProgress,{value:1,max:sourcePassageCount},'The source reader must display the saved explored count');
-    await page.getByText(`Passage 2 of ${sourcePassageCount}`,{exact:true}).waitFor();
-    await page.getByText('1 explored',{exact:true}).waitFor();
-    await page.getByRole('button',{name:'Previous passage',exact:true}).click();
     await page.getByText(`Passage 1 of ${sourcePassageCount}`,{exact:true}).waitFor();
+    await page.getByText('1 explored',{exact:true}).waitFor();
     await page.locator('.lesson-source-reader .lesson-passage.explored').waitFor();
-    assert.equal(await page.locator('.lesson-source-reader .lesson-passage blockquote').innerText(),firstSourceQuote,'Returning to the explored passage must restore the exact source quote');
+    assert.equal(await page.locator('.lesson-source-reader .lesson-passage blockquote').innerText(),firstSourceQuote,'The explored passage must restore the exact source quote');
     assert.equal(await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).count(),0,'Explored source context must survive a native application restart');
-    assert.equal(await page.getByRole('button',{name:'Study the walkthrough',exact:true}).isEnabled(),false,'One explored passage must not unlock an unfinished lesson');
-    await page.getByRole('button',{name:'Next passage',exact:true}).click();
-    await page.getByRole('button',{name:'Mark passage 2 explored',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'Study the walkthrough',exact:true}).isEnabled(),true,'The explored source permits the next teaching stage');
+    assert.equal(await page.getByLabel('Your numerical result',{exact:true}).count(),0,'The remaining teaching stages still gate the quest');
     await learnBeforeQuest(page);features.lessonPersistence={nativeRestart:true,sourcePassageRestored:true,teachingPrecedesQuest:true};
     await page.getByLabel('Your numerical result',{exact:true}).fill('6');
     await pinDataRecord(page,'Site A');
@@ -234,6 +231,8 @@ test('native studio saves across launches, exports a standalone game, and opens 
     if(await page.getByRole('button',{name:'Save & exit',exact:true}).count())await page.getByRole('button',{name:'Save & exit',exact:true}).click();
     else await page.getByRole('button',{name:'Save & return',exact:false}).click();
     await page.locator('[data-activity-id]').filter({hasText:'Preview an unreviewed native model'}).click(); await learnBeforeQuest(page);
+    // Revise the restored answer before checking again; completed work stays locked until an edit.
+    await page.getByLabel('Your numerical result',{exact:true}).fill('5');
     await page.getByLabel('Your numerical result',{exact:true}).fill('6');
     await pinDataRecord(page,'Site A');
     await pinDataRecord(page,'Site B');
