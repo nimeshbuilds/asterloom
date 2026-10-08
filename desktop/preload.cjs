@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('asterloomDesktop',{
   listNotebookExports:id=>ipcRenderer.invoke('asterloom:list-notebook-exports',id),
   trashNotebookExports:(id,ids)=>ipcRenderer.invoke('asterloom:trash-notebook-exports',id,ids),
   clearNotebookCache:()=>ipcRenderer.invoke('asterloom:clear-notebook-cache'),
+  saveSourceMaterial:request=>ipcRenderer.invoke('asterloom:save-source-material',request),
   setTorEnabled:enabled=>ipcRenderer.invoke('asterloom:set-tor',enabled),
   getTorStatus:()=>ipcRenderer.invoke('asterloom:tor-status'),
 });

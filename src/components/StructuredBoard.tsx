@@ -1,4 +1,5 @@
 import AsterGuide from './AsterGuide';
+import SourceMaterials from './SourceMaterials';
 import {designedMission} from '../lib/gameDesign';
 import {modelPracticeFeedback,modelPracticeReflection} from '../lib/modelPractice';
 import SequenceWorkshop from './SequenceWorkshop';
@@ -127,6 +128,8 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   const [showHint, setShowHint] = useState(initialDraft.showHint === true);
   const [hintUsed, setHintUsed] = useState(initialDraft.hintUsed === true);
   const asterAssisted=useRef(initialDraft.hintUsed===true);
+  // Help read after checking belongs to the next revision, not the saved result.
+  const postResultAssistance=useRef(initialDraft.postResultAssistance===true);
   const [evidenceOpen, setEvidenceOpen] = useState(initialDraft.evidenceOpen === true);
   const [announcement, setAnnouncement] = useState('');
   const [savingResult, setSavingResult] = useState(false);
@@ -149,12 +152,12 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     checkRevision.current += 1; checkInFlight.current = false; assistanceInFlight.current = false; failedCheck.current = null; setSavingResult(false); setSaveError('');
     setReactionEvent(0);
     const draft = object(object(savedResponse)._draft), restored = restoredResponse(activity, savedResponse);
-    currentResponse.current = restored; asterAssisted.current = draft.hintUsed === true;
+    currentResponse.current = restored; asterAssisted.current = draft.hintUsed === true; postResultAssistance.current = draft.postResultAssistance === true;
     setResponse(restored); setResult(draft.checked === true ? evaluateActivity(activity, restored) : null); setShowHint(draft.showHint === true); setHintUsed(draft.hintUsed === true); setEvidenceOpen(draft.evidenceOpen === true);
     setEdgeFrom(typeof draft.edgeFrom === 'string' ? draft.edgeFrom : ''); setEdgeTo(typeof draft.edgeTo === 'string' ? draft.edgeTo : ''); setEdgeRelation(typeof draft.edgeRelation === 'string' ? draft.edgeRelation : ''); setSelectedLabel(typeof draft.selectedLabel === 'string' ? draft.selectedLabel : ''); setPrecisionOpen(draft.precisionOpen === true); setCaregiverPanelOpen(draft.caregiverPanelOpen === true); setWorldSelection(typeof draft.worldSelection === 'string' ? draft.worldSelection : ''); setAnnouncement('');
   }, [fingerprint]);
   function persistedResponse(next: ActivityResponse, draft: Record<string, unknown> = {}) {
-    return { ...next, _draft: { lesson, edgeFrom, edgeTo, edgeRelation, selectedLabel, showHint, hintUsed:hintUsed||asterAssisted.current, evidenceOpen, checked: Boolean(result), worldSelection, precisionOpen, caregiverPanelOpen, ...draft } };
+    return { ...next, _draft: { lesson, edgeFrom, edgeTo, edgeRelation, selectedLabel, showHint, hintUsed:hintUsed||asterAssisted.current, ...(postResultAssistance.current?{postResultAssistance:true}:{}), evidenceOpen, checked: Boolean(result), worldSelection, precisionOpen, caregiverPanelOpen, ...draft } };
   }
   function persist(next: ActivityResponse, draft: Record<string, unknown> = {}) {
     if(failedCheck.current&&!checkInFlight.current)return Promise.resolve(false);
@@ -165,7 +168,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     if (checkInFlight.current||failedCheck.current) return;
     currentResponse.current = next;
     gameActionFeedback(activityActionCue(response,next),teachingScaffold.id,ageGroup);
-    const supported = asterAssisted.current || hintUsed || ('caregiverSupport' in next && next.caregiverSupport === true) || ('sourceConsulted' in next && next.sourceConsulted === true);
+    const supported = asterAssisted.current || hintUsed || postResultAssistance.current || ('caregiverSupport' in next && next.caregiverSupport === true) || ('sourceConsulted' in next && next.sourceConsulted === true);
     if (supported) setHintUsed(true);
     setResponse(next); setResult(null); persist(next, { checked: false, ...draft, hintUsed: supported });
   }
@@ -176,7 +179,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     const revision = ++checkRevision.current;
     const retry = onRetrySave ? failedCheck.current : null;
     const assessed = retry ?? evaluateActivity(activity, checkedResponse);
-    const evaluation = { ...assessed, hintUsed: asterAssisted.current || hintUsed || assessed.hintUsed === true || lessonQuestSupport(lessonPlan,lesson).assisted };
+    const evaluation = { ...assessed, hintUsed: asterAssisted.current || hintUsed || postResultAssistance.current || assessed.hintUsed === true || lessonQuestSupport(lessonPlan,lesson).assisted };
     setSavingResult(true); setSaveError(''); setResult(null);
     if (evaluation.hintUsed) setHintUsed(true);
     try {
@@ -215,8 +218,17 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   }
   function restart() { if(checkInFlight.current||failedCheck.current)return;setShowHint(false); setSelectedLabel(''); setEdgeFrom(''); setEdgeTo(''); setEdgeRelation(''); change(restoredResponse(activity), { showHint: false, hintUsed, selectedLabel: '', edgeFrom: '', edgeTo: '', edgeRelation: '' }); setAnnouncement('A fresh attempt is ready.'); }
   if (!validation.success) return <div className="structured-notice warning" role="alert"><strong>This activity needs an author’s attention.</strong><p>{validation.errors.slice(0, 3).join(' ')}</p></div>;
-  const companion=<AsterGuide notebook={teachingNotebook} progress={progress} learningState={{title:activity.title,phase:savingResult?'saving':!lessonUnlocked?'lesson':result?'feedback':'answering',sourceId:activity.sourceRefs[0]?.sourceId,supported:asterAssisted.current||hintUsed||lessonQuestSupport(lessonPlan,lesson).assisted,saveFailed:!!saveError,lessonStage:lesson.stage,lessonStep:lesson.walkthroughStep+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:saveError?onRetrySave?'Keep this page open and choose Retry saving result.':'Keep this page open and choose Check my work to retry saving the result.':!lessonUnlocked?lesson.stage==='mission'?'Read the mission and accept it to begin the lesson.':lesson.stage==='context'?'Read the source context and continue to the walkthrough.':lesson.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':'Prepare your explanation and compare it with the source before entering the challenge.':result?.correct||practice?.correct||reflected?'Return to the game world and choose another mission.':result?'Read the saved feedback, revise your work, then choose Check my work.':'Try a move in this activity, then choose Check my work.'}} mode={lessonUnlocked?'play':'study'} activityId={activity.id} expressions={missionPresentation?.asterDirection} onAssistance={async()=>{if(checkInFlight.current||failedCheck.current||assistanceInFlight.current)return false;assistanceInFlight.current=true;asterAssisted.current=true;setHintUsed(true);try{return await persist(currentResponse.current,{hintUsed:true})!==false;}catch{return false;}finally{assistanceInFlight.current=false;}}} feedback={result&&reactionEvent>0&&!reflected?{outcome:result.correct===true||result.outcome==='self-reviewed'||practice?.correct?'success':'retry',eventKey:`${activity.id}-${reactionEvent}`,committed:true,...((practice?.maxScore??result.maxScore)>0?{score:{value:practice?.score??result.score,max:practice?.maxScore??result.maxScore}}:{})}:undefined}/>;
-  if (!lessonUnlocked) return <><LearningBriefing plan={lessonPlan} saved={lesson} onSave={saveLesson} onReady={()=>{}}/>{companion}</>;
+  const sourceAssistance=async()=>{
+    if(checkInFlight.current||failedCheck.current||assistanceInFlight.current)return false;
+    assistanceInFlight.current=true;
+    if(result)postResultAssistance.current=true;
+    else{asterAssisted.current=true;setHintUsed(true);}
+    try{return await persist(currentResponse.current,{hintUsed:result?hintUsed||asterAssisted.current:true})!==false;}
+    catch{return false;}finally{assistanceInFlight.current=false;}
+  };
+  const companion=<AsterGuide notebook={teachingNotebook} progress={progress} learningState={{title:activity.title,phase:savingResult?'saving':!lessonUnlocked?'lesson':result?'feedback':'answering',sourceId:activity.sourceRefs[0]?.sourceId,supported:asterAssisted.current||hintUsed||lessonQuestSupport(lessonPlan,lesson).assisted,saveFailed:!!saveError,lessonStage:lesson.stage,lessonStep:lesson.walkthroughStep+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:saveError?onRetrySave?'Keep this page open and choose Retry saving result.':'Keep this page open and choose Check my work to retry saving the result.':!lessonUnlocked?lesson.stage==='mission'?'Read the mission and accept it to begin the lesson.':lesson.stage==='context'?'Read the source context and continue to the walkthrough.':lesson.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':'Prepare your explanation and compare it with the source before entering the challenge.':result?.correct||practice?.correct||reflected?'Return to the game world and choose another mission.':result?'Read the saved feedback, revise your work, then choose Check my work.':'Try a move in this activity, then choose Check my work.'}} mode={lessonUnlocked?'play':'study'} activityId={activity.id} expressions={missionPresentation?.asterDirection} onAssistance={sourceAssistance} feedback={result&&reactionEvent>0&&!reflected?{outcome:result.correct===true||result.outcome==='self-reviewed'||practice?.correct?'success':'retry',eventKey:`${activity.id}-${reactionEvent}`,committed:true,...((practice?.maxScore??result.maxScore)>0?{score:{value:practice?.score??result.score,max:practice?.maxScore??result.maxScore}}:{})}:undefined}/>;
+  const materials=<div className="structured-materials-toolbar"><SourceMaterials notebook={teachingNotebook} beforeDownload={sourceAssistance} disabled={savingResult||!!saveError}/></div>;
+  if (!lessonUnlocked) return <>{materials}<LearningBriefing plan={lessonPlan} saved={lesson} onSave={saveLesson} onReady={()=>{}}/>{companion}</>;
   const referencedFigure = sources.find(source => source.kind === 'image' && typeof source.dataUrl === 'string' && /^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source.dataUrl) && activity.sourceRefs.some(reference => reference.sourceId === source.id));
   const hints = practice?.details ?? result?.details ?? [];
   const detailClass = (id: string) => result?.valid ? hints.find(detail => detail.id === id)?.correct === true ? ' is-correct' : hints.find(detail => detail.id === id)?.correct === false ? ' needs-revision' : '' : '';
@@ -224,6 +236,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   const scene = activityScene(activity, response);
   const palette = WORLD_PALETTES[theme] ?? WORLD_PALETTES.islands;
   return <section className={`structured-board board-${activity.kind} presentation-${presentation.density}`} data-age={presentation.id} data-theme={theme} aria-busy={savingResult} aria-label={activity.title} style={{'--world-ink':palette.ink,'--world-accent':palette.accent,'--world-tint':palette.sky,'--world-paper':palette.paper} as CSSProperties}>
+    {materials}
     <header className="structured-heading"><div><span className="structured-kicker">{ACTIVITY_KIND_LABELS[activity.kind]}</span><h2 ref={questHeading} tabIndex={-1}>{activity.title}</h2></div><span className="structured-badge">{activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Reflection' : 'Hands-on challenge'}</span></header>
     <div className="quest-learning-status"><BookOpen size={16}/><span>Lesson complete · {lessonQuestSupport(lessonPlan,lesson).assisted?'Apply what you just learned':'Independent retrieval'}</span><button type="button" disabled={savingResult||!!saveError} onClick={()=>void saveLesson(initialLessonState(lessonPlan))}>Revisit the lesson</button></div>
     <p className="structured-instruction">{activity.instruction}</p>

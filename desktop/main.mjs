@@ -8,6 +8,7 @@ import {createGameBundle,findTemplate,loadEmbeddedGame,readGame,normalizeTarget}
 import {isUniversalMacApp} from './architectures.mjs';
 import {exportNotebookArchive,importNotebookArchive} from './media-archive.mjs';
 import {createExportRegistry} from './export-registry.mjs';
+import {saveSourceMaterial} from './source-downloads.mjs';
 
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
@@ -77,6 +78,15 @@ app.whenReady().then(async()=>{try{
   await configureTorProxy(service.torStatus());
   const exportRegistry=await createExportRegistry({directory:app.getPath('userData'),currentBundle:currentBundle(),trashItem:filename=>shell.trashItem(filename)});
   ipcMain.handle('asterloom:clear-notebook-cache',async event=>{if(!ownFrame(event))return {error:'This action is unavailable.'};try{await window.webContents.session.clearCache();return {cleared:true};}catch{return {error:'The local playback cache could not be cleared.'};}});
+  let sourceDownloadBusy=false;
+  ipcMain.handle('asterloom:save-source-material',async(event,request)=>{
+    if(!ownFrame(event))return {error:'Only this application can save a source material.'};
+    if(sourceDownloadBusy)return {error:'Finish the current source download before starting another.'};
+    sourceDownloadBusy=true;
+    try{return await saveSourceMaterial(request,{chooseDestination:options=>dialog.showSaveDialog(window,options),resolveAsset:service.media.resolveAsset});}
+    catch(error){return {error:error.message||'The source material could not be saved. Check the destination and available storage.'};}
+    finally{sourceDownloadBusy=false;}
+  });
   ipcMain.handle('asterloom:list-notebook-exports',async(event,id)=>{if(!ownFrame(event)||typeof id!=='string'||id.length>200)return {error:'Choose a notebook in this application.'};try{return {exports:await exportRegistry.list(id)};}catch{return {error:'Saved export locations could not be read. Their copies were kept.'};}});
   ipcMain.handle('asterloom:trash-notebook-exports',async(event,id,ids)=>{if(!ownFrame(event)||exporting)return {error:'Finish the current export before removing its copies.'};try{return await exportRegistry.trash(id,ids);}catch{return {error:'An export changed or is not owned by this notebook. Its files were kept.'};}});
   ipcMain.handle('asterloom:tor-status',event=>ownFrame(event)?{...service.torStatus(),proxyConfigured}:{error:'This action is unavailable.'});
