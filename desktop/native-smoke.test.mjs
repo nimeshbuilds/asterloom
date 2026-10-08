@@ -41,9 +41,11 @@ function fixturePdf(){
 
 // Intel emulation includes real speech recognition, OCR, model inference and
 // several complete Universal app copies. Give Rosetta its measured headroom;
+// Concurrent renderer QA measured a complete Rosetta workflow at about ten
+// minutes before cleanup. Allow fifteen minutes for the whole workflow;
 // individual operations keep their own bounded waits and all assertions run.
 const emulatedIntel=process.platform==='darwin'&&process.arch==='arm64'&&process.env.ASTERLOOM_SMOKE_ARCH==='x64';
-const workflowTimeout=process.platform==='darwin'&&process.env.ASTERLOOM_SMOKE_ARCH==='x64'?600000:360000;
+const workflowTimeout=process.platform==='darwin'&&process.env.ASTERLOOM_SMOKE_ARCH==='x64'?900000:360000;
 // Rosetta can finish launching a freshly exported Universal app just as the
 // default30s debugger-attachment deadline expires. Keep an explicit bound
 // for this emulated architecture; native platform launches retain30s.
