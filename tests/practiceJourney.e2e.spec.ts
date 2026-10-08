@@ -29,10 +29,10 @@ test('unreviewed real-App success rewards only its exact saved snapshot and rest
  await page.evaluate(()=>(window as any).journeyQA.mode='hold');await page.getByRole('button',{name:'Check my work',exact:true}).click();await expect.poll(()=>page.evaluate(()=>(window as any).journeyQA.pending.length)).toBe(1);await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('0 XP');await expect(page.locator('.structured-feedback')).toHaveCount(0);expect(await cues(page)).toEqual([]);
  const failed=await page.evaluate(()=>(window as any).journeyQA.pending[0].progress);expect(failed.practice.xp).toBe(20);expect(failed.xp).toBe(0);expect(failed.structured['restore-service'].completed).toBe(false);expect(failed.structured['restore-service'].review).toBeUndefined();await page.evaluate(()=>(window as any).journeyQA.release(false));await expect(page.locator('.structured-save-error')).toBeVisible();await expect(page.locator('.structured-workspace')).toHaveAttribute('inert','');await page.getByRole('dialog').getByRole('button',{name:'Close dialog',exact:true}).click();expect((await durable(page)).practice).toBeUndefined();expect(await cues(page)).toEqual([]);
  const writes=await page.evaluate(()=>(window as any).journeyQA.writes.length);await page.getByRole('button',{name:'Start over',exact:true}).dispatchEvent('click');expect(await page.evaluate(()=>(window as any).journeyQA.writes.length)).toBe(writes);
- await page.evaluate(()=>(window as any).journeyQA.mode='immediate');await page.getByRole('button',{name:'Retry saving result',exact:true}).click();await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('20 XP');await expect(hud(page).locator('[data-hud=practice-xp]')).toHaveText('20 practice XP · 0 challenge XP');await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','full');expect(await page.evaluate(()=>(window as any).journeyQA.writes.at(-1))).toEqual(failed);expect(await cues(page)).toMatchObject([{args:['success','process-reconstruction','adult'],played:true,durable:{practice:{xp:20}}}]);
+ await page.evaluate(()=>(window as any).journeyQA.mode='immediate');await page.getByRole('button',{name:'Retry saving result',exact:true}).click();await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('20 XP');await expect(hud(page).locator('[data-hud=practice-xp]')).toHaveText('20 practice XP · 0 challenge XP');await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','full');expect(await page.evaluate(()=>(window as any).journeyQA.writes.at(-1))).toEqual(failed);expect(await cues(page)).toMatchObject([{args:['complete','process-reconstruction','adult'],played:true,durable:{practice:{xp:20}}}]);
  const portable=await page.evaluate(()=>(window as any).journeyQA.portable());expect(JSON.parse(portable).progress.practice.xp).toBe(20);await page.evaluate(text=>(window as any).journeyQA.restore(text),portable);
  await openGame(page);await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('20 XP');await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','still');expect(await page.locator('.structured-feedback .ae-emblem').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');expect(await cues(page)).toEqual([]);
- await page.getByRole('button',{name:'Check my work',exact:true}).click();await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','full');expect((await durable(page)).practice.xp).toBe(20);expect((await durable(page)).mastery).toBe(0);expect(Object.keys((await durable(page)).practice.awards)).toHaveLength(1);
+ await expect(page.getByRole('button',{name:'Challenge complete',exact:true})).toBeDisabled();await page.getByRole('button',{name:'Move Restore the dependency down',exact:true}).click();await page.getByRole('button',{name:'Move Restore the dependency up',exact:true}).click();await page.getByRole('button',{name:'Check my work',exact:true}).click();await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','full');expect((await durable(page)).practice.xp).toBe(20);expect((await durable(page)).mastery).toBe(0);expect(Object.keys((await durable(page)).practice.awards)).toHaveLength(1);
  await page.evaluate(()=>(window as any).journeyQA.markReviewed());await openGame(page);await expect(page.locator('.structured-feedback')).toContainText('Your work holds together');const reviewed=await durable(page);expect(reviewed.practice.xp).toBe(20);expect(reviewed.xp).toBe(0);expect(reviewed.structured['restore-service'].review?.independentSuccesses??0).toBe(0);expect(apiRequests.filter(name=>name.includes('/generate'))).toEqual([]);
 });
 test('fresh supported recall earns once without mastery; reload is static and completion waits for saving',async({page})=>{
@@ -84,4 +84,40 @@ test('a delayed fresh attempt locks old edits and retries its exact failed reset
  const cancelWrites=await page.evaluate(()=>(window as any).journeyQA.writes.length);await page.getByRole('button',{name:'Keep previous attempt',exact:true}).click();await expect(layout).not.toHaveAttribute('inert','');await expect(page.locator('.save-state')).toContainText('Saved on this device');expect(await durable(page)).toEqual(beforeCancel);expect(await page.evaluate(()=>(window as any).journeyQA.writes.length)).toBe(cancelWrites);
  await page.evaluate(()=>(window as any).journeyQA.mode='immediate');await page.getByRole('button',{name:'Save & return',exact:false}).click();await page.locator('.breadcrumbs').getByRole('button',{name:'Your games',exact:true}).click();await page.getByRole('button',{name:'Open Practice model journey',exact:true}).click();await page.getByRole('button',{name:'Explore this chapter',exact:true}).click();await page.getByRole('button',{name:'Pin passage 1',exact:true}).click();await page.getByLabel('Explain what this passage helps you understand',{exact:true}).fill('The dependency must be restored before the service restarts.');await page.getByRole('button',{name:'Save this discovery',exact:true}).click();await expect(page.getByRole('button',{name:'Discovery saved',exact:true})).toBeVisible();const withNote=await durable(page);expect(withNote.practice.xp).toBe(25);expect(Object.values(withNote.studies)).toEqual([expect.objectContaining({completed:true,note:'The dependency must be restored before the service restarts.'})]);expect(withNote.structured).toEqual(beforeCancel.structured);expect(withNote.xp).toBe(50);expect(withNote.independentActivityAwards).toEqual(beforeCancel.independentActivityAwards);
  await page.reload();expect((await durable(page)).studies).toEqual(withNote.studies);expect((await durable(page)).practice).toEqual(withNote.practice);await expect(page.getByRole('button',{name:'Retry starting fresh attempt',exact:true})).toHaveCount(0);
+});
+
+test('generated reflections earn participation once after all criteria, without grading or mastery',async({page})=>{
+ await openGame(page,'reflection');
+ await expect(page.getByRole('heading',{name:'Reflect on the restoration',exact:true})).toBeVisible();
+ await page.getByRole('group',{name:'Explain the order',exact:true}).getByRole('radio').nth(1).check();
+ await page.getByRole('button',{name:'Save my reflection',exact:true}).click();
+ await expect(page.locator('.structured-feedback')).toBeVisible();
+ let saved=await durable(page);expect(saved.practice?.xp??0).toBe(0);expect(saved.xp).toBe(0);
+ await page.getByRole('group',{name:'Explain the dependency',exact:true}).getByRole('radio').first().check();
+ await expect.poll(async()=>(await durable(page)).structured['reflect-restoration'].response.ratings.reason).toBe(0);
+ await page.evaluate(()=>(window as any).journeyQA.mode='hold');
+ await page.getByRole('button',{name:'Save my reflection',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>(window as any).journeyQA.pending.length)).toBe(1);
+ await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('0 XP');
+ const pending=await page.evaluate(()=>(window as any).journeyQA.pending[0].progress);
+ expect(pending.practice.xp).toBe(20);expect(pending.xp).toBe(0);
+ await page.evaluate(()=>(window as any).journeyQA.release(true));
+ await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('20 XP');
+ await expect(page.locator('.structured-feedback')).toContainText('Your reflection is saved');
+ await expect(page.locator('.structured-feedback')).toContainText('not automatically graded');
+ saved=await durable(page);
+ expect(saved.mastery).toBe(0);expect(saved.structured['reflect-restoration'].completed).toBe(false);
+ expect(saved.structured['reflect-restoration'].review).toBeUndefined();expect(saved.structured['reflect-restoration'].score).toBe(0);
+ expect(Object.keys(saved.practice.awards)).toHaveLength(1);
+ await page.evaluate(()=>(window as any).journeyQA.mode='immediate');
+ // Change the self-rating after saving: participation is the same objective,
+ // regardless of whether the learner chooses a low or high confidence level.
+ await page.getByRole('group',{name:'Explain the dependency',exact:true}).getByRole('radio').nth(1).check();
+ await page.getByRole('button',{name:'Save my reflection',exact:true}).click();
+ await expect(page.locator('.structured-feedback')).toContainText('Your reflection is saved');
+ expect((await durable(page)).practice).toEqual(saved.practice);
+ await openGame(page,'reflection');
+ await expect(hud(page).locator('[data-hud=total-xp] strong')).toHaveText('20 XP');
+ await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','still');
+ expect(await cues(page)).toEqual([]);expect((await durable(page)).practice).toEqual(saved.practice);
 });

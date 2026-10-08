@@ -4,7 +4,7 @@ import {validateActivity} from './structuredEngine';
 import {validateAILearningPlan,type AILearningMission} from './aiLearningPlan';
 import {validateAIUsageReceipts,type AIUsageReceipt} from './aiUsage';
 import {validateGameAudioDirection,type GameAudioDirection} from './gameArtDirection';
-import {buildDirectorSourceInventory,directorInputRevision,type DirectorSourceUnit} from './gameDirectorSources';
+import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit} from './gameDirectorSources';
 import {GAME_FAMILY_RECIPES,type GameDraftKind} from './gameDraftAdapters';
 import {scaffoldById} from '../data/scaffolds';
 import {fitsSpecificContract} from './scaffoldRuntime';
@@ -114,6 +114,13 @@ export function designedMission(design:GameDesign|undefined,activityId:string){
  for(const batch of design?.batches??[]){if(batch.status!=='checked')continue;const draft=batch.drafts?.find(d=>d.activity.id===activityId),plan=batch.missions?.find(m=>m.id===draft?.missionId);if(draft&&plan&&batch.checks?.some(c=>c.missionId===draft.missionId&&c.decision==='retain'))return{...plan,activityId,audioDirection:draft.audioDirection};}
 }
 
+/** The source window retains code and surrounding qualifiers for the reviewer;
+ * activity and teaching citations cannot turn code into an inferred lesson model. */
+export function validateGameMissionProse(unit:DirectorSourceUnit,notebook:Pick<Notebook,'sources'>,activity:StructuredActivity,teaching:AILearningMission):void {
+ const citations=[...teaching.conceptExplanation.citations,...teaching.chunks.flatMap(chunk=>chunk.citations),...(teaching.workedExample?[teaching.workedExample.sourceEvidence,...teaching.workedExample.steps.flatMap(step=>step.citations)]:[])];
+ assertDirectorProseEvidence(unit,notebook.sources,[...activity.sourceRefs,...citations.map(reference=>({sourceId:reference.sourceId,evidence:reference.quote,start:reference.start,end:reference.end}))]);
+}
+
 /** Source/model caches are disposable; historical provider measurements survive their invalidation. */
 export function validateGameDesign(value:unknown,notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>):GameDesign {
  const v=obj(value,'game design');fields(v,['version','inputRevision','status','provider','units','batches','unavailableSources','receipts','events','generatedModels','audioDirection','visualDirection'],'Game design');
@@ -124,7 +131,11 @@ export function validateGameDesign(value:unknown,notebook:Pick<Notebook,'sources
  const fresh=emptyGameDesign(notebook,provider,receipts,generatedModels);
  if(typeof v.inputRevision!=='string'||!/^[a-f0-9]{64}$/.test(v.inputRevision))throw new Error('Invalid game input revision.');
  if(v.inputRevision!==fresh.inputRevision)return fresh;
- if(!exact(v.units,fresh.units)||!exact(v.unavailableSources,fresh.unavailableSources))throw new Error('The game’s source coverage does not match the current material.');
+ // Earlier versions excluded an entire mixed prose/code unit. Its source identity,
+ // ranges, batches and prior decisions remain valid; normalize only that known pair
+ // of eligibility fields, never clear ready work or recount provider receipts.
+ const legacyUnits=fresh.units.map(unit=>unit.limitation===MIXED_CODE_PROSE_LIMITATION?{...unit,missionEligible:false,limitation:LEGACY_CODE_STUDY_LIMITATION}:unit);
+ if((!exact(v.units,fresh.units)&&!exact(v.units,legacyUnits))||!exact(v.unavailableSources,fresh.unavailableSources))throw new Error('The game’s source coverage does not match the current material.');
  const units=buildDirectorSourceInventory(notebook).units,batches=list(v.batches,'game batches',2000).map((raw,index):GameDesignBatch=>{
   const b=obj(raw,'game batch');fields(b,['id','unitIds','status','missions','study','drafts','checks'],'Game batch');const expected=fresh.batches[index];
   if(!expected||b.id!==expected.id||!exact(b.unitIds,expected.unitIds)||!['pending','planned','written','checked'].includes(String(b.status)))throw new Error('Invalid game batch coverage.');
@@ -137,6 +148,7 @@ export function validateGameDesign(value:unknown,notebook:Pick<Notebook,'sources
    const checked=validateActivity(d.activity,notebook.sources);if(!checked.success||checked.value.kind!==plan.kind||!fitsSpecificContract(plan.scaffoldId,checked.value)||checked.value.reviewStatus!=='needs-review'||!exact(checked.value.scaffoldIds,[plan.scaffoldId]))throw new Error('Invalid cached practice model.');
    const unit=units.find(u=>u.id===plan.unitId)!;if(checked.value.sourceRefs.some(r=>r.sourceId!==unit.sourceId||!unit.excerpt.includes(r.evidence)))throw new Error('The cached mission left its disclosed source unit.');
    const teaching=validateAILearningPlan({version:1,missions:[d.teaching]},{...notebook,activities:[checked.value]}).missions[0];if(teaching.reviewStatus!=='needs-review')throw new Error('Generated teaching cannot approve itself.');
+   validateGameMissionProse(unit,notebook,checked.value,teaching);
    const audioErrors=validateGameAudioDirection(d.audioDirection,{ageGroup:notebook.ageGroup,scaffoldId:plan.scaffoldId,activityKind:plan.kind,theme:plan.visualDirection.scene});if(audioErrors.length)throw new Error(audioErrors[0]);
    return{missionId:plan.id,activity:checked.value,teaching,audioDirection:d.audioDirection as GameAudioDirection};
   });

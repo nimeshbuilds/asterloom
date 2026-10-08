@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
-import {modelPracticeFeedback,modelPracticeResponse,savedModelPracticeFeedback} from '../src/lib/modelPractice';
-import {evaluateActivity,type SequenceActivity} from '../src/lib/structuredEngine';
+import {modelPracticeFeedback,modelPracticeReflection,modelPracticeResponse,savedModelPracticeFeedback} from '../src/lib/modelPractice';
+import {evaluateActivity,type SequenceActivity,type RubricActivity} from '../src/lib/structuredEngine';
 import {puppetStoryFixture} from '../src/data/childPlayFixtures';
 import {initialChildPlayResponse,advanceChildPlay} from '../src/lib/childPlayEngine';
 import {pictureDiscoveryFixture} from '../src/data/pictureFixtures';
@@ -66,4 +66,22 @@ describe('model practice feedback stays separate from learning credit',()=>{
   const inherited=Object.assign(Object.create({_draft:{checked:true}}),{order:['restore','restart']});expect(modelPracticeResponse(inherited)).toBe(inherited);
   for(const value of [null,42,'answer',[]])expect(modelPracticeResponse(value)).toBe(value);
  });
+});
+
+it('keeps actionable rule feedback for generated games without granting reviewed mastery',()=>{
+ const failed=modelPracticeFeedback(activity,{order:['restart','restore']});
+ expect(failed?.correct).toBe(false);
+ expect(failed?.details.some(detail=>detail.correct===false&&detail.message.length>0)).toBe(true);
+ const solved=modelPracticeFeedback(activity,{order:['restore','restart']});
+ expect(solved?.details.every(detail=>detail.correct!==false)).toBe(true);
+ expect(evaluateActivity(activity,{order:['restore','restart']}).outcome).toBe('draft-preview');
+});
+
+
+it('acknowledges a completed source reflection without pretending it was automatically correct',()=>{
+ const reflection:RubricActivity={version:1,id:'reflection',kind:'rubric',mode:'self-assessment',title:'Reflect on the decision',instruction:'Review your source observation.',sample:'How did the conditions shape your decision?',criteria:[{id:'conditions',label:'I considered the stated conditions',levels:['I need another look','I can explain the conditions']}],sourceRefs:activity.sourceRefs,reviewStatus:'needs-review',explanation:'Compare your reflection with the source.',hint:'Keep the conditions with the decision.'};
+ expect(modelPracticeReflection(reflection,{ratings:{conditions:-1}})).toBe(false);
+ expect(modelPracticeReflection(reflection,{ratings:{conditions:1}})).toBe(true);
+ expect(modelPracticeFeedback(reflection,{ratings:{conditions:1}})).toBeUndefined();
+ expect(evaluateActivity(reflection,{ratings:{conditions:1}})).toMatchObject({valid:false,correct:null,score:0,outcome:'draft-preview'});
 });

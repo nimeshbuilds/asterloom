@@ -3,6 +3,7 @@ import type { StructuredActivity } from './structuredEngine';
 import { isCurrentEvidence, sourceRevision, textDigest, validateLearningObjectives } from './evidence';
 import { isReadyLearningSource } from './scaffoldRuntime';
 import {isLearningContentRange} from './sourceContent';
+import {explicitSourceProcedures} from './sourceUnits';
 
 /** AI wording is a reviewed authoring artifact. Exact citations establish provenance,
  * not the truth of a paraphrase; the portable player never makes inference requests. */
@@ -82,7 +83,7 @@ function explanation(value:unknown,ageGroup:string,reference:(value:unknown)=>Ev
   if(wording.length>180&&citations.some(ref=>ref.quote.replace(/\s+/g,' ').toLowerCase().includes(normalized)))throw new Error('Explain the idea briefly in your own words; keep the long quotation in its citation.');
   return{text:wording,citations};
 }
-function teachingContent(value:unknown,ageGroup:string,reference:(value:unknown)=>EvidenceReference){
+function teachingContent(value:unknown,ageGroup:string,reference:(value:unknown)=>EvidenceReference,sources:Source[]){
   const raw=record(value,'AI teaching');fields(raw,['title','objective','conceptExplanation','chunks','guidedApplication','workedExample','storyFrame'],'AI teaching');
   const limits=AGE_LIMITS[ageGroup];if(!limits)throw new Error('Choose a supported teaching audience.');
   const chunks=list(raw.chunks,'short teaching chunks',2,limits.chunks).map((entry,index)=>{
@@ -98,7 +99,7 @@ function teachingContent(value:unknown,ageGroup:string,reference:(value:unknown)
   if(raw.workedExample!==undefined){
     const example=record(raw.workedExample,'worked example');fields(example,['title','sourceEvidence','steps'],'Worked example');
     const sourceEvidence=reference(example.sourceEvidence);
-    if(!/(?:\bworked example\b|\bfor example\b|\bexample\s*:|^(?:(?:the|source|training|supplied)\s+){0,2}(?:procedure|steps|method|workflow|instructions)\b[^\n]*[:\n])/im.test(sourceEvidence.quote))throw new Error('A worked example needs a source-provided example or explicitly labeled procedure.');
+    if(!/(?:\bworked example\b|\bfor example\b|\bexample\s*:|^(?:(?:the|source|training|supplied)\s+){0,2}(?:procedure|steps|method|workflow|instructions)\b[^\n]*[:\n])/im.test(sourceEvidence.quote)&&!explicitSourceProcedures(sources.find(source=>source.id===sourceEvidence.sourceId)!.text,sourceEvidence.start,sourceEvidence.end).length)throw new Error('A worked example needs a source-provided example or explicitly labeled procedure.');
     const steps=list(example.steps,'worked example steps',1,4).map(entry=>{const step=record(entry,'worked example step');fields(step,['title','text','citations'],'Worked example step');const explained=explanation({text:step.text,citations:step.citations},ageGroup,reference);if(explained.citations.some(ref=>ref.sourceId!==sourceEvidence.sourceId||ref.start<sourceEvidence.start||ref.end>sourceEvidence.end))throw new Error('Worked steps must cite the supplied example, not unrelated material.');return{title:text(step.title,'worked example step title',100),...explained};});
     workedExample={title:text(example.title,'worked example title',100),sourceEvidence,steps};
   }
@@ -114,7 +115,7 @@ export function validateAILearningMissionDraft(value:unknown,context:AILearningD
   const reference=(input:unknown)=>{const raw=record(input,'draft citation');fields(raw,['sourceId','evidence'],'Draft citation');if(raw.sourceId!==source.id)throw new Error('Teaching cited a source that was not disclosed for this mission.');const quote=text(raw.evidence,'exact teaching citation',1200);let relative=window.quote.indexOf(quote);if(relative<0)throw new Error('Teaching evidence must be an exact substring of its disclosed source unit.');while(relative>=0&&!isLearningContentRange(source.text,window.start+relative,window.start+relative+quote.length))relative=window.quote.indexOf(quote,relative+1);if(relative<0)throw new NonInstructionalTeachingEvidenceError();return exactReference(source,window.start+relative,window.start+relative+quote.length);};
   if(!activity.sourceRefs.length||activity.sourceRefs.some(ref=>ref.sourceId!==source.id||!window.quote.includes(ref.evidence)))throw new Error('Teaching and gameplay must use the same disclosed source unit.');
   if(activity.sourceRefs.some(ref=>!learningQuoteWithin(source,window,ref.evidence)))throw new NonInstructionalTeachingEvidenceError();
-  const content=teachingContent(value,ageGroup,reference);
+  const content=teachingContent(value,ageGroup,reference,sources);
   return{...content,activityId:activity.id,activityFingerprint:aiLearningActivityFingerprint(activity),ageGroup,sourceWindows:[window],guidedApplication:{...content.guidedApplication,activityId:activity.id},reviewStatus:'needs-review'};
 }
 function validateMission(value:unknown,notebook:Pick<Notebook,'activities'|'sources'|'ageGroup'>):AILearningMission{
@@ -127,7 +128,7 @@ function validateMission(value:unknown,notebook:Pick<Notebook,'activities'|'sour
   if(activity.sourceRefs.some(ref=>!sourceWindows.some(window=>window.sourceId===ref.sourceId&&learningQuoteWithin(notebook.sources.find(source=>source.id===ref.sourceId)!,window,ref.evidence))))throw new NonInstructionalTeachingEvidenceError();
   const reference=(input:unknown)=>{const ref=checkedReference(input,notebook.sources);if(!within(ref,sourceWindows))throw new Error('AI teaching cited material outside its disclosed source.');return ref;};
   const guide=record(raw.guidedApplication,'saved guided application');if(guide.activityId!==activity.id)throw new Error('Guided application points to a different mission.');fields(guide,['activityId','prompt','steps'],'Saved guided application');
-  const content=teachingContent({title:raw.title,objective:raw.objective,conceptExplanation:raw.conceptExplanation,chunks:raw.chunks,guidedApplication:{prompt:guide.prompt,steps:guide.steps},...(raw.workedExample===undefined?{}:{workedExample:raw.workedExample}),...(raw.storyFrame===undefined?{}:{storyFrame:raw.storyFrame})},notebook.ageGroup,reference);
+  const content=teachingContent({title:raw.title,objective:raw.objective,conceptExplanation:raw.conceptExplanation,chunks:raw.chunks,guidedApplication:{prompt:guide.prompt,steps:guide.steps},...(raw.workedExample===undefined?{}:{workedExample:raw.workedExample}),...(raw.storyFrame===undefined?{}:{storyFrame:raw.storyFrame})},notebook.ageGroup,reference,notebook.sources);
   return{...content,activityId:activity.id,activityFingerprint:raw.activityFingerprint as string,ageGroup:notebook.ageGroup,sourceWindows,guidedApplication:{...content.guidedApplication,activityId:activity.id},reviewStatus:raw.reviewStatus as AILearningMission['reviewStatus']};
 }
 /** Strict portable import: source positions, revision, model binding and bounded plain data are checked again. */

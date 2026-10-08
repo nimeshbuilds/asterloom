@@ -13,3 +13,49 @@
 
 /* The playable stage owns the screen; studio navigation returns with Save & return. */
 .app-shell.playing>.sidebar,.app-shell.playing>.sidebar-overlay,.app-shell.playing>.main-shell>.topbar{display:none}.app-shell.playing>.main-shell{margin-left:0}.app-shell.playing .player-shell{min-height:100dvh}.app-shell.playing>.main-shell>.content{max-width:1600px;width:100%;padding:24px 38px 48px}.app-shell.playing .structured-game{min-height:calc(100dvh - 100px)}.structured-game>.gameplay-hud{margin-bottom:26px}.source-study>.gameplay-hud{margin-bottom:30px}.structured-game-header .xp-pill{color:#725512;background:#f4eacb;padding:8px 11px;border-radius:9px;font-weight:650}.structured-path>button:focus-visible{outline:3px solid #7198a0;outline-offset:3px}@media(max-width:760px){.app-shell.playing>.main-shell>.content{padding:16px 12px 32px}.structured-game>.gameplay-hud{margin-bottom:18px}.structured-game-header{flex-wrap:wrap}.structured-game-header .game-audio-controls{margin-left:auto}}
+
+/* Keep the activity at centre stage; the campaign and setting are optional aids. */
+.app-shell.playing .structured-game{max-width:1120px;margin:auto}
+.structured-game .structured-game-header{margin-bottom:14px}
+.structured-game .structured-game-layout{grid-template-columns:minmax(0,1fr);gap:14px}
+.structured-game .structured-game-layout>aside{padding:0!important;background:transparent!important;border:0!important;color:#254552}
+.structured-game>.gameplay-hud{margin-bottom:14px}
+.mission-navigation{border:1px solid #c7d8dd;border-radius:12px;background:#f0f5f5;overflow:hidden}
+.mission-navigation>summary{cursor:pointer;display:flex;align-items:center;gap:16px;padding:12px 17px;list-style:none;color:#274959;font-size:12px}
+.mission-navigation>summary>span:first-child{font-weight:700;white-space:nowrap}
+.mission-navigation>summary>strong{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mission-navigation>summary>span:last-child{margin-left:auto;white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
+.mission-navigation .structured-path{padding:8px;max-height:300px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.structured-game .mission-navigation .structured-path>button{color:#284758;background:#fff;border:1px solid #d0e0e3}
+.structured-game .mission-navigation .structured-path>button.active{color:#ecf9fb;background:#204653}
+.structured-game .mission-navigation .structured-path small{color:inherit;opacity:.85}
+.structured-game .mission-navigation .structured-path>button>div{font-size:12px}
+.structured-board{padding:24px;overflow:clip}
+.structured-board .structured-heading h2{outline:0}
+.structured-board .quest-learning-status{margin:12px 0;background:transparent;padding:4px 0;border:0}
+.structured-board .structured-instruction{font-size:16px;margin:12px 0 16px;max-width:80ch;color:#2d4c59}
+.structured-rules-note{font-size:12px;color:#536673;margin:0 0 14px}
+.structured-rules-note>summary{cursor:pointer}
+.structured-rules-note>p{max-width:70ch;line-height:1.7}
+.quest-world-map{margin-bottom:16px;border:1px solid #cedee1;border-radius:9px;background:#f1f6f6;overflow:hidden}
+.quest-world-map>summary{padding:10px 14px;cursor:pointer;color:#33545f;font-size:12px;font-weight:600}
+.quest-world-map .learning-scene{margin:0;border:0;border-radius:0}
+.structured-feedback,.answer-feedback{scroll-margin-top:145px;outline:0}
+.mission-takeaway{margin:18px 0;background:#fffef8;border:1px solid #d6e1d1;padding:17px 19px;border-radius:12px;color:#274d44}
+.mission-takeaway>span{font-size:12px;font-weight:750;text-transform:uppercase;letter-spacing:.04em}
+.mission-takeaway>p{font-size:15px;line-height:1.7;margin:8px 0 12px;color:#274d44}
+.mission-takeaway summary{cursor:pointer;font-size:12px}
+.mission-takeaway blockquote{font-size:13px;line-height:1.7;margin:14px 0;border-left:2px solid #6d9b87;padding-left:14px}
+.mission-takeaway cite{display:block;font-size:11px;margin-top:8px;font-style:normal}
+.structured-game .structured-next{background:#173f48;border:1px solid #37656b;color:#e8f6f2;border-radius:14px;padding:20px;margin-top:16px}
+.structured-game .structured-next p{color:#e8f6f2}
+@media(max-width:760px){.structured-board{padding:16px}.mission-navigation>summary{flex-wrap:wrap;gap:8px}.mission-navigation>summary>strong{order:3;flex-basis:100%}.mission-navigation>summary>span:last-child{margin-left:auto}.structured-game-header>.eyebrow{display:none}}
+.structured-feedback[data-response=correct],.structured-feedback[data-response=reflection]{background:#eef7f1;border-color:#a8cbb7}
+.structured-feedback[data-response] > div:not(.reaction-effects),.structured-feedback[data-response] > div>strong{color:#375b4b}
+.structured-feedback[data-response=retry] > div:not(.reaction-effects),.structured-feedback[data-response=retry] > div>strong{color:#74531c}
+.structured-feedback>.mission-takeaway{display:block;color:#274d44}
+.structured-feedback .mission-takeaway>span,.structured-feedback .mission-takeaway summary{color:#274d44}
+.structured-feedback .mission-takeaway>p{color:#274d44;font-size:15px}
+.structured-feedback>.reaction-effects{max-width:none}
+.structured-feedback>p{font-size:14px;line-height:1.7}
+.structured-feedback li{font-size:13px;line-height:1.65}

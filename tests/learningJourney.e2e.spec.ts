@@ -108,7 +108,7 @@ test('structured missions preserve the lesson gate and immediate support through
  if(!await page.getByText('Choose pieces directly',{exact:true}).evaluate(node=>node.closest('details')?.open))await page.getByText('Choose pieces directly',{exact:true}).click();
  await page.getByLabel('Complete position 1').selectOption('observation');await page.getByLabel('Complete position 2').selectOption('interpretation');await page.reload();await expect(page.getByLabel('Complete position 1')).toHaveValue('observation');
  await page.evaluate(()=>{(window as any).journey.mode='delay';});await page.getByRole('button',{name:'Check my work',exact:true}).click();await expect(page.locator('.structured-feedback')).toHaveCount(0);await expect(page.locator('.aster-reaction')).toHaveCount(0);expect(await page.evaluate(()=>(window as any).journey.completed)).toEqual([]);
- await page.evaluate(()=>{(window as any).journey.release(true);});await expect(page.locator('.structured-feedback')).toBeVisible();await expect(page.locator('.aster-reaction[data-reaction="success"]')).toHaveCount(1);
+ await page.evaluate(()=>{(window as any).journey.release(true);});await expect(page.locator('.structured-feedback')).toBeVisible();await expect(page.locator('.aster-reaction[data-reaction="complete"]')).toHaveCount(1);
  const p=await durable(page);expect(p.structured['lab-completion'].review.independentSuccesses).toBe(0);expect(p.structured['lab-completion'].response._draft.hintUsed).toBe(true);expect(await page.evaluate(()=>(window as any).journey.completed[0].hintUsed)).toBe(true);
 });
 
@@ -145,4 +145,35 @@ test('young learners can use the caregiver conversation route without false inde
  await page.getByRole('button',{name:'Save briefing & start quest',exact:true}).click();
  await page.locator('.answer-option').filter({hasText:'Packet'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.success')).toBeVisible();
  const p=await durable(page);expect(p.activeSession.state.lesson.practice).toMatchObject({mode:'spoken',spokenConfirmed:true,compared:true});expect(p.xp).toBe(0);expect(p.activeSession.state.independentCount).toBe(0);
+});
+
+
+test('a source lesson has one reading card, a ready-selected mission reference and only one required note',async({page},info)=>{
+ await openJourney(page);
+ await expect(page.locator('.lesson-route li')).toHaveCount(3);
+ await expect(page.locator('.lesson-mission-source')).not.toHaveAttribute('open');
+ await page.getByRole('button',{name:'Explore the source',exact:true}).click();
+ await expect(page.locator('.lesson-source-reader .lesson-passage')).toHaveCount(1);
+ await expect(page.getByRole('progressbar',{name:'Source passages explored',exact:true})).toHaveAttribute('value','0');
+ await expect(page.locator('.lesson-context .lesson-primary:enabled')).toHaveCount(1);
+ await page.getByRole('button',{name:'Mark passage 1 explored',exact:true}).click();
+ await expect(page.getByRole('progressbar',{name:'Source passages explored',exact:true})).toHaveAttribute('value','1');
+ await page.getByRole('button',{name:'Previous passage',exact:true}).click();
+ await expect(page.locator('.lesson-source-reader')).toContainText('A network carries information');
+ await page.getByRole('button',{name:'Next passage',exact:true}).click();
+ const unread=page.getByRole('button',{name:/^Mark passage \d+ explored$/});while(await unread.count())await unread.first().click();
+ await page.getByRole('button',{name:'Study the walkthrough',exact:true}).click();await walkthrough(page);
+ await expect(page.locator('.lesson-current-focus input')).toBeChecked();
+ await expect(page.locator('.lesson-current-focus')).toContainText('Packet: A small unit of information');
+ await expect(page.locator('.lesson-change-focus')).not.toHaveAttribute('open');
+ await expect(page.locator('.lesson-next-move')).toContainText('Write one or two sentences');
+ await page.getByRole('textbox',{name:'Explain it in your own words',exact:true}).fill('The packet is the information unit, rather than the device that carries it.');
+ await expect(page.locator('.lesson-next-move')).toContainText('Compare your note');
+ await page.getByLabel('I compared my note with the source',{exact:true}).check();
+ await expect(page.getByRole('textbox',{name:'Connect it or name a question',exact:true})).toHaveValue('');
+ await expect(page.getByRole('button',{name:'Save briefing & start quest',exact:true})).toBeEnabled();
+ await page.screenshot({path:info.outputPath('one-note-preparation.png'),fullPage:true});
+ await page.getByRole('button',{name:'Save briefing & start quest',exact:true}).click();
+ await expect(page.locator('.answer-option')).toHaveCount(2);
+ const saved=await durable(page);expect(saved.xp).toBe(0);expect(saved.completedCardIds).toEqual([]);expect(saved.activeSession.state.lesson.practice.connection).toBe('');
 });

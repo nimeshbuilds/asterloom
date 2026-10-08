@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { createNotebook, createSource } from '../src/lib/utils';
-import { segmentSource, sourceConcepts, sourceLearningUnits, sourceSentences } from '../src/lib/sourceUnits';
+import { segmentSource, sourceConcepts, sourceLearningUnits, sourceSentences, explicitSourceProcedures } from '../src/lib/sourceUnits';
 import { compileNotebook } from '../src/lib/compiler';
 import { evidenceBlocks, validateLearningObjectives } from '../src/lib/evidence';
 import { proposeObjectives } from '../src/lib/objectives';
@@ -17,6 +17,17 @@ describe('source structure and complete study units', () => {
     expect(units[0].quote).not.toContain('Packet');
     for (const unit of units) { expect(unit.quote).toBe(source.text.slice(unit.start, unit.end)); for (const p of unit.passages) expect(p.quote).toBe(source.text.slice(p.start, p.end)); }
     expect(sourceSentences('Dr. Lee measured 3.5 J. The amount was recorded.').map(s => s.quote)).toEqual(['Dr. Lee measured 3.5 J.', 'The amount was recorded.']);
+  });
+  it('finds explicitly labeled whole procedures through source headings without inferring order from arbitrary lists',()=>{
+    const steps='1. Open the panel.\n2. Read the displayed value.\n3. Record the displayed value.';
+    for(const heading of ['# Procedure','Procedure for the instrument:','Procedure\n---------']){
+      const text=heading+'\n'+steps,start=text.indexOf(steps),found=explicitSourceProcedures(text,start,text.length);
+      expect(found).toHaveLength(1);expect(found[0].quote).toBe(steps);expect(found[0].start).toBe(start);
+      expect(explicitSourceProcedures(text,start+steps.indexOf('2.'),text.length)).toEqual([]);
+    }
+    for(const text of [steps,'# Types of procedures\n'+steps,'# Procedure\nIntroductory explanation.\n# Observations\n'+steps,'# Procedure\n```txt\n'+steps+'\n```'])expect(explicitSourceProcedures(text)).toEqual([]);
+    const long='# Procedure\n'+Array.from({length:6},(_,i)=>`${i+1}. Record the supplied observation ${'carefully '.repeat(32)}.`).join('\n');
+    expect(explicitSourceProcedures(long)).toEqual([]);
   });
   it('never drops body text or splits surrogate pairs while respecting bounded sentence-aware passages', () => {
     fc.assert(fc.property(fc.array(fc.constantFrom('alpha 🌳', 'water', 'energy', 'café', '世界'), { minLength: 1, maxLength: 250 }), parts => {

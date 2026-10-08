@@ -37,6 +37,20 @@ describe('source-cited digestible AI teaching',()=>{
   const implicit=structuredClone(draft);implicit.storyFrame.fictional=false;expect(()=>validateAILearningMissionDraft(implicit,context)).toThrow(/explicitly fictional/);
   const absent=structuredClone(draft) as Partial<typeof draft>;delete absent.workedExample;expect(validateAILearningMissionDraft(absent,context).workedExample).toBeUndefined();
  });
+ it('allows a whole procedure cited below its actual source heading, but not a numbered list under an unrelated heading',()=>{
+  const f=fixture(),steps=procedure.slice(procedure.indexOf('1.'));
+  const draft=structuredClone(f.draft);draft.workedExample.sourceEvidence.evidence=steps;draft.conceptExplanation.citations=[{sourceId:f.source.id,evidence:steps}];
+  const source={...f.source,text:'# Procedure for the training model\n'+steps},start=source.text.indexOf(steps),activity={...f.activity,sourceRefs:[{sourceId:source.id,evidence:steps}]};
+  const context={...f.context,activity,sources:[source],sourceWindow:{sourceId:source.id,start,end:source.text.length}};
+  const mission=validateAILearningMissionDraft(draft,context);expect(mission.workedExample?.sourceEvidence.quote).toBe(steps);
+  const notebook={...f.notebook,activities:[activity],sources:[source],aiLearningPlan:{version:1 as const,missions:[mission]}};
+  expect(validateAILearningPlan(notebook.aiLearningPlan,notebook).missions[0]).toEqual(mission);
+  expect(buildLearningBriefing({notebook,activity,scaffold:SCAFFOLDS.find(s=>s.id==='process-reconstruction')!}).rehearsal?.kind).toBe('route-kit');
+  for(const heading of ['# Observations','# Types of procedures','# Procedure\nIntroduction only.\n# Other material']){
+   const text=heading+'\n'+steps,changed={...source,text};
+   expect(()=>validateAILearningMissionDraft(draft,{...context,sources:[changed],sourceWindow:{sourceId:source.id,start:text.indexOf(steps),end:text.length}})).toThrow(/source-provided example/);
+  }
+ });
  it('enforces age-specific chunk sizes and avoids a wall of copied source text',()=>{
   const {draft,context}=fixture();const tooLong=structuredClone(draft);tooLong.chunks[0].text='word '.repeat(101);expect(()=>validateAILearningMissionDraft(tooLong,context)).toThrow(/age-appropriate/);
   const child={...context,ageGroup:'3-5'},tooLongForChild=structuredClone(draft);tooLongForChild.chunks[0].text='word '.repeat(26);expect(()=>validateAILearningMissionDraft(tooLongForChild,child)).toThrow(/180 characters|age-appropriate/);

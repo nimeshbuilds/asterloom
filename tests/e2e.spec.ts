@@ -3,7 +3,7 @@ import { test, expect, type Page, type Download } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import {parsePackage as parsePortableNotebook} from '../src/lib/package';
-import {learnBeforeQuest,openBundledNotebook,seedAgedRecallLessons,seedAgedStructuredLessons,customizeLearning,openExampleGame,saveExampleForIndependentStudy,openAuthoredCampaign,previewDraftCampaign} from './learningJourney.helpers';
+import {learnBeforeQuest,openBundledNotebook,seedAgedRecallLessons,seedAgedStructuredLessons,customizeLearning,openExampleGame,saveExampleForIndependentStudy,openAuthoredCampaign,previewDraftCampaign,missionChoices} from './learningJourney.helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { PLANT_EXPLANATION } from '../src/lib/compositionExamples';
 
@@ -44,6 +44,10 @@ async function campaignActivities(page: Page, completed = false) {
   const more=page.getByRole('button',{name:/^Explore the next \d+ chapters$/});
   for(let i=0;i<200&&await more.isVisible();i++) await more.click();
   return page.locator(completed?'[data-activity-id].completed':'[data-activity-id]');
+}
+async function chooseMission(page:Page,title:string) {
+  const choices=await page.locator('.campaign-map').isVisible()?await campaignActivities(page):await missionChoices(page);
+  await choices.filter({hasText:title}).click();
 }
 
 
@@ -133,8 +137,7 @@ test('advanced laboratories create real models, resume investigations, and trave
   await expect(page.locator('.activity-library article')).toHaveCount(13);
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
   const choose = async (title: string) => {
-    if (await page.locator('.campaign-map').count()) await (await campaignActivities(page)).filter({ hasText: title }).click();
-    else await page.locator('.structured-path button').filter({ hasText: title }).click();
+    await chooseMission(page,title);
     await learnBeforeQuest(page);
   };
   const check = async () => { await page.getByRole('button', { name: 'Check my work', exact: true }).click(); await expect(page.locator('.structured-feedback.correct')).toBeVisible(); };
@@ -205,8 +208,7 @@ test('dialogue and prompt comparison preserve commitments through a bundled-note
   await expect(page.locator('.activity-library article')).toHaveCount(10);
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
   const choose = async (title: string) => {
-    if (await page.locator('.campaign-map').count()) await (await campaignActivities(page)).filter({ hasText: title }).click();
-    else await page.locator('.structured-path button').filter({ hasText: title }).click();
+    await chooseMission(page,title);
     await learnBeforeQuest(page);
   };
   await choose('A controlled prompt comparison');
@@ -260,8 +262,7 @@ test('source tables, picture support and changing rules survive the full creator
   test.setTimeout(120_000); page.setDefaultTimeout(15_000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   const choose = async (title: string) => {
-    if (await page.locator('.campaign-map').count()) await (await campaignActivities(page)).filter({ hasText: title }).click();
-    else await page.locator('.structured-path button').filter({ hasText: title }).click();
+    await chooseMission(page,title);
     await learnBeforeQuest(page);
   };
   await openLibrary(page);
@@ -288,7 +289,7 @@ test('source tables, picture support and changing rules survive the full creator
   await page.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(page.locator('.structured-feedback.correct')).toBeVisible();
   await expect(page.locator('.structured-review-banner')).toContainText('0 independent attempts');
-  await page.locator('.structured-path button').filter({ hasText: 'Same objects, new rule' }).click(); await learnBeforeQuest(page);
+  await chooseMission(page,'Same objects, new rule'); await learnBeforeQuest(page);
   const items = ['Red circle', 'Red triangle', 'Blue circle', 'Blue triangle'];
   for (const label of items) {
     await page.locator('.switch-items button').filter({ hasText: label }).click();
@@ -319,11 +320,11 @@ test('paper puppets and prop stations preserve roles, consequences and recipient
   await openLibrary(page); await createNotebook(page, 'A story we can play');
   await page.getByRole('button', { name: 'Try puppet & pretend play', exact: true }).click();
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
-  await page.locator('[data-activity-id], .structured-path button').filter({ hasText: 'A cup for two friends' }).click(); await learnBeforeQuest(page);
+  await chooseMission(page,'A cup for two friends'); await learnBeforeQuest(page);
   await page.getByRole('button', { name: /Bo, would you like to use the cup/ }).click();
   await page.getByRole('button', { name: 'Save & return', exact: false }).click(); await page.reload();
   await openAuthoredCampaign(page,'A story we can play');
-  await page.locator('[data-activity-id], .structured-path button').filter({ hasText: 'A cup for two friends' }).click(); await learnBeforeQuest(page);
+  await chooseMission(page,'A cup for two friends'); await learnBeforeQuest(page);
   await expect(page.locator('.child-speech')).toContainText('Bo says:');
   await page.getByRole('button', { name: 'Play as Bo, friend', exact: true }).click();
   await page.getByRole('button', { name: /Let’s put the cup on the Table/ }).click();
@@ -368,7 +369,7 @@ test('picture building saves the actual layout and keeps caregiver review separa
   await openLibrary(page); await createNotebook(page, 'A picture with a story');
   await page.getByRole('button', { name: 'Try build & tell', exact: true }).click();
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
-  await page.locator('[data-activity-id], .structured-path button').filter({ hasText: SHAPE_PICTURE_BUILD.title }).click(); await learnBeforeQuest(page);
+  await chooseMission(page,SHAPE_PICTURE_BUILD.title); await learnBeforeQuest(page);
   for (const part of ['Red circle', 'Red circle', 'Blue triangle']) await page.getByRole('button', { name: `Add ${part}`, exact: true }).click();
   await page.getByRole('button', { name: 'Write my words', exact: true }).click();
   await page.getByRole('textbox', { name: 'My words (a caregiver can type for me)', exact: true }).fill('I made two circles and put the triangle to the right.');
@@ -858,7 +859,7 @@ test('all seven structured systems evaluate, preserve unfinished work, and trave
     await page.getByRole('button', { name: 'Check my work', exact: true }).click();
     await expect(page.locator('.structured-feedback.correct')).toContainText('Your work holds together.');
   };
-  const choose = async (title: string) => { await page.locator('.structured-path button').filter({ hasText: title }).click(); await learnBeforeQuest(page); };
+  const choose = async (title: string) => { await chooseMission(page,title); await learnBeforeQuest(page); };
   await check();
   await choose('Observation or interpretation?');
   await page.locator('.sort-source-item').filter({ hasText: 'The display reads 12.' }).click();
@@ -966,7 +967,7 @@ test('library, creator, recall game and all structured boards pass serious acces
   await openExampleGame(page,'Inside the connected world');
   await (await campaignActivities(page)).first().click(); await learnBeforeQuest(page);
   for (let index = 0; index < 7; index++) {
-    await page.locator('.structured-path button').nth(index).click(); await learnBeforeQuest(page);
+    await (await missionChoices(page)).nth(index).click(); await learnBeforeQuest(page);
     await audit(`structured-${index}`);
   }
 });
@@ -1081,11 +1082,14 @@ test('unreviewed models keep practice scores separate from learning credit throu
   await json.fill(JSON.stringify(activity));
   await page.getByRole('button', { name: 'Import activities', exact: true }).click();
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
-  await page.locator('.structured-path button').filter({ hasText: 'Plan a small lab' }).click(); await learnBeforeQuest(page);
+  await chooseMission(page,'Plan a small lab'); await learnBeforeQuest(page);
   await page.getByRole('spinbutton').nth(0).fill('2'); await page.getByRole('spinbutton').nth(1).fill('1');
   await page.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(page.locator('.structured-feedback.draft-preview')).toContainText('practice checks satisfied');
-  await expect(page.locator('.structured-review-note')).toContainText('meaning has not been reviewed against the source');
+  const practiceRules=page.locator('details.structured-rules-note');
+  await practiceRules.locator(':scope > summary').click();
+  await expect(practiceRules.locator('p')).toBeVisible();
+  await expect(practiceRules).toContainText('meaning has not been reviewed against the source');
   await expect(page.locator('.structured-game-header .xp-pill')).toContainText('20 Journey XP');
   await expect(page.locator('.structured-next')).toContainText('Your exploration is saved');
   const modelProgress=await savedGameProgress(page,'Inside the connected world');expect(modelProgress.practice.xp).toBe(20);expect(modelProgress.xp).toBe(0);expect(modelProgress.mastery).toBe(0);expect(modelProgress.structured['example-budget'].review).toBeUndefined();
@@ -1107,7 +1111,7 @@ test('unreviewed models keep practice scores separate from learning credit throu
   await recipient.getByRole('tab', { name: /Challenges/ }).click();
   await recipient.locator('.activity-library article').filter({ hasText: 'Plan a small lab' }).getByRole('button', { name: 'Mark reviewed', exact: true }).click();
   await recipient.getByRole('button', { name: 'Play game', exact: false }).click();
-  await recipient.locator('.structured-path button').filter({ hasText: 'Plan a small lab' }).click(); await learnBeforeQuest(recipient);
+  await chooseMission(recipient,'Plan a small lab'); await learnBeforeQuest(recipient);
   await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(recipient.locator('.structured-feedback.correct')).toBeVisible();
   await expect(recipient.locator('.structured-game-header .xp-pill')).toContainText('20 Journey XP');
@@ -1121,7 +1125,10 @@ test('unreviewed models keep practice scores separate from learning credit throu
   await expect(recipient.locator('.save-state')).toContainText('Saved on this device');
   await recipient.getByRole('spinbutton').nth(0).fill('2'); await recipient.getByRole('spinbutton').nth(1).fill('1');
   await expect(recipient.getByRole('spinbutton').nth(0)).toHaveValue('2');await expect(recipient.getByRole('spinbutton').nth(1)).toHaveValue('1');
-  await expect(recipient.locator('.structured-requirements .met strong')).toHaveText(['4 / 4','6 / 6']);
+  const requirements=recipient.locator('.budget-target');
+  await expect(requirements).toHaveCount(2);
+  await expect(requirements.locator('.budget-target-values')).toHaveText(['4/ 4 needed','6/ 6 needed']);
+  for(const requirement of await requirements.all())await expect(requirement).toHaveAttribute('data-met','true');
   await recipient.getByRole('button', { name: 'Check my work', exact: true }).click();
   await expect(recipient.locator('.structured-feedback.correct')).toBeVisible();
   await expect(recipient.locator('.structured-review-banner')).toContainText('1 independent attempt');

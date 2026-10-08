@@ -1,0 +1,23 @@
+import {describe,expect,it} from 'vitest';
+import {ACTIVITY_EXAMPLES,evaluateActivityForAuthoring,type ClassificationActivity,type DependencyActivity} from '../src/lib/structuredEngine';
+
+const classification=ACTIVITY_EXAMPLES.find(activity=>activity.kind==='classification') as ClassificationActivity;
+const dependency=ACTIVITY_EXAMPLES.find(activity=>activity.kind==='dependency') as DependencyActivity;
+describe('feedback names the source objects a learner can actually change',()=>{
+ it('identifies each misplaced item and distinguishes the prepared groups from the learner’s groups',()=>{
+  const result=evaluateActivityForAuthoring(classification,{assignments:{display:['interpretation'],battery:[]}});
+  expect(result).toMatchObject({valid:true,correct:false,score:0,maxScore:2});
+  expect(result.details[0]).toMatchObject({id:'display',correct:false,message:'“The display reads 12.” — Reviewed groups: Observation. Your groups: Interpretation.'});
+  expect(result.details[1].message).toBe('“The battery may be weak.” — Reviewed groups: Interpretation. Your groups: none.');
+  const draft=evaluateActivityForAuthoring({...classification,reviewStatus:'needs-review'},{assignments:{display:['observation'],battery:['interpretation']}});
+  expect(draft).toMatchObject({valid:true,correct:true,score:2,maxScore:2});expect(draft.details.every(detail=>detail.message.includes('Draft groups:'))).toBe(true);
+ });
+ it('uses visible node labels for missing and unexpected connections without changing the edge score',()=>{
+  const activity:DependencyActivity={...dependency,reviewStatus:'needs-review',nodes:[{id:'internal-01',label:'Request'},{id:'internal-02',label:'Gateway'},{id:'internal-03',label:'Authentication'}],edges:[{from:'internal-01',to:'internal-02',relation:'crosses'},{from:'internal-02',to:'internal-03',relation:'uses'}]};
+  const result=evaluateActivityForAuthoring(activity,{edges:[activity.edges[0],{from:'internal-01',to:'internal-03',relation:'uses'}]});
+  expect(result).toMatchObject({valid:true,correct:false,score:1,maxScore:3});
+  expect(result.details.map(detail=>detail.message)).toEqual(['Connected: “Request” — crosses → “Gateway”.','Connect: “Gateway” — uses → “Authentication”.','Revise “Request” — uses → “Authentication”: this relationship is not in the draft model.']);
+  expect(JSON.stringify(result.details)).not.toContain('internal-');
+  const success=evaluateActivityForAuthoring({...activity,reviewStatus:'reviewed'},{edges:activity.edges});expect(success).toMatchObject({valid:true,correct:true,score:2,maxScore:2});
+ });
+});

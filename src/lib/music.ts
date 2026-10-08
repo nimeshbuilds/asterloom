@@ -25,13 +25,14 @@ export function setSoundPreferences(patch:Partial<SoundPreferences>):SoundPrefer
  if(!preferences.enabled||preferences.volume<=0){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;}
  refreshOutput();if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:{...preferences}}));return{...preferences};
 }
-export interface MusicRuntimeStatus {state:'stopped'|'playing'|'suspended'|'unavailable';source:'recording'|'interactive'|null;trackId:string|null;phase:MusicPhase;reason?:string;selection?:SoundtrackSelection;phrase?:number;positionBeats?:number}
+export interface MusicRuntimeStatus {state:'stopped'|'playing'|'suspended'|'unavailable';source:'recording'|'interactive'|null;trackId:string|null;phase:MusicPhase;effects?:'standard'|'quiet'|'off';reason?:string;selection?:SoundtrackSelection;phrase?:number;positionBeats?:number}
 let status:MusicRuntimeStatus={state:'stopped',source:null,trackId:null,phase:'practice'};
-export function getMusicRuntimeStatus():MusicRuntimeStatus{return{...status,...(currentScore&&context?{phrase:scoreCycle,positionBeats:hidden()?pausedBeat:Math.max(0,(context.currentTime-loopStart)/(60/currentScore.bpm))}:{})};}
+export function getMusicRuntimeStatus():MusicRuntimeStatus{return{...status,effects:directedFeedback().policy,...(currentScore&&context?{phrase:scoreCycle,positionBeats:hidden()?pausedBeat:Math.max(0,(context.currentTime-loopStart)/(60/currentScore.bpm))}:{})};}
 function updateStatus(patch:Partial<MusicRuntimeStatus>){status={...status,...patch};if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('asterloom:music-status',{detail:{...status}}));}
 let context:AudioContext|undefined,musicBus:GainNode|undefined,effectBus:GainNode|undefined,limiter:DynamicsCompressorNode|undefined;
 let layers:Record<ScoreLayer,GainNode>|undefined,timer:ReturnType<typeof setInterval>|undefined,phaseTimer:ReturnType<typeof setTimeout>|undefined,transitionTimer:ReturnType<typeof setTimeout>|undefined;
 let scoreSpace:ReturnType<typeof createScoreSpace>|undefined,learningContext:SoundtrackContext|null=null,activeVariation=0,basePhase:MusicPhase='practice',transitioning=false;
+let rewardDuckUntil=0,rewardDuckLevel=1,rewardDuckTimer:ReturnType<typeof setTimeout>|undefined,lastCueKind:'success'|'try-again'|'complete'|null=null;
 let pendingSelection:SoundtrackSelection|undefined,programmeKey='',programmeStep=0,scoreCycle=0,pausedBeat=0;
 let recording:HTMLAudioElement|undefined,recordingNode:MediaElementAudioSourceNode|undefined,currentVolume=.15,musicWanted=false,manualDuck=false;
 let currentScore:InteractiveScore|undefined,nextIndex=0,loopStart=0,generation=0,listening=false,lastCue=-Infinity,lastAction=-Infinity,lastAster=-Infinity,lastAsterKind:AsterActionCue|null=null,asterTail=0;
@@ -71,14 +72,14 @@ function ensureContext():AudioContext|undefined {
   return context;
  }catch{updateStatus({state:'unavailable',reason:'Audio could not start in this browser.'});return;}
 }
-function refreshOutput(){if(!context)return;const suppressed=ducked()||hidden();
+function refreshOutput(){if(!context)return;const suppressed=ducked()||hidden(),rewardLevel=context.currentTime<rewardDuckUntil?rewardDuckLevel:1;
  const phaseLevel=recording?({intro:.66,study:.44,practice:.82,quest:1,success:.85,retry:.5}[status.phase])*(RECORDING_PLAYBACK_GAINS[status.trackId??'']??1):1;
- musicBus?.gain.setTargetAtTime(musicWanted&&!hidden()&&!transitioning?currentVolume*phaseLevel*(suppressed?.06:1):0,context.currentTime,.055);
+ musicBus?.gain.setTargetAtTime(musicWanted&&!hidden()&&!transitioning?currentVolume*phaseLevel*rewardLevel*(suppressed?.06:1):0,context.currentTime,.055);
  const pref=getSoundPreferences(),directed=directedFeedback();effectBus?.gain.setTargetAtTime(pref.enabled&&!suppressed&&directed.policy!=='off'?pref.volume*directed.level:0,context.currentTime,.015);
 }
 function stopSchedule(){if(timer)clearInterval(timer);timer=undefined;stopVoices(musicVoices);for(const node of Object.values(layers??{}))node.disconnect();layers=undefined;scoreSpace?.dispose();scoreSpace=undefined;}
 function stopPlayback(){musicWanted=false;generation++;if(phaseTimer)clearTimeout(phaseTimer);phaseTimer=undefined;if(transitionTimer)clearTimeout(transitionTimer);transitionTimer=undefined;pendingSelection=undefined;transitioning=false;stopSchedule();if(recording){recording.pause();recording.removeAttribute('src');recording.load();recording=undefined;}recordingNode?.disconnect();recordingNode=undefined;currentScore=undefined;refreshOutput();updateStatus({state:'stopped',source:null,trackId:null,reason:undefined});}
-export function stopMusic(){learningContext=null;programmeKey='';programmeStep=0;stopPlayback();updateStatus({selection:undefined});}
+export function stopMusic(){learningContext=null;programmeKey='';programmeStep=0;stopPlayback();stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;if(rewardDuckTimer)clearTimeout(rewardDuckTimer);rewardDuckTimer=undefined;rewardDuckUntil=0;rewardDuckLevel=1;lastCue=-Infinity;lastCueKind=null;updateStatus({selection:undefined});}
 /** Unlock synchronously in a button handler; never required for the learning controls to work. */
 export function unlockGameAudio(){
  ensureContext();
@@ -171,13 +172,34 @@ function directedFeedback(scaffoldId?:string,ageGroup?:string){
  const direction=learningContext&&resolveGameAudioDirection(learningContext.artDirection,{...learningContext,...(scaffoldId?{scaffoldId}:{}),...(ageGroup?{ageGroup}:{})});
  return{profileId:direction?.effectProfileId??scaffoldId,policy:direction?.effects??'standard',level:direction?.effects==='quiet'?.55:1};
 }
-export function musicFeedback(kind:'success'|'try-again'|'complete',scaffoldId?:string,ageGroup?:string):boolean {
+/** Give committed results an audible foreground without turning up the user's mix.
+ * A completion supersedes the final answer's short cue instead of being lost to
+ * click-rate limiting. Duplicate completions still stay silent. */
+function playRewardCue(kind:'success'|'try-again'|'complete',scaffoldId?:string,ageGroup?:string):boolean {
  try {
- setLearningMusicPhase(kind==='try-again'?'retry':'success');const directed=directedFeedback(scaffoldId,ageGroup);if(directed.policy==='off'||!getSoundPreferences().enabled||getSoundPreferences().volume<=0||ducked()||hidden())return false;const active=ensureContext();if(!active||!effectBus||active.state!=='running')return false;if(active.currentTime-lastCue<.14)return false;lastCue=active.currentTime;stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;stopVoices(effectVoices);const plan=feedbackCuePlan(kind==='try-again'?'retry':kind,directed.profileId,ageGroup);refreshOutput();
+ const directed=directedFeedback(scaffoldId,ageGroup);
+ if(directed.policy==='off'||!getSoundPreferences().enabled||getSoundPreferences().volume<=0||ducked()||hidden())return false;
+ const active=ensureContext();if(!active||!effectBus||active.state!=='running')return false;
+ if(active.currentTime-lastCue<.14&&!(kind==='complete'&&lastCueKind==='success'))return false;
+ lastCue=active.currentTime;lastCueKind=kind;
+ stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;stopVoices(effectVoices);
+ const plan=feedbackCuePlan(kind==='try-again'?'retry':kind,directed.profileId,ageGroup);
+ if(rewardDuckTimer)clearTimeout(rewardDuckTimer);
+ rewardDuckUntil=active.currentTime+plan.maxDuration;rewardDuckLevel=kind==='complete'?.24:kind==='success'?.4:.7;
+ refreshOutput();
+ rewardDuckTimer=setTimeout(()=>{rewardDuckTimer=undefined;rewardDuckUntil=0;rewardDuckLevel=1;try{refreshOutput();}catch{feedbackUnavailable();}},Math.ceil(plan.maxDuration*1000));
  const notes=[...plan.notes.map(n=>({...n,instrument:plan.instrument})),...plan.support],offset=cuePitchOffset(Math.min(...notes.map(note=>note.midi)),currentScore?.tonic);
  for(const note of notes)keepVoice(scheduleVoice(active,effectBus,{...note,midi:note.midi+offset,at:active.currentTime+.015+note.at}),effectVoices);
  return true;
  }catch{return feedbackUnavailable();}
+}
+export function musicFeedback(kind:'success'|'try-again'|'complete',scaffoldId?:string,ageGroup?:string):boolean {
+ setLearningMusicPhase(kind==='try-again'?'retry':'success');
+ return playRewardCue(kind,scaffoldId,ageGroup);
+}
+/** A labeled, user-triggered sound check. It never awards points or changes the lesson phase. */
+export function previewRewardSound():boolean {
+ return playRewardCue('complete',learningContext?.scaffoldId,learningContext?.ageGroup);
 }
 /** Speech and source recordings always take priority; feedback cues are suppressed. */
 export function duckMusic(duck:boolean){manualDuck=duck;if(duck){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;}refreshOutput();}
@@ -194,6 +216,7 @@ export function gameActionFeedback(kind:GameActionCue|null,scaffoldId?:string,ag
  }catch{return feedbackUnavailable();}
 }
 function feedbackUnavailable():false {
+ if(rewardDuckTimer)clearTimeout(rewardDuckTimer);rewardDuckTimer=undefined;rewardDuckUntil=0;rewardDuckLevel=1;try{refreshOutput();}catch{}
  stopVoices(actionVoices);stopVoices(effectVoices);stopVoices(asterVoices);asterTail=0;
  // Optional presentation must never prevent a move or turn a committed result into a save error.
  updateStatus({state:'unavailable',reason:'Game feedback audio is unavailable. Your game and progress still work.'});return false;

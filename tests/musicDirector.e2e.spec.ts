@@ -37,7 +37,7 @@ test('saved art direction drives real offline tracks and matching effects while 
  await page.getByRole('button',{name:'Enable game sound',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBe(plans[0].playTrackId);await expect(page.locator('.reaction-effects')).toHaveAttribute('data-effect-profile',plans[0].effectProfileId);
  await page.getByRole('button',{name:'Use the second prepared design',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBe(plans[1].playTrackId);await expect(page.locator('.reaction-effects')).toHaveAttribute('data-effect-profile',plans[1].effectProfileId);await page.getByRole('button',{name:'A supported solution',exact:true}).click();expect(await page.evaluate(()=>window.qa.cue)).toBe(true);
  await page.getByRole('button',{name:'Read the source',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBe(plans[1].studyTrackId);await page.getByRole('button',{name:'Pin Quiet Orbit',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBe('score-quiet-orbit');await page.getByRole('button',{name:'Play the mission',exact:true}).click();expect(await page.evaluate(()=>window.qa.getMusicRuntimeStatus().selection.trackId)).toBe('score-quiet-orbit');
- await page.getByRole('button',{name:'Disable effects for this game',exact:true}).click();await page.getByRole('button',{name:'A supported solution',exact:true}).click();expect(await page.evaluate(()=>window.qa.cue)).toBe(false);await page.getByRole('button',{name:'Sound on',exact:true}).click();await page.reload();expect(await page.evaluate(()=>window.qa.oscillators)).toBe(0);await expect(page.locator('.reaction-effects')).toHaveAttribute('data-effect-profile',plans[1].effectProfileId);await page.getByRole('button',{name:'Follow prepared direction',exact:true}).click();expect(await page.evaluate(()=>window.qa.getMusicRuntimeStatus().state)).toBe('stopped');expect(await page.evaluate(()=>window.qa.oscillators)).toBe(0);await page.getByRole('button',{name:'Enable game sound',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBe(plans[1].playTrackId);await page.getByRole('button',{name:'A supported solution',exact:true}).click();expect(await page.evaluate(()=>window.qa.cue)).toBe(false);
+ await page.getByRole('button',{name:'Disable effects for this game',exact:true}).click();await page.getByRole('button',{name:'A supported solution',exact:true}).click();expect(await page.evaluate(()=>window.qa.cue)).toBe(false);await page.getByRole('button',{name:'Music only',exact:true}).click();await page.reload();expect(await page.evaluate(()=>window.qa.oscillators)).toBe(0);await expect(page.locator('.reaction-effects')).toHaveAttribute('data-effect-profile',plans[1].effectProfileId);await page.getByRole('button',{name:'Follow prepared direction',exact:true}).click();expect(await page.evaluate(()=>window.qa.getMusicRuntimeStatus().state)).toBe('stopped');expect(await page.evaluate(()=>window.qa.oscillators)).toBe(0);await page.getByRole('button',{name:'Enable game sound',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBe(plans[1].playTrackId);await page.getByRole('button',{name:'A supported solution',exact:true}).click();expect(await page.evaluate(()=>window.qa.cue)).toBe(false);
  expect(external).toEqual([]);expect(errors).toEqual([]);expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);await page.screenshot({path:info.outputPath('prepared-art-direction.png'),fullPage:true,animations:'disabled'});
 });
 
@@ -74,4 +74,31 @@ test('source playback suppresses cues, while same-turn pause/removal and silenci
   await page.evaluate(()=>{window.qa.speech.pause();window.qa.speech.remove();});await page.waitForTimeout(200);
  }
  expect(await page.evaluate(()=>window.qa.getMusicRuntimeStatus().trackId)).toBeNull();expect(errors).toEqual([]);expect(external).toEqual([]);await page.evaluate(()=>window.qa.setSoundPreferences({enabled:false}));
+});
+
+test('sound controls disclose muted rewards and provide a real sound check without changing the mission',async({page,context},info)=>{
+ await context.setOffline(true);await openHarness(page,info);
+ await expect(page.getByText('Music, actions & celebrations',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>window.qa.oscillators)).toBe(0);
+ await page.getByRole('button',{name:'Enable game sound',exact:true}).click();
+ await page.getByLabel('Adjust game audio').click();
+ await page.getByLabel('Background score',{exact:true}).uncheck();
+ await expect(page.getByRole('button',{name:'Effects on',exact:true})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.qa.getMusicRuntimeStatus().state)).toBe('stopped');
+ const before=await page.evaluate(()=>({voices:window.qa.oscillators,phase:window.qa.getMusicRuntimeStatus().phase}));
+ await page.getByRole('button',{name:'Play reward sound',exact:true}).click();
+ await expect(page.getByText('Reward sound played. This is a preview; no points are awarded.',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>window.qa.oscillators)).toBeGreaterThan(before.voices);
+ expect(await page.evaluate(()=>window.qa.getMusicRuntimeStatus().phase)).toBe(before.phase);
+ await page.getByLabel('Game & Aster sounds',{exact:true}).uncheck();
+ await expect(page.getByRole('button',{name:'Play reward sound',exact:true})).toBeDisabled();
+ await page.getByLabel('Background score',{exact:true}).check();
+ await expect(page.getByRole('button',{name:'Music only',exact:true})).toBeVisible();
+ await expect(page.getByText('Reward sounds are muted',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Music only',exact:true}).click();
+ await page.reload();expect(await page.evaluate(()=>window.qa.oscillators)).toBe(0);
+ await page.getByLabel('Adjust game audio').click();
+ await expect(page.getByLabel('Game & Aster sounds',{exact:true})).not.toBeChecked();
+ expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+ await page.screenshot({path:info.outputPath('reward-audio-control.png'),fullPage:true});
 });

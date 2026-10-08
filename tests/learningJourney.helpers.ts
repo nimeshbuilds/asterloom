@@ -9,6 +9,15 @@ import type {Notebook,Progress} from '../src/types';
 
 export {learnBeforeQuest} from './teachingDriver.mjs';
 
+/** The current mission stays in focus until a learner opens the mission chooser. */
+export async function missionChoices(page:Page) {
+ const chooser=page.locator('details.mission-navigation');
+ await expect(chooser).toBeVisible();
+ if(await chooser.getAttribute('open')===null)await chooser.locator(':scope > summary').click();
+ await expect(chooser).toHaveAttribute('open','');
+ return chooser.locator('.structured-path button');
+}
+
 /** Advanced authoring is an explicit opt-in, never a prerequisite for source creation. */
 export async function customizeLearning(page:Page) {
  const button=page.getByRole('button',{name:'Customize learning & appearance',exact:true});

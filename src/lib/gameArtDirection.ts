@@ -36,10 +36,13 @@ export function audioDirectionCatalog(context:AudioDirectionContext):AudioDirect
  const ids=new Set(compatible.map(scaffold=>scaffold.id));
  const descriptor=(track:typeof MUSIC_TRACKS[number]):AudioTrackDescriptor=>({id:track.id,name:track.name,description:track.description,mood:track.mood,kind:track.kind});
  const studyTracks=MUSIC_TRACKS.filter(track=>sceneRecordings[scene].includes(track.id)||sceneFocus[scene].includes(track.id)).map(descriptor);
- const playTracks=MUSIC_TRACKS.filter(track=>track.scaffoldId&&ids.has(track.scaffoldId)).map(descriptor);
+ // Put the recipe's own identity first. A creator may still choose any validated
+ // compatible alternative, but first-choice models must not converge on the
+ // same global catalog entry for every related game.
+ const playTracks=MUSIC_TRACKS.filter(track=>track.scaffoldId&&ids.has(track.scaffoldId)).sort((a,b)=>Number(b.scaffoldId===context.scaffoldId)-Number(a.scaffoldId===context.scaffoldId)).map(descriptor);
  // Quiet, non-domain focus scores and recordings are suitable alternative backgrounds; they do not impersonate another mechanic.
  playTracks.push(...studyTracks);
- const effectProfiles=REACTION_PROFILES.filter(profile=>ids.has(profile.id)).map(profile=>({id:profile.id,name:scaffoldLookup.get(profile.id)!.name,description:profile.description,family:profile.family}));
+ const effectProfiles=REACTION_PROFILES.filter(profile=>ids.has(profile.id)).sort((a,b)=>Number(b.id===context.scaffoldId)-Number(a.id===context.scaffoldId)).map(profile=>({id:profile.id,name:scaffoldLookup.get(profile.id)!.name,description:profile.description,family:profile.family}));
  return{playTracks,studyTracks,effectProfiles};
 }
 const fields=['version','playTrackId','studyTrackId','effectProfileId','effects'];

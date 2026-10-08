@@ -2,7 +2,7 @@ import type { EvidenceReference, LearningCard, Notebook, Source } from '../types
 import type { Scaffold } from '../data/scaffolds';
 import type { StructuredActivity } from './structuredEngine';
 import { evidenceBlocks, evidenceReference, sourceRevision, textDigest } from './evidence';
-import { sourceConcepts, sourceLearningUnits } from './sourceUnits';
+import { sourceConcepts, sourceLearningUnits, explicitSourceProcedures } from './sourceUnits';
 import { isPictureRaster } from './pictureEngine';
 import { mediaPlaybackUrl, sourceMediaIdentity } from './mediaAssets';
 import { buildLessonStory, buildLessonActionGuide, type LessonStory, type LessonActionGuide } from './lessonStory';
@@ -165,13 +165,16 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   const story=frame?{...baseStory,title:teaching!.title,setting:frame.setting,role:frame.role,mission:frame.mission,payoff:frame.success}:baseStory;
   let kind:LearningPlan['walkthrough']['kind']='source-reading',title='A worked source-reading approach',limitation='The source does not supply a complete worked solution here. This walkthrough demonstrates how to read its evidence; it does not invent a solution or causal explanation.';
   let steps:LessonStep[]=[];
-  // A numbered list is a procedure only when the source labels it as one. A list alone does not prove dependency.
+  // Recover explicit procedure labels from source structure. Markdown/PDF headings
+  // are intentionally outside body quotations, so a quote-only keyword test loses them.
   for(const passage of passages.filter(p=>p.role==='focus')){
-    if(!/\b(?:procedure|steps|method|workflow|instructions)\b/i.test(passage.reference.quote))continue;
-    const matches=[...passage.reference.quote.matchAll(/^\s*(\d{1,2})[.)][ \t]+(.+)$/gm)];
-    if(matches.length<2||matches.length>6||matches.some((m,i)=>Number(m[1])!==i+1))continue;
     const source=notebook.sources.find(s=>s.id===passage.reference.sourceId)!;
-    steps=matches.map((m,i)=>{const start=passage.reference.start+m.index!+m[0].indexOf(m[2]);return{id:`step-${i}`,title:`Source step ${i+1}`,instruction:i===0?'Start with the first action explicitly listed by the source.':'Follow the next explicitly listed action. Order alone does not establish why this step is necessary.',reference:reference(source,start,start+m[2].length)};});
+    const procedure=explicitSourceProcedures(source.text,passage.reference.start,passage.reference.end).find(segment=>{
+      const count=[...segment.quote.matchAll(/^\s*(\d{1,2})[.)][ \t]+(.+)$/gm)].length;return count>=2&&count<=6;
+    });
+    if(!procedure)continue;
+    const matches=[...procedure.quote.matchAll(/^\s*(\d{1,2})[.)][ \t]+(.+)$/gm)];
+    steps=matches.map((m,i)=>{const start=procedure.start+m.index!+m[0].indexOf(m[2]);return{id:`step-${i}`,title:`Source step ${i+1}`,instruction:i===0?'Start with the first action explicitly listed by the source.':'Follow the next explicitly listed action. Order alone does not establish why this step is necessary.',reference:reference(source,start,start+m[2].length)};});
     kind='source-procedure';title='Walk through the source procedure';limitation='The order is quoted from the source. A cause or prerequisite is not inferred unless the source states it.';break;
   }
   if(!steps.length){
@@ -253,7 +256,7 @@ export function validateLessonState(value:unknown):LessonState|undefined {
   }
   return{version:1,...(rehearsal?{rehearsal}:{}),mediaPositions:{...positions} as Record<string,number>,planKey:value.planKey,stage:value.stage as LessonState['stage'],missionAccepted:value.missionAccepted,viewedPassageIds:[...value.viewedPassageIds],walkthroughStep:value.walkthroughStep as number,practice:{focusId:p.focusId,explanation:p.explanation,connection:p.connection,mode:p.mode as 'written'|'spoken',spokenConfirmed:p.spokenConfirmed,compared:p.compared,order:[...p.order]},...(typeof value.completedAt==='string'?{completedAt:value.completedAt}:{})};
 }
-function fresh(plan:LearningPlan):LessonState{return{version:1,mediaPositions:{},planKey:plan.id,stage:'mission',missionAccepted:false,viewedPassageIds:[],walkthroughStep:0,practice:{focusId:'',explanation:'',connection:'',mode:plan.ageGroup==='3-5'?'spoken':'written',spokenConfirmed:false,compared:false,order:[...plan.practice.orderIds].reverse()}};}
+function fresh(plan:LearningPlan):LessonState{return{version:1,mediaPositions:{},planKey:plan.id,stage:'mission',missionAccepted:false,viewedPassageIds:[],walkthroughStep:0,practice:{focusId:plan.practice.focusOptions.find(option=>plan.passages.some(passage=>passage.role==='focus'&&passage.id===option.passageId))?.id??plan.practice.focusOptions[0]?.id??'',explanation:'',connection:'',mode:plan.ageGroup==='3-5'?'spoken':'written',spokenConfirmed:false,compared:false,order:[...plan.practice.orderIds].reverse()}};}
 export function lessonTeachingChunkIds(plan:LearningPlan):string[]{return(plan.teaching?.chunks??[]).map(chunk=>`teaching-${textDigest(chunk.id).slice(0,20)}`);}
 export function lessonContextReady(plan:LearningPlan,state:LessonState):boolean{
   const required=plan.teaching?lessonTeachingChunkIds(plan):plan.passages.map(passage=>passage.id);
@@ -262,7 +265,7 @@ export function lessonContextReady(plan:LearningPlan,state:LessonState):boolean{
 export function lessonPracticeReady(plan:LearningPlan,state:LessonState):boolean {
   if(state.rehearsal)return lessonRehearsalReady(plan,state.rehearsal);
   const p=state.practice;
-  return plan.practice.focusOptions.some(f=>f.id===p.focusId)&&p.compared&&(p.mode==='spoken'?plan.practice.spokenAllowed&&p.spokenConfirmed:p.explanation.trim().length>=12&&p.connection.trim().length>=8)&&(!plan.practice.orderIds.length||canonical(p.order)===canonical(plan.practice.orderIds));
+  return plan.practice.focusOptions.some(f=>f.id===p.focusId)&&p.compared&&(p.mode==='spoken'?plan.practice.spokenAllowed&&p.spokenConfirmed:p.explanation.trim().length>=12)&&(!plan.practice.orderIds.length||canonical(p.order)===canonical(plan.practice.orderIds));
 }
 /** Revalidate each prerequisite; a stale or hand-written completed flag cannot unlock a new source/model. */
 export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState {

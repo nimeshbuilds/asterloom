@@ -157,6 +157,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(unreviewedRecord.completed,false,'Unreviewed completion must remain blocked after restart');
     assert.equal(unreviewedRecord.score,0);assert.equal(unreviewedRecord.review?.independentSuccesses??0,0);
     await page.locator('[data-activity-id]').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
+    await page.locator('.quest-world-map > summary').click();
     await page.waitForFunction(()=>{const scene=document.querySelector('.learning-scene');return scene&&['pixi-webgl','svg-dom'].includes(scene.getAttribute('data-renderer'));},{},{timeout:30000});
     const sceneRenderer=await page.locator('.learning-scene').first().getAttribute('data-renderer');
     if(process.env.ASTERLOOM_REQUIRE_PIXI==='1')assert.equal(sceneRenderer,'pixi-webgl','The native learning scene must initialize Pixi under its production CSP');

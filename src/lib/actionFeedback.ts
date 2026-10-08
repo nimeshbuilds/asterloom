@@ -25,9 +25,21 @@ const obj=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isA
 const changed=(a:unknown,b:unknown)=>JSON.stringify(a??null)!==JSON.stringify(b??null);
 const size=(v:unknown):number=>Array.isArray(v)?v.length:v&&typeof v==='object'?Object.values(v).reduce<number>((sum,x)=>sum+(Array.isArray(x)?x.length:x?1:0),0):v?1:0;
 const placement=(a:unknown,b:unknown):GameActionCue=>size(b)<size(a)?'remove':'place';
+/** Quantities represent allocated units, not the number of nonempty resources.
+ * An exchange has its own move cue; key order and explicit zeroes are silent. */
+function allocationCue(previous:unknown,next:unknown):GameActionCue|null{
+ const a=obj(previous),b=obj(next);let added=false,removed=false;
+ for(const key of new Set([...Object.keys(a),...Object.keys(b)])){
+  const before=a[key]===undefined?0:a[key],after=b[key]===undefined?0:b[key];
+  if(typeof before!=='number'||typeof after!=='number'||!Number.isFinite(before)||!Number.isFinite(after)||before<0||after<0)return null;
+  if(after>before)added=true;else if(after<before)removed=true;
+ }
+ return added&&removed?'move':added?'place':removed?'remove':null;
+}
 /** Observe semantic state transitions only. Typing, playback ticks and restoring a save stay silent. */
 export function activityActionCue(previous:unknown,next:unknown):GameActionCue|null{
  const a=obj(previous),b=obj(next);
+ const allocation=allocationCue(a.quantities,b.quantities);if(allocation)return allocation;
  if(changed(a.order,b.order))return'move';
  if(changed(a.edges,b.edges))return size(b.edges)<size(a.edges)?'remove':'connect';
  for(const key of ['instances','parts'])if(changed(a[key],b[key]))return size(a[key])===size(b[key])?'move':placement(a[key],b[key]);
@@ -35,7 +47,7 @@ export function activityActionCue(previous:unknown,next:unknown):GameActionCue|n
  if(changed(a.arguments,b.arguments)||changed(a.pairs,b.pairs))return'connect';
  if(changed(a.actions,b.actions)||changed(a.actionIds,b.actionIds)||changed(a.firstCommitted,b.firstCommitted))return'commit';
  for(const key of ['selectedEvidenceIds','exploredTokenIds','listenedRoundIds','listenedSceneIds','activeCheckpointId','activeRoundId'])if(changed(a[key],b[key]))return'inspect';
- for(const key of ['choiceId','selection','ratings','selectedActionId','selectedActorId','selectedPropId'])if(changed(a[key],b[key]))return'select';
+ for(const key of ['choiceId','selection','ratings','selectedActionId','selectedActorId','selectedPropId','selectedTokenId','selectedItemId','selectedPartId'])if(changed(a[key],b[key]))return'select';
  // Data answers and free-text fields are deliberately excluded.
  if(!('evidenceRows'in b)&&changed(a.answers,b.answers)){
   const aa=obj(a.answers),ba=obj(b.answers);

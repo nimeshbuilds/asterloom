@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {buildDirectorSourceInventory,directorInputRevision} from '../src/lib/gameDirectorSources';
+import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,MIXED_CODE_PROSE_LIMITATION} from '../src/lib/gameDirectorSources';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {compileNotebook} from '../src/lib/compiler';
 import {sourceLearningUnits} from '../src/lib/sourceUnits';
@@ -20,6 +20,24 @@ describe('complete bounded director source inventory',()=>{
   for(const original of sourceLearningUnits(source))expect(inventory.units.some(unit=>unit.sourceId===source.id&&unit.start<=original.start&&unit.end>=original.end)).toBe(true);
   expect(inventory.units.filter(u=>!u.missionEligible).map(u=>u.limitation).join(' ')).toContain('code');
   expect(inventory.units.find(u=>u.excerpt==='Short label.')?.missionEligible).toBe(false);
+ });
+ it('keeps mixed technical units whole while allowing citations to useful prose and keeping code inert',()=>{
+  const before='Publisher: A component that sends messages to a named topic.',after='Subscriber: A component that receives messages from a subscribed topic.';
+  const source=createSource('# Events\n'+before+'\n\n```js\npublish("weather", reading);\n```\n\n'+after,'Event guide');
+  const [unit]=buildDirectorSourceInventory({sources:[source]}).units,[original]=sourceLearningUnits(source);
+  expect(unit).toMatchObject({id:original.id,start:original.start,end:original.end,missionEligible:true,limitation:MIXED_CODE_PROSE_LIMITATION});
+  expect(unit.excerpt).toBe(source.text.slice(unit.start,unit.end));expect(unit.excerpt).toContain('publish("weather", reading);');expect(unit.excerpt).toContain(after);
+  expect(()=>assertDirectorProseEvidence(unit,[source],[{sourceId:source.id,evidence:before},{sourceId:source.id,evidence:after}])).not.toThrow();
+  for(const evidence of ['publish("weather", reading);',unit.excerpt,before+'\n\n```js'])expect(()=>assertDirectorProseEvidence(unit,[source],[{sourceId:source.id,evidence}])).toThrow(/non-code/);
+  expect(buildDirectorSourceInventory({sources:[createSource('# Code\n```js\npublish("weather", reading);\n```')]}).units[0].missionEligible).toBe(false);
+ });
+ it('requires a teaching citation’s actual location to be prose even when identical words also occur outside code',()=>{
+  const statement='A publisher sends messages to a named topic.';
+  const source=createSource('# Events\n```text\n'+statement+'\n```\n\n'+statement),[unit]=buildDirectorSourceInventory({sources:[source]}).units;
+  const code=source.text.indexOf(statement),prose=source.text.lastIndexOf(statement);
+  expect(()=>assertDirectorProseEvidence(unit,[source],[{sourceId:source.id,evidence:statement,start:code,end:code+statement.length}])).toThrow(/non-code/);
+  expect(()=>assertDirectorProseEvidence(unit,[source],[{sourceId:source.id,evidence:statement,start:prose,end:prose+statement.length}])).not.toThrow();
+  expect(()=>assertDirectorProseEvidence(unit,[source],[{sourceId:source.id,evidence:statement,start:prose,end:prose+statement.length+1}])).toThrow(/non-code/);
  });
  it('does not treat unreviewed transcript media or failed imports as ready source evidence',()=>{
   const ready=createSource('A usable source passage preserves the exact observation and the stated condition.','Ready');

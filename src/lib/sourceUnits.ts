@@ -28,14 +28,38 @@ export const PROCEDURE_CUE = /\b(?:procedure|steps|method|workflow|instructions|
 
 const ACTION_START=/^(?:add|allow|assemble|attach|calculate|check|choose|close|collect|compare|confirm|connect|count|disconnect|draw|enter|find|identify|inspect|install|keep|label|measure|mix|move|observe|open|place|plan|read|record|remove|repeat|report|review|rinse|select|set|sort|start|stop|test|turn|verify|wait|write)\b/i;
 /** Numbering alone proves no dependency. An explicit process cue or a complete ordered list of imperative actions supplies a conservative practice signal. */
-export function isSourceProcedure(segment:SourceSegment, context=''):boolean {
+export function isSourceLabeledProcedure(segment:SourceSegment, context=''):boolean {
   if(segment.kind!=='list'||segment.fragment)return false;
   const lines=segment.quote.split(/\r?\n/).filter(line=>line.trim()),steps=lines.map(line=>line.match(/^\s*(\d+)[.)]\s+(.+)$/));
   if(steps.length<2||steps.some((step,i)=>!step||Number(step[1])!==i+1))return false;
   const heading=segment.headingPath.at(-1)??'';
   const headingCue=/^(?:(?:the|a|an|our|your|source|supplied|documented|training|practice|experimental)\s+){0,3}(?:procedure|steps|method|workflow|instructions|protocol|recipe|process)\b/i.test(heading)&&!/\b(?:types|kinds|examples|features|requirements|criteria|components|materials|contents|overview)\b/i.test(heading);
   const contextCue=/\b(?:follow|following|perform|carry out|complete)\s+(?:the\s+|these\s+|this\s+)?(?:[a-z-]+\s+){0,2}(?:steps|procedure|instructions|protocol|workflow|process)\b/i.test(context)&&!/\b(?:not|no|without)\s+(?:an?\s+)?(?:ordered\s+)?(?:procedure|process|sequence|steps)\b/i.test(context);
-  return headingCue||contextCue||steps.every(step=>ACTION_START.test(step![2]));
+  return headingCue||contextCue;
+}
+
+/** Inventory may also recognize an unambiguous complete list of imperative steps. */
+export function isSourceProcedure(segment:SourceSegment, context=''):boolean {
+  if(isSourceLabeledProcedure(segment,context))return true;
+  if(segment.kind!=='list'||segment.fragment)return false;
+  const steps=segment.quote.split(/\r?\n/).filter(line=>line.trim()).map(line=>line.match(/^\s*(\d+)[.)]\s+(.+)$/));
+  return steps.length>=2&&steps.every((step,i)=>!!step&&Number(step[1])===i+1&&ACTION_START.test(step[2]));
+}
+/** The cited range must contain the complete list. Its explicit procedure label can live
+ * in the source heading, which is preserved as structure rather than copied into a quote. */
+export function explicitSourceProcedures(text:string,start=0,end=text.length):SourceSegment[] {
+  const segments=segmentSource(text);
+  return segments.filter((segment,index)=>{
+    if(segment.start<start||segment.end>end||segment.kind!=='list')return false;
+    const previous=segments[index-1],next=segments[index+1];
+    // Size-bounded list pieces are not a complete procedure merely because the
+    // first piece still starts at 1. Keep a continued list in source study.
+    const last=segment.quote.trim().split(/\r?\n/).at(-1)?.match(/^\s*(\d+)[.)]\s+/);
+    const following=next?.quote.match(/^\s*(\d+)[.)]\s+/);
+    if(next?.kind==='list'&&next.sectionKey===segment.sectionKey&&last&&following&&Number(following[1])===Number(last[1])+1&&!text.slice(segment.end,next.start).trim())return false;
+    const context=previous&&previous.sectionKey===segment.sectionKey&&previous.kind==='paragraph'?previous.quote.slice(-180):'';
+    return isSourceLabeledProcedure(segment,context);
+  });
 }
 
 /** Intl sentence boundaries keep decimals and common abbreviations inside their original sentence. */

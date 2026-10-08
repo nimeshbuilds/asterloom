@@ -177,3 +177,65 @@ describe('soundtrack persistence and lifecycle',()=>{
  });
 
 });
+
+describe('reward cue foreground and completion priority',()=>{
+ it('promotes the final successful answer into a completion fanfare and restores the score mix',async()=>{
+  const music=await import('../src/lib/music');
+  music.setSoundPreferences({enabled:true,volume:.32});
+  music.syncLearningSoundtrack(context,{enabled:true,volume:.2});
+  const audio=AudioContextMock.instances[0],scoreLevel=audio.gains[0].gain.value;
+  expect(music.musicFeedback('success',context.scaffoldId,'adult')).toBe(true);
+  expect(audio.gains[0].gain.value).toBeCloseTo(scoreLevel*.4);
+  const afterAnswer=audio.oscillators.length;
+  expect(music.musicFeedback('complete',context.scaffoldId,'adult')).toBe(true);
+  expect(audio.oscillators.length).toBeGreaterThan(afterAnswer);
+  expect(audio.gains[0].gain.value).toBeCloseTo(scoreLevel*.24);
+  expect(music.musicFeedback('complete',context.scaffoldId,'adult')).toBe(false);
+  vi.advanceTimersByTime(2100);
+  expect(audio.gains[0].gain.value).toBeCloseTo(scoreLevel);
+  music.stopMusic();expect(vi.getTimerCount()).toBe(0);
+ });
+ it('previews only after sound opt-in without changing the lesson phase and cancels on exit',async()=>{
+  const music=await import('../src/lib/music');
+  music.syncLearningSoundtrack(context,{enabled:false,volume:.2});
+  expect(music.previewRewardSound()).toBe(false);
+  expect(AudioContextMock.instances).toHaveLength(0);
+  music.setSoundPreferences({enabled:true,volume:.32});
+  const phase=music.getMusicRuntimeStatus().phase;
+  expect(music.previewRewardSound()).toBe(true);
+  expect(music.getMusicRuntimeStatus().phase).toBe(phase);
+  const audio=AudioContextMock.instances[0];
+  music.stopMusic();expect(audio.oscillators.every(node=>node.stopCalls.includes(undefined))).toBe(true);
+  const stopped=audio.oscillators.length;vi.advanceTimersByTime(10000);
+  expect(audio.oscillators).toHaveLength(stopped);expect(vi.getTimerCount()).toBe(0);
+ });
+});
+
+describe('prepared effect profiles execute across the full recipe catalog',()=>{
+ it('honors each recipe’s validated AI choice at the actual audio scheduler',async()=>{
+  const music=await import('../src/lib/music');
+  const {feedbackCuePlan}=await import('../src/data/reactionProfiles');
+  music.setSoundPreferences({enabled:true,volume:.32});
+  const audio=AudioContextMock.instances[0],identities=new Set<string>();
+  for(const scaffold of SCAFFOLDS){
+   const ageGroup=scaffold.ages.includes('adult')?'adult':scaffold.ages[0];
+   const directedContext={notebookId:'profile-coverage',missionId:scaffold.id,scaffoldId:scaffold.id,ageGroup,phase:'quest' as const};
+   const catalog=audioDirectionCatalog(directedContext);
+   const direction:GameAudioDirection={version:1,playTrackId:`score-${scaffold.id}`,studyTrackId:catalog.studyTracks[0].id,effectProfileId:scaffold.id,effects:'standard'};
+   music.syncLearningSoundtrack({...directedContext,artDirection:direction},{enabled:false,volume:.2});
+   expect(music.getMusicRuntimeStatus().selection?.effectProfileId,scaffold.id).toBe(scaffold.id);
+   vi.advanceTimersByTime(2100);
+   const start=audio.oscillators.length,at=audio.currentTime;
+   expect(music.musicFeedback('success',scaffold.id,ageGroup),scaffold.id).toBe(true);
+   const plan=feedbackCuePlan('success',scaffold.id,ageGroup),notes=[...plan.notes,...plan.support],voices=audio.oscillators.slice(start);
+   expect(voices,scaffold.id).toHaveLength(notes.length);
+   for(let i=0;i<notes.length;i++){
+    expect(voices[i].frequency.value,scaffold.id).toBeCloseTo(440*2**((notes[i].midi-69)/12),5);
+    expect(voices[i].startedAt[0]-at,scaffold.id).toBeCloseTo(notes[i].at+.015,5);
+   }
+   identities.add(JSON.stringify(voices.map(voice=>[voice.frequency.value,Math.round((voice.startedAt[0]-at)*1000),Math.round(((voice.stopCalls[0]??at)-at)*1000)])));
+  }
+  expect(identities.size).toBe(SCAFFOLDS.length);
+  music.stopMusic();expect(vi.getTimerCount()).toBe(0);
+ });
+});

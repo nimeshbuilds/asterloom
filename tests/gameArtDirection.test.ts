@@ -12,6 +12,20 @@ describe('portable AI art direction',()=>{
  it('offers a real compatible palette for every recipe and supported age, using only bundled catalog assets',()=>{
   const ids=new Set(MUSIC_TRACKS.map(track=>track.id));for(const scaffold of SCAFFOLDS)for(const ageGroup of scaffold.ages){const context={ageGroup,scaffoldId:scaffold.id};const catalog=audioDirectionCatalog(context);expect(catalog.playTracks.length,scaffold.id).toBeGreaterThan(1);expect(catalog.studyTracks.length,scaffold.id).toBeGreaterThan(1);expect(catalog.effectProfiles.length,scaffold.id).toBeGreaterThan(0);expect(validateGameAudioDirection(directionFor(context),context),scaffold.id).toEqual([]);for(const track of [...catalog.playTracks,...catalog.studyTracks])expect(ids.has(track.id)).toBe(true);for(const profile of catalog.effectProfiles){const owner=SCAFFOLDS.find(item=>item.id===profile.id)!;expect(owner.family).toBe(scaffold.family);expect(owner.ages).toContain(ageGroup);expect(owner.visual.scene).toBe(scaffold.visual.scene);}}
  });
+ it('lists the exact recipe identity first without removing compatible alternatives or mutating the catalog',()=>{
+  const original=MUSIC_TRACKS.map(track=>track.id);
+  for(const scaffold of SCAFFOLDS)for(const ageGroup of scaffold.ages){
+   const context={scaffoldId:scaffold.id,ageGroup},catalog=audioDirectionCatalog(context);
+   expect(catalog.playTracks[0].id,scaffold.id).toBe(`score-${scaffold.id}`);
+   expect(catalog.effectProfiles[0].id,scaffold.id).toBe(scaffold.id);
+   expect(new Set(catalog.playTracks.map(track=>track.id)).size).toBe(catalog.playTracks.length);
+   if(catalog.effectProfiles.length>1){
+    const alternative={...directionFor(context),effectProfileId:catalog.effectProfiles[1].id};
+    expect(resolveGameAudioDirection(alternative,context)).toEqual(alternative);
+   }
+  }
+  expect(MUSIC_TRACKS.map(track=>track.id)).toEqual(original);
+ });
  it('rejects unknown assets, remote references, arbitrary programs, incompatible age/scene/mechanic and policies',()=>{
   const direction=directionFor(context);for(const patch of [{playTrackId:'https://example.com/live.mp3'},{effectProfileId:'alert.exe'},{studyTrackId:'not-bundled'},{effects:'always-on'},{version:2},{script:'run()'}])expect(validateGameAudioDirection({...direction,...patch},context).length).toBeGreaterThan(0);
   expect(resolveGameAudioDirection(direction,{...context,ageGroup:'3-5'})).toBeUndefined();expect(resolveGameAudioDirection(direction,{...context,scaffoldId:'concept-map-repair'})).toBeUndefined();expect(resolveGameAudioDirection(direction,{...context,theme:'ocean'})).toBeUndefined();expect(resolveGameAudioDirection(direction,{...context,ageGroup:'mystery'})).toBeUndefined();

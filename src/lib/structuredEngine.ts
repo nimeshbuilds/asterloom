@@ -350,7 +350,9 @@ export function evaluateActivityForAuthoring(activity: StructuredActivity, respo
       for (const rule of activity.membership) {
         const selected = assignments[rule.itemId];
         if (!Array.isArray(selected) || !selected.every(id => typeof id === 'string' && activity.categories.some(category => category.id === id)) || new Set(selected).size !== selected.length) return invalid('Use distinct valid categories for each item.');
-        details.push({ id: rule.itemId, correct: sameSet(selected, rule.categoryIds), message: `The ${activity.reviewStatus === 'reviewed' ? 'reviewed' : 'draft'} categories are ${rule.categoryIds.map(id => activity.categories.find(category => category.id === id)?.label).join(', ')}.` });
+        const label = activity.items.find(item => item.id === rule.itemId)!.label;
+        const names = (ids: string[]) => ids.map(id => activity.categories.find(category => category.id === id)!.label).join(', ') || 'none';
+        details.push({ id: rule.itemId, correct: sameSet(selected, rule.categoryIds), message: `“${label}” — ${activity.reviewStatus === 'reviewed' ? 'Reviewed' : 'Draft'} groups: ${names(rule.categoryIds)}. Your groups: ${names(selected as string[])}.` });
       }
       break;
     }
@@ -369,8 +371,13 @@ export function evaluateActivityForAuthoring(activity: StructuredActivity, respo
       }
       if (new Set(chosen).size !== chosen.length) return invalid('Do not repeat a relationship.');
       const expected = activity.edges.map(edge => JSON.stringify([edge.from, edge.to, edge.relation]));
-      expected.forEach((edge, i) => details.push({ id: `edge-${i}`, correct: chosen.includes(edge), message: `${activity.edges[i].from} ${activity.edges[i].relation} ${activity.edges[i].to}` }));
-      chosen.filter(edge => !expected.includes(edge)).forEach((edge, i) => details.push({ id: `extra-${i}`, correct: false, message: `This relationship is not in the reviewed model: ${edge}` }));
+      const label = (id: string) => activity.nodes.find(node => node.id === id)!.label;
+      const describe = (edge: {from: string; to: string; relation: string}) => `“${label(edge.from)}” — ${edge.relation} → “${label(edge.to)}”`;
+      expected.forEach((edge, i) => details.push({ id: `edge-${i}`, correct: chosen.includes(edge), message: `${chosen.includes(edge) ? 'Connected' : 'Connect'}: ${describe(activity.edges[i])}.` }));
+      chosen.filter(edge => !expected.includes(edge)).forEach((edge, i) => {
+        const [from, to, relation] = JSON.parse(edge) as [string, string, string];
+        details.push({ id: `extra-${i}`, correct: false, message: `Revise ${describe({from, to, relation})}: this relationship is not in the ${activity.reviewStatus === 'reviewed' ? 'reviewed' : 'draft'} model.` });
+      });
       break;
     }
     case 'budget': {

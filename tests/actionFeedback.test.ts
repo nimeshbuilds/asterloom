@@ -32,7 +32,24 @@ describe('action sound design',()=>{
   [{actions:[]},{actions:['route']},'commit'],
   [{hint:false},{hint:true},'reveal'],
   [{choiceId:''},{choiceId:'a'},'select'],
+  [{selectedTokenId:null},{selectedTokenId:'token-a'},'select'],
+  [{selectedItemId:null},{selectedItemId:'item-a'},'select'],
+  [{selectedPartId:null},{selectedPartId:'part-a'},'select'],
  ])('acknowledges meaningful action %#',(a,b,expected)=>expect(activityActionCue(a,b)).toBe(expected));
+ it.each([
+  [{},{worker:1},'place'],
+  [{worker:1},{worker:2},'place'],
+  [{worker:4},{worker:3},'remove'],
+  [{worker:1},{},'remove'],
+  [{worker:2,vehicle:1},{worker:1,vehicle:2},'move'],
+  [{worker:2,vehicle:1},{worker:1,vehicle:4},'move'],
+  [{worker:2,vehicle:1},{vehicle:1,worker:2},null],
+  [{worker:0},{},null],
+  [{worker:2},{worker:2},null],
+  [{worker:1},{worker:NaN},null],
+ ])('acknowledges resource allocation by unit change, without grading the allocation %#',(previous,next,expected)=>{
+  expect(activityActionCue({quantities:previous},{quantities:next})).toBe(expected);
+ });
  it('never sounds on typing, playback, unchanged responses or restoring snapshots',()=>{
   expect(activityActionCue({input:'a'},{input:'answer'})).toBeNull();
   expect(activityActionCue({evidenceRows:{},answers:{q:'1'}},{evidenceRows:{},answers:{q:'123'}})).toBeNull();

@@ -36,6 +36,15 @@ describe('source-grounded teaching and authored mission coverage',()=>{
   const n=fixture('Procedure for the training model:\n1. Read the supplied observation.\n2. Compare the observation with the rule.\n3. Record the decision and its evidence.');const p=plan(n);expect(p.walkthrough.kind).toBe('source-procedure');expect(p.walkthrough.steps.map(x=>x.reference.quote)).toEqual(['Read the supplied observation.','Compare the observation with the rule.','Record the decision and its evidence.']);expect(p.practice.orderIds).toHaveLength(3);const s=prepared(p);s.practice.order.reverse();expect(lessonPracticeReady(p,s)).toBe(false);s.practice.order.reverse();expect(lessonPracticeReady(p,s)).toBe(true);
   expect(plan(fixture('1. Read the supplied observation.\n2. Compare the observation with the rule.')).walkthrough.kind).toBe('source-reading');
  });
+ it('teaches a heading-labeled procedure as exact source steps and a route kit when mission evidence contains only the body',()=>{
+  const steps='1. Open the panel.\n2. Read the displayed value.\n3. Record the displayed value.';
+  for(const heading of ['# Procedure','Procedure for the instrument:']){
+   const n=fixture(heading+'\n'+steps);n.cards[0].evidence=steps;const p=plan(n);
+   expect(p.walkthrough.kind).toBe('source-procedure');expect(p.rehearsal?.kind).toBe('route-kit');
+   expect(p.walkthrough.steps.map(step=>step.reference.quote)).toEqual(['Open the panel.','Read the displayed value.','Record the displayed value.']);
+   expect(p.walkthrough.steps.every(step=>isCurrentEvidence(step.reference,n.sources))).toBe(true);
+  }
+ });
  it('quotes worked reasoning only when an example and reasoning are actually supplied',()=>{
   const p=plan(fixture('Example: In the supplied model, the display reads twelve. The value exceeds ten because twelve is greater than ten. This example uses only the displayed value.'));
   expect(p.walkthrough.kind).toBe('source-example');expect(p.walkthrough.steps.some(s=>s.reason?.quote.includes('because'))).toBe(true);
@@ -126,9 +135,13 @@ describe('bounded durable lesson progression and later independent retrieval',()
  it('serializes partial notes and exact progress without storing source facts or provider configuration',()=>{
   const p=plan(),s=prepared(p);s.practice.compared=false;const restored=initialLessonState(p,JSON.parse(JSON.stringify(s)));expect(restored).toEqual(s);expect(JSON.stringify(restored).length).toBeLessThan(4000);expect(lessonReady(p,restored)).toBe(false);
  });
+ it('starts with a source-grounded focus and accepts one thoughtful note without a second writing task',()=>{
+  const p=plan(),fresh=initialLessonState(p);expect(fresh.practice.focusId).toBe(p.practice.focusOptions.find(option=>p.passages.some(passage=>passage.role==='focus'&&passage.id===option.passageId))?.id);expect(fresh.practice.compared).toBe(false);expect(lessonPracticeReady(p,fresh)).toBe(false);
+  const s=prepared(p);s.practice.connection='';expect(lessonPracticeReady(p,s)).toBe(true);expect(completeLesson(p,s).completedAt).toBeDefined();expect(lessonPracticeReady(p,{...s,practice:{...s.practice,compared:false}})).toBe(false);
+ });
  it('requires the walkthrough and active source comparison before any ready state',()=>{
   const p=plan(),s=prepared(p);expect(lessonReady(p,done(p))).toBe(true);
-  for(const bad of [{...s,missionAccepted:false},{...s,viewedPassageIds:[]},{...s,walkthroughStep:0},{...s,practice:{...s.practice,focusId:'unknown'}},{...s,practice:{...s.practice,explanation:'yes'}},{...s,practice:{...s.practice,connection:''}},{...s,practice:{...s.practice,compared:false}}]){expect(lessonReady(p,{...bad,stage:'ready',completedAt:'2026-10-04T00:00:00.000Z'})).toBe(false);expect(completeLesson(p,bad).completedAt).toBeUndefined();}
+  for(const bad of [{...s,missionAccepted:false},{...s,viewedPassageIds:[]},{...s,walkthroughStep:0},{...s,practice:{...s.practice,focusId:'unknown'}},{...s,practice:{...s.practice,explanation:'yes'}},{...s,practice:{...s.practice,compared:false}}]){expect(lessonReady(p,{...bad,stage:'ready',completedAt:'2026-10-04T00:00:00.000Z'})).toBe(false);expect(completeLesson(p,bad).completedAt).toBeUndefined();}
  });
  it('separates immediate supported practice from later independent retrieval and keeps drafts uncredited',()=>{
   const p=plan(),at=Date.parse('2026-10-04T00:00:00.000Z'),s=done(p,at);expect(lessonQuestSupport(p,s,at).assisted).toBe(true);expect(lessonQuestSupport(p,s,at+LESSON_SUPPORT_WINDOW_MS-1).assisted).toBe(true);expect(lessonQuestSupport(p,s,at+LESSON_SUPPORT_WINDOW_MS).assisted).toBe(false);expect(lessonQuestSupport(p,s,at-1).assisted).toBe(true);

@@ -9,6 +9,8 @@ import {parsePackage,serializePackage} from '../src/lib/package';
 import {evaluateActivity} from '../src/lib/structuredEngine';
 import {summarizeAIUsage} from '../src/lib/aiUsage';
 import type {Notebook} from '../src/types';
+import {LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION} from '../src/lib/gameDirectorSources';
+import {evidenceBlocks,evidenceReference} from '../src/lib/evidence';
 
 const config={provider:'compatible' as const,model:'source-designer',apiKey:'only-in-session',baseUrl:'http://127.0.0.1:11434/v1'};
 const options={aiPolicy:'required' as const,ai:{config,consent:'create-game' as const}};
@@ -89,6 +91,44 @@ describe('resumable AI game director',()=>{
  });
  it('bounds repair of an incompatible companion expression and never approves it',async()=>{
   mock((stage,_data,value)=>{if(stage==='plan')value.missions[0].asterDirection={retry:'bright-celebration'};return value;});const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.ai.requestCount).toBe(2);expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');
+ });
+ it('creates a prose-grounded mission from a mixed technical section while every AI stage retains its full code context',async()=>{
+  const steps='1. Open the settings panel.\n2. Choose the reset command.\n3. Confirm the selected reset.',code='exampleReset();';
+  const input=createNotebook({sources:[createSource('# Procedure\n'+steps+'\n\n```js\n'+code+'\n```','Technical guide')]});
+  const provider=mock((stage,_data,value)=>{
+   if(stage==='write')for(const item of value.missions){const citations=[{sourceId:input.sources[0].id,evidence:steps}];item.activity.sourceRefs=citations;item.teaching.conceptExplanation.citations=citations;for(const chunk of item.teaching.chunks)chunk.citations=citations;}
+   return value;
+  });
+  const result=await prepareGameExperience(input,{},options);expect(result.creationStatus,result.ai.message).toBe('ready');
+  expect(provider.requests[0].data.units[0].excerpt).toContain(code);expect(provider.requests[1].data.missions[0].unit.excerpt).toContain(code);
+  expect(provider.requests[2].data.missions[0].exactEvidence.some((ref:any)=>ref.evidence.includes(code))).toBe(true);
+  const design=result.notebook.gameDesign!,draft=design.batches[0].drafts![0];expect(design.units[0].limitation).toBe(MIXED_CODE_PROSE_LIMITATION);expect(draft.teaching.sourceWindows[0].quote).toContain(code);expect(draft.activity.sourceRefs[0].evidence).toBe(steps);
+  expect(parsePackage(serializePackage(result.notebook)).gameDesign).toEqual(design);
+  const forged=structuredClone(design),codeRef=evidenceReference(evidenceBlocks(input.sources[0]).find(block=>block.quote===code)!);
+  forged.batches[0].drafts![0].teaching.conceptExplanation.citations=[codeRef];expect(()=>validateGameDesign(forged,result.notebook)).toThrow(/non-code/);
+ });
+ it.each(['activity','teaching'])('rejects a mixed-source %s citation that uses code without discarding source material or consumed usage',async(target)=>{
+  const steps='1. Open the settings panel.\n2. Choose the reset command.\n3. Confirm the selected reset.',code='exampleReset();';
+  const input=createNotebook({sources:[createSource('# Procedure\n'+steps+'\n\n```js\n'+code+'\n```','Technical guide')]});
+  mock((stage,_data,value)=>{
+   if(stage==='write')for(const item of value.missions){const citations=[{sourceId:input.sources[0].id,evidence:steps}];if(target==='teaching')item.activity.sourceRefs=citations;item.teaching.conceptExplanation.citations=target==='teaching'?[{sourceId:input.sources[0].id,evidence:code}]:citations;for(const chunk of item.teaching.chunks)chunk.citations=citations;}
+   return value;
+  });
+  const result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('needs-source');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.gameDesign!.events?.some(event=>event.category==='validation'&&event.message.includes('non-code'))).toBe(true);expect(result.ai.activityIds).toEqual([]);
+ });
+ it('imports the exact legacy mixed-code exclusion without resetting ready games, source windows or historical token receipts',async()=>{
+  const normal=n().sources[0],mixed=createSource('# Events\nPublisher: A component that sends messages to a named topic.\nSubscriber: A component that receives messages from a subscribed topic.\n\n```js\npublish("weather", reading);\n```','Technical reference');
+  const provider=mock((stage,data,value)=>{
+   if(stage==='plan'){const unit=data.units.find((u:any)=>u.sourceId===mixed.id);if(unit){value.missions=value.missions.filter((m:any)=>m.unitId!==unit.unitId);value.study.push({unitId:unit.unitId,reason:LEGACY_CODE_STUDY_LIMITATION});}}
+   return value;
+  });
+  const result=await prepareGameExperience(createNotebook({sources:[normal,mixed]}),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');
+  const prior=structuredClone(result.notebook),design=prior.gameDesign!,index=design.units.findIndex(unit=>unit.sourceId===mixed.id);design.units[index]={...design.units[index],missionEligible:false,limitation:LEGACY_CODE_STUDY_LIMITATION};
+  const restored=parsePackage(serializePackage(prior)),normalized=restored.gameDesign!;
+  expect(normalized.status).toBe('ready');expect(normalized.inputRevision).toBe(design.inputRevision);expect(normalized.batches).toEqual(design.batches);expect(normalized.events).toEqual(design.events);expect(normalized.receipts).toEqual(design.receipts);expect(normalized.generatedModels).toEqual(design.generatedModels);expect(normalized.audioDirection).toEqual(design.audioDirection);expect(normalized.visualDirection).toEqual(design.visualDirection);expect(restored.activities).toEqual(prior.activities);expect(restored.aiLearningPlan).toEqual(prior.aiLearningPlan);
+  expect(normalized.units[index]).toEqual({...design.units[index],missionEligible:true,limitation:MIXED_CODE_PROSE_LIMITATION});
+  const replay=await prepareGameExperience(restored,{}, {aiPolicy:'required'});expect(replay.creationStatus,replay.ai.message).toBe('ready');expect(replay.ai.requestCount).toBe(0);expect(provider.fetch).toHaveBeenCalledTimes(3);expect(replay.notebook.gameDesign!.receipts).toEqual(design.receipts);
+  for(const patch of [{start:design.units[index].start+1},{limitation:'Invented exemption'},{missionEligible:true}]){const forged=structuredClone(design);Object.assign(forged.units[index],patch);expect(()=>validateGameDesign(forged,prior)).toThrow(/coverage/);}
  });
  it('strictly rejects metadata, approval, coverage and audio forgeries on portable import',async()=>{
   mock();const result=await prepareGameExperience(n(),{},options),notebook=result.notebook,design=notebook.gameDesign!;

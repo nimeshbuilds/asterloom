@@ -1,6 +1,6 @@
 import AsterGuide from './AsterGuide';
 import '../learning-journey.css';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Check, CheckCircle2, ChevronRight, Flag, Lightbulb, Pause, Sparkles, Volume2, X } from 'lucide-react';
 import type { LearningCard, Notebook, Progress } from '../types';
 import type { Scaffold } from '../data/scaffolds';
@@ -20,6 +20,7 @@ import GameplayHUD, {type GameplayHUDProps} from './GameplayHUD';
 import {recallSessionTotals} from '../lib/gameplayHud';
 import {buildLearningBriefing,initialLessonState,lessonReady,lessonQuestSupport,lessonToolkit,type LessonState} from '../lib/learningBriefing';
 import '../player.css';
+import {revealGameMoment} from '../lib/gameViewport';
 
 interface Props {
   chapter?: CampaignChapter;
@@ -113,6 +114,8 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
   const locked = savingCritical || pendingTransition.current !== null;
   const completed = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const resultPanel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { if(reactionEvent > 0) revealGameMoment(resultPanel.current); }, [reactionEvent]);
   const sessionIsCurrent = session.cardIds.every(id => eligibleCards.some(item => item.id === id));
   const cards = session.cardIds.map(id => eligibleCards.find(card => card.id === id)).filter((card): card is LearningCard => !!card);
   const card = cards[index];
@@ -169,6 +172,7 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
   }
 
   const lessonUnlocked = lessonReady(lessonPlan, state.lesson);
+  useLayoutEffect(() => { if(lessonUnlocked && !state.submitted) revealGameMoment(heading.current); }, [lessonUnlocked,index]);
   async function saveLesson(lesson: LessonState): Promise<boolean> {
     // A failed lesson write can be retried (or replaced by newer local notes).
     // Answer/advance transitions remain immutable until their original save succeeds.
@@ -338,7 +342,7 @@ export default function Player({ chapter, notebook, scaffold, progress, onProgre
 
           {!state.submitted && scaffold.family !== 'explain' && <div className="challenge-footer"><button className="btn ghost" onClick={() => change({ hint: !state.hint })}><Lightbulb size={17}/>{state.hint ? 'Hide hint' : 'A little hint'}</button><button className="btn primary" disabled={!canSubmit} onClick={check}>Check my answer<ChevronRight size={18}/></button></div>}
 
-          {state.submitted && <div className={`answer-feedback ${state.correct ? 'success' : 'retry'}`} role="status"><ReactionEffects outcome={state.correct?'success':'retry'} scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={`${card.id}:${state.attemptsOnCard}`} animate={reactionEvent>0} theme={notebook.theme} artDirection={notebook.gameDesign?.audioDirection}/><div className="feedback-reward"><strong>{scaffold.family==='explain'?'Reflection saved':state.correct?'Mission score +1':'Keep the idea in play'}</strong><span>+{state.resultXp??lastResult?.xp??0} Journey XP · {supportedNow?'supported practice':'independent attempt'}</span></div><div className="feedback-heading">{state.correct ? <CheckCircle2 size={24}/> : <Lightbulb size={24}/>}<h3>{scaffold.family === 'explain' ? 'Reflection saved.' : state.correct ? scaffold.dialogue.success : scaffold.dialogue.tryAgain}</h3></div>{pairMode ? <ul className="pair-feedback">{pool.map(item => <li key={item.id}><strong>{item.answer}</strong> — {passageLabel(item)}</li>)}</ul> : scaffold.family === 'sequence' ? <ol>{ordering.items.map((item, at) => <li key={at}>{item}</li>)}</ol> : <p>{card.explanation}</p>}<details><summary><BookOpen size={15}/>View source evidence{source ? ` · ${source.title}` : ''}</summary><blockquote>{card.evidence || 'This challenge was written by the notebook author.'}</blockquote>{source?.url && <a href={source.url} target="_blank" rel="noreferrer">Open original source</a>}</details>{!state.correct&&scaffold.family!=='explain'&&<button className="btn secondary" onClick={retryCard}>Try again with the source<ArrowRight size={16}/></button>}<button className="btn primary" onClick={nextCard}>{index === cards.length - 1 ? 'Complete this chapter' : 'Continue exploring'}<ArrowRight size={18}/></button></div>}
+          {state.submitted && <div className={`answer-feedback ${state.correct ? 'success' : 'retry'}`} ref={resultPanel} tabIndex={-1} role="status"><ReactionEffects outcome={state.correct?'success':'retry'} scaffoldId={scaffold.id} ageGroup={notebook.ageGroup} eventKey={`${card.id}:${state.attemptsOnCard}`} animate={reactionEvent>0} theme={notebook.theme} artDirection={notebook.gameDesign?.audioDirection}/><div className="feedback-reward"><strong>{scaffold.family==='explain'?'Reflection saved':state.correct?'Mission score +1':'Keep the idea in play'}</strong><span>+{state.resultXp??lastResult?.xp??0} Journey XP · {supportedNow?'supported practice':'independent attempt'}</span></div><div className="feedback-heading">{state.correct ? <CheckCircle2 size={24}/> : <Lightbulb size={24}/>}<h3>{scaffold.family === 'explain' ? 'Reflection saved.' : state.correct ? scaffold.dialogue.success : scaffold.dialogue.tryAgain}</h3></div>{pairMode ? <ul className="pair-feedback">{pool.map(item => <li key={item.id}><strong>{item.answer}</strong> — {passageLabel(item)}</li>)}</ul> : scaffold.family === 'sequence' ? <ol>{ordering.items.map((item, at) => <li key={at}>{item}</li>)}</ol> : <p>{card.explanation}</p>}<details><summary><BookOpen size={15}/>View source evidence{source ? ` · ${source.title}` : ''}</summary><blockquote>{card.evidence || 'This challenge was written by the notebook author.'}</blockquote>{source?.url && <a href={source.url} target="_blank" rel="noreferrer">Open original source</a>}</details>{!state.correct&&scaffold.family!=='explain'&&<button className="btn secondary" onClick={retryCard}>Try again with the source<ArrowRight size={16}/></button>}<button className="btn primary" onClick={nextCard}>{index === cards.length - 1 ? 'Complete this chapter' : 'Continue exploring'}<ArrowRight size={18}/></button></div>}
           </fieldset>
         </section>
         <p className="player-save-note" role="status"><Check size={13}/>{saveError ? 'Progress needs a successful save before continuing' : savingCount > 0 ? 'Saving progress…' : writeFailed ? 'Some progress is not saved. Use Save & exit to retry before leaving.' : 'Progress saved on this device · No AI needed to play'}</p><p className="nimeshbuilds-credit">Crafted by <a href="https://github.com/NimeshBuilds" target="_blank" rel="noreferrer">NimeshBuilds</a></p>
