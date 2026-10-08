@@ -45,7 +45,7 @@ export default function SourceMaterials({notebook,beforeDownload,disabled=false,
     finally{flight.current=false;setBusy('');}
   }
   return <>
-    <button type="button" className={className} disabled={disabled} onClick={()=>setOpen(true)}><BookOpen size={16} aria-hidden="true"/>Source materials</button>
+    <button type="button" className={`${className} source-materials-trigger`} disabled={disabled} onClick={()=>setOpen(true)}><BookOpen size={16} aria-hidden="true"/>Source materials</button>
     {open&&<Dialog title="Source materials" onClose={close} wide>
       <div className="source-materials-intro"><span><Download size={22} aria-hidden="true"/></span><div><p>Keep a copy of the material behind this game.</p><small>Original files are preserved uploads or captured snapshots. Readable text is the version used by this game.</small></div></div>
       {beforeDownload&&<p className="source-materials-support">Use these files for source-supported practice. Previously saved results keep their original score.</p>}

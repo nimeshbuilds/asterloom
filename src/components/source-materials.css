@@ -26,3 +26,11 @@ button.source-material-link{padding:0;background:transparent;border:0;text-decor
 .source-sharing-help p{margin:10px 0 0}
 .source-sharing-help a{color:#315e4b;text-decoration:underline}
 @media(max-width:600px){.source-materials-list{max-height:56dvh}.source-material-row{padding:14px}.source-material-options{gap:12px}.source-material-options>div{flex-basis:100%}.source-materials-intro{gap:10px}.source-materials-intro>span{width:36px;height:36px}.structured-materials-toolbar{justify-content:flex-start}}
+
+/* Source access keeps its own contrast on both the studio and dark game HUD. */
+.source-materials-trigger.button,.source-materials-trigger.btn{color:#244b3b;background:#f3f7ef;border:1px solid #b9cdbc;min-height:40px;max-width:100%;white-space:normal;line-height:1.45;text-align:left}
+.source-materials-trigger.button:hover:not(:disabled),.source-materials-trigger.btn:hover:not(:disabled){color:#193e2e;background:#e3efdf;border-color:#72917c}
+.source-materials-trigger:focus-visible{outline:2px solid #244b3b;outline-offset:-4px}
+.source-materials-trigger>svg{flex:none}
+.notebook-materials-toolbar{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin:0 0 18px;min-width:0}
+@media(max-width:600px){.notebook-materials-toolbar{justify-content:flex-start}.player-top-actions:has(>.source-materials-trigger){flex-wrap:wrap;justify-content:flex-end;row-gap:8px;max-width:100%;min-width:0}.player-topbar .source-materials-trigger{font-size:12px;padding:8px 10px}}
