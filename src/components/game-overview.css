@@ -1,0 +1,32 @@
+.game-overview{margin:1.2rem 0 1.5rem;padding:clamp(1.1rem,2.5vw,2rem);border:1px solid #c9d7d5;border-radius:22px;background:linear-gradient(140deg,#f7faf6,#eef5f4);color:#203c3b;min-width:0;overflow-wrap:anywhere}
+.game-overview-kicker{display:flex;align-items:center;gap:.45rem;font-size:.76rem;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:#3c635c}
+.game-overview h2{font-size:clamp(1.3rem,2.4vw,1.8rem);line-height:1.2;margin:.55rem 0 1rem;color:#183732;max-width:32ch}
+.game-overview h3{display:flex;align-items:center;gap:.45rem;color:#244640;font-size:1.04rem;margin:0 0 .8rem}
+.game-overview h3.game-overview-title{font-size:1.13rem;margin:0 0 .5rem}
+.game-overview p{color:#304d49;line-height:1.65;margin:.5rem 0;font-size:.95rem}
+.game-overview .game-overview-introduction{max-width:78ch;font-size:1.04rem}
+.game-overview-goals{margin:1.4rem 0;padding-top:1.15rem;border-top:1px solid #cbdad5}
+.game-overview-goals ul{display:grid;gap:.75rem;padding-left:1.25rem;margin:0;max-width:80ch}
+.game-overview-goals li{padding-left:.3rem;line-height:1.5}
+.game-overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:.75rem}
+.game-overview-grid article{padding:1.05rem;border:1px solid #d2ded9;border-radius:14px;background:#fff;min-width:0}
+.game-overview-number{font-size:.7rem;color:#54756b;font-weight:750;letter-spacing:.08em}
+.game-overview h4{font-size:1rem;line-height:1.35;margin:.4rem 0 .6rem;color:#203f39}
+.game-overview .game-overview-mission{display:flex;align-items:flex-start;gap:.35rem;font-size:.79rem;line-height:1.4;color:#426054;padding-top:.5rem;border-top:1px solid #e2eae5}
+.game-overview-mission svg{flex-shrink:0;margin-top:.1rem}
+.game-overview-evidence{margin:.6rem 0 0;font-size:.8rem}
+.game-overview-evidence summary,.game-overview-lesson-list summary{cursor:pointer;color:#355d50;font-weight:650;width:fit-content;min-height:28px;padding:.2rem 0}
+.game-overview-evidence summary:focus-visible,.game-overview-lesson-list summary:focus-visible{outline:3px solid #287b69;outline-offset:4px;border-radius:2px}
+.game-overview-evidence figure{margin:.5rem 0 0}
+.game-overview-evidence figcaption{color:#486358;line-height:1.4;font-size:.75rem}
+.game-overview-evidence blockquote{margin:.4rem 0;padding:.6rem .75rem;border-left:3px solid #9ebcad;line-height:1.6;white-space:pre-wrap;font-size:.83rem;color:#2f4d42;background:#f4f8f4}
+.game-overview-route{display:flex;flex-wrap:wrap;gap:1rem;margin:1.4rem 0 .75rem;padding-top:1rem;border-top:1px solid #cbdad5;font-size:.82rem;line-height:1.5}
+.game-overview-route span{display:flex;align-items:flex-start;gap:.4rem}
+.game-overview-route b{display:grid;place-items:center;min-width:1.3rem;height:1.3rem;border-radius:50%;background:#dcebe3;color:#234b3b;font-size:.72rem}
+.game-overview .game-overview-note{max-width:90ch;font-size:.76rem;line-height:1.5;color:#4b655b;margin-top:1rem}
+.game-overview-lesson-list{font-size:.85rem;line-height:1.6;margin-top:1rem}
+.game-overview-lesson-list ol{columns:2;column-gap:2rem;padding-left:1.5rem;max-width:90ch}
+.game-overview-lesson-list li{break-inside:avoid;padding:.2rem 0}
+@media(max-width:600px){.game-overview-route{flex-direction:column;gap:.65rem}.game-overview-lesson-list ol{columns:1}}
+
+.game-overview-explore{margin-top:1rem}.game-overview-explore>summary{cursor:pointer;font-size:.93rem;font-weight:750;color:#244f40;min-height:36px;padding:.4rem 0;width:fit-content}.game-overview-explore>summary:focus-visible,.game-overview-about>summary:focus-visible{outline:3px solid #287b69;outline-offset:4px;border-radius:2px}.game-overview-about>summary{cursor:pointer;color:#4b655b;font-size:.76rem;min-height:28px;padding:.2rem 0;width:fit-content}.game-overview-about .game-overview-note{margin-top:.3rem}

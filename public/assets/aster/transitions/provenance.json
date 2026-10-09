@@ -1,0 +1,28 @@
+{
+  "format": "asterloom-rendered-animation",
+  "createdAt": "2026-10-09",
+  "durationSeconds": 2.4,
+  "framesPerSecond": 30,
+  "width": 480,
+  "height": 640,
+  "codec": "VP9 with alpha",
+  "audio": false,
+  "tool": "FFmpeg libvpx-vp9",
+  "generativeVideo": false,
+  "sourceArtwork": "../agentic-aura.png",
+  "sourcePrompt": "../agentic-provenance.json",
+  "purpose": "A short, reversible transparent mantle transformation behind the current Aster expression. No character face is replaced and no live video or AI service is used during playback.",
+  "filter": "scale=480:638,format=rgba,pad=480:640:0:1:color=0x00000000,rotate=0.035*sin(PI*t/2.4):ow=iw:oh=ih:c=0x00000000,fade=t=in:st=0:d=1.4:alpha=1,format=yuva420p",
+  "files": [
+    {
+      "file": "connect.webm",
+      "bytes": 312409,
+      "sha256": "dd4f11e75cc27d2e0635efe6b614ca12ff050d05c0725faa71e9378d9ea18444"
+    },
+    {
+      "file": "disconnect.webm",
+      "bytes": 289353,
+      "sha256": "80d290289df8207b01b92fb3780167b73d7a58bd0df716af90293038fa949bc8"
+    }
+  ]
+}

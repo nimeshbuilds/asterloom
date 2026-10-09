@@ -1,10 +1,11 @@
 import type {Notebook} from '../types';
+import {validateOverviewNotes,validateOverviewWork,type OverviewNote,type GameOverviewWork} from './gameOverview';
 import type {StructuredActivity} from './structuredEngine';
 import {validateActivity} from './structuredEngine';
 import {validateAILearningPlan,type AILearningMission} from './aiLearningPlan';
 import {validateAIUsageReceipts,type AIUsageReceipt} from './aiUsage';
 import {validateGameAudioDirection,type GameAudioDirection} from './gameArtDirection';
-import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit,type DirectorSourceInventory} from './gameDirectorSources';
+import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,teachingContextWindow,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit,type DirectorSourceInventory} from './gameDirectorSources';
 import {GAME_FAMILY_RECIPES,type GameDraftKind} from './gameDraftAdapters';
 import {scaffoldById} from '../data/scaffolds';
 import {fitsSpecificContract} from './scaffoldRuntime';
@@ -15,10 +16,10 @@ export interface GameVisualDirection {scene:typeof GAME_SCENES[number];sourceAss
 export interface GameMissionPlan {id:string;unitId:string;kind:GameDraftKind;scaffoldId:string;title:string;objective:string;visualDirection:GameVisualDirection;asterDirection?:Partial<Record<AsterMoment,AsterEmotionId>>}
 export interface GameStudyDisposition {unitId:string;reason:string}
 export interface GameMissionDraft {missionId:string;activity:StructuredActivity;teaching:AILearningMission;audioDirection:GameAudioDirection}
-export interface GameMissionCheck {missionId:string;decision:'retain'|'source-study';reason:string}
+export interface GameMissionCheck {missionId:string;decision:'retain'|'source-study';reason:string;quality?:{understandable:boolean;lessonSupportsTask:boolean;controlsMatch:boolean;feedbackExplains:boolean}}
 export interface GameDesignBatch {
  id:string;unitIds:string[];status:'pending'|'planned'|'written'|'checked';
- missions?:GameMissionPlan[];study?:GameStudyDisposition[];drafts?:GameMissionDraft[];checks?:GameMissionCheck[];
+ missions?:GameMissionPlan[];study?:GameStudyDisposition[];drafts?:GameMissionDraft[];checks?:GameMissionCheck[];overviewNotes?:OverviewNote[];
 }
 export type GameCreationPhase='plan'|'write'|'check'|'finish';
 export type GameCreationEventKind='completed'|'retry'|'failed'|'source-study'|'resumed';
@@ -32,7 +33,7 @@ export interface GameDesign {
  receipts:AIUsageReceipt[];
  events?:GameCreationEvent[];
  generatedModels:{id:string;fingerprint:string}[];
- audioDirection?:GameAudioDirection;visualDirection?:GameVisualDirection;
+ audioDirection?:GameAudioDirection;visualDirection?:GameVisualDirection;overview?:GameOverviewWork;
 }
 const providers=['openai','anthropic','xai','compatible','chatgpt','grok','claude-code'];
 const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
@@ -60,8 +61,8 @@ export function validateAsterDirection(value:unknown):Partial<Record<AsterMoment
  const raw=obj(value,'Aster direction'),moments:AsterMoment[]=['welcome','concept','hint','retry','success','reflection'];fields(raw,moments,'Aster direction');
  const result:Partial<Record<AsterMoment,AsterEmotionId>>={};for(const [moment,value] of Object.entries(raw)){if(!isAsterEmotionForMoment(value,moment as AsterMoment))throw new Error('Choose a bundled Aster expression suitable for this moment.');result[moment as AsterMoment]=value;}return result;
 }
-export function validateGameBatchPlan(value:unknown,batch:GameDesignBatch,units:DirectorSourceUnit[],notebook:Pick<Notebook,'sources'|'ageGroup'>):Pick<GameDesignBatch,'missions'|'study'> {
- const v=obj(value,'game plan');fields(v,['missions','study'],'Game plan');
+export function validateGameBatchPlan(value:unknown,batch:GameDesignBatch,units:DirectorSourceUnit[],notebook:Pick<Notebook,'sources'|'ageGroup'>):Pick<GameDesignBatch,'missions'|'study'|'overviewNotes'> {
+ const v=obj(value,'game plan');fields(v,['missions','study','overviewNotes'],'Game plan');
  const missions=list(v.missions,'planned missions',3).map(raw=>{
   const m=obj(raw,'mission plan');fields(m,['id','unitId','kind','scaffoldId','title','objective','visualDirection','asterDirection'],'Mission plan');
   const unit=units.find(u=>u.id===m.unitId&&batch.unitIds.includes(u.id));if(!unit||!unit.missionEligible)throw new Error('A planned mission must use a disclosed complete source unit.');
@@ -75,11 +76,13 @@ export function validateGameBatchPlan(value:unknown,batch:GameDesignBatch,units:
  const study=list(v.study,'source-study dispositions',3).map(raw=>{const s=obj(raw,'source-study disposition');fields(s,['unitId','reason'],'Source-study disposition');const unitId=id(s.unitId,'study unit');if(!batch.unitIds.includes(unitId))throw new Error('A study disposition must identify a disclosed unit.');return{unitId,reason:str(s.reason,'source-study reason',600)};});
  unique(missions.map(m=>m.id),'mission plan IDs');const coverage=[...missions.map(m=>m.unitId),...study.map(s=>s.unitId)];unique(coverage,'source-unit coverage');
  if(coverage.length!==batch.unitIds.length||batch.unitIds.some(id=>!coverage.includes(id)))throw new Error('Every disclosed source unit needs a mission or an explicit study disposition.');
- return{missions,study};
+ return{missions,study,...(v.overviewNotes===undefined?{}:{overviewNotes:validateOverviewNotes(v.overviewNotes,batch.unitIds,{...notebook,units,batches:[]})})};
 }
-export function validateGameBatchChecks(value:unknown,batch:GameDesignBatch):GameMissionCheck[]{
+export function validateGameBatchChecks(value:unknown,batch:GameDesignBatch,requireQuality=false):GameMissionCheck[]{
  const v=obj(value,'game check');fields(v,['checks'],'Game check');
- const checks=list(v.checks,'mission checks',3).map(raw=>{const c=obj(raw,'mission check');fields(c,['missionId','decision','reason'],'Mission check');if(!['retain','source-study'].includes(String(c.decision)))throw new Error('Invalid check decision.');return{missionId:id(c.missionId,'checked mission'),decision:c.decision as GameMissionCheck['decision'],reason:str(c.reason,'check reason',600)};});
+ const checks=list(v.checks,'mission checks',3).map(raw=>{const c=obj(raw,'mission check');fields(c,['missionId','decision','reason','quality'],'Mission check');if(!['retain','source-study'].includes(String(c.decision)))throw new Error('Invalid check decision.');let quality:GameMissionCheck['quality'];
+  if(c.quality!==undefined||requireQuality){const q=obj(c.quality,'learner readiness check'),keys=['understandable','lessonSupportsTask','controlsMatch','feedbackExplains'];fields(q,keys,'Learner readiness check');if(keys.some(key=>typeof q[key]!=='boolean'))throw new Error('Check every learner-readiness condition explicitly.');quality=q as unknown as NonNullable<GameMissionCheck['quality']>;if(c.decision==='retain'&&keys.some(key=>q[key]!==true))throw new Error('A retained mission must be understandable, taught before testing, controllable as described, and explain its feedback. Choose source-study when any condition fails.');}
+  return{missionId:id(c.missionId,'checked mission'),decision:c.decision as GameMissionCheck['decision'],reason:str(c.reason,'check reason',600),...(quality?{quality}:{})};});
  unique(checks.map(c=>c.missionId),'checked mission');if(checks.length!==(batch.drafts?.length??0)||batch.drafts?.some(d=>!checks.some(c=>c.missionId===d.missionId)))throw new Error('Every generated mission requires its own check disposition.');return checks;
 }
 export function emptyGameDesign(notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,provider:GameDesign['provider'],receipts:AIUsageReceipt[]=[],generatedModels:GameDesign['generatedModels']=[]):GameDesign {
@@ -118,9 +121,19 @@ export function designedMission(design:GameDesign|undefined,activityId:string){
 
 /** The source window retains code and surrounding qualifiers for the reviewer;
  * activity and teaching citations cannot turn code into an inferred lesson model. */
-export function validateGameMissionProse(unit:DirectorSourceUnit,notebook:Pick<Notebook,'sources'>,activity:StructuredActivity,teaching:AILearningMission):void {
+export function validateGameMissionProse(unit:DirectorSourceUnit,notebook:Pick<Notebook,'sources'>,activity:StructuredActivity,teaching:AILearningMission,units?:DirectorSourceUnit[]):void {
  const citations=[...teaching.conceptExplanation.citations,...teaching.chunks.flatMap(chunk=>chunk.citations),...(teaching.workedExample?[teaching.workedExample.sourceEvidence,...teaching.workedExample.steps.flatMap(step=>step.citations)]:[])];
- assertDirectorProseEvidence(unit,notebook.sources,[...activity.sourceRefs,...citations.map(reference=>({sourceId:reference.sourceId,evidence:reference.quote,start:reference.start,end:reference.end}))]);
+ if(activity.sourceRefs.some(ref=>ref.sourceId!==unit.sourceId||!unit.excerpt.includes(ref.evidence)))throw new Error('The activity must use only its primary disclosed source unit.');
+ assertDirectorProseEvidence(unit,notebook.sources,activity.sourceRefs);
+ const context=teachingContextWindow(unit,units??buildDirectorSourceInventory(notebook).units,notebook);
+ for(const window of teaching.sourceWindows){
+  // Legacy primary-only windows remain exact and unchanged. New wider windows
+  // must be the complete deterministic context actually disclosed to the writer.
+  if(window.sourceId!==unit.sourceId||!([unit,context].some(span=>window.start===span.start&&window.end===span.end&&window.quote===span.excerpt)))throw new Error('Teaching left its disclosed primary or neighboring source window.');
+  const references=citations.filter(reference=>reference.sourceId===window.sourceId&&reference.start>=window.start&&reference.end<=window.end);
+  assertDirectorProseEvidence({...unit,start:window.start,end:window.end,excerpt:window.quote},notebook.sources,references.map(reference=>({sourceId:reference.sourceId,evidence:reference.quote,start:reference.start,end:reference.end})));
+ }
+ if(!teaching.sourceWindows.length||citations.some(reference=>!teaching.sourceWindows.some(window=>reference.sourceId===window.sourceId&&reference.start>=window.start&&reference.end<=window.end)))throw new Error('Teaching cited material outside its saved disclosed source window.');
 }
 
 /** Source/model caches are disposable; historical provider measurements survive their invalidation. */
@@ -154,7 +167,7 @@ export function createGameDesignValidator(notebook:Pick<Notebook,'sources'|'ageG
  };
 }
 function validateGameDesignValue(value:unknown,notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,context?:GameDesignValidationContext):GameDesign {
- const v=obj(value,'game design');fields(v,['version','inputRevision','status','provider','units','batches','unavailableSources','receipts','events','generatedModels','audioDirection','visualDirection'],'Game design');
+ const v=obj(value,'game design');fields(v,['version','inputRevision','status','provider','units','batches','unavailableSources','receipts','events','generatedModels','audioDirection','visualDirection','overview'],'Game design');
  if(v.version!==1||!['preparing','ready'].includes(String(v.status)))throw new Error('Invalid game design version or state.');
  const p=obj(v.provider,'selected provider');fields(p,['id','model','endpointFingerprint'],'Selected provider');if(!providers.includes(String(p.id))||p.endpointFingerprint!==null&&(typeof p.endpointFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(p.endpointFingerprint)))throw new Error('Invalid selected provider.');
  const provider={id:p.id as string,model:str(p.model,'selected model'),endpointFingerprint:p.endpointFingerprint as string|null},receipts=validateAIUsageReceipts(v.receipts);
@@ -169,21 +182,22 @@ function validateGameDesignValue(value:unknown,notebook:Pick<Notebook,'sources'|
  const legacyUnits=fresh.units.map(unit=>unit.limitation===MIXED_CODE_PROSE_LIMITATION?{...unit,missionEligible:false,limitation:LEGACY_CODE_STUDY_LIMITATION}:unit);
  if((!exact(v.units,fresh.units)&&!exact(v.units,legacyUnits))||!exact(v.unavailableSources,fresh.unavailableSources))throw new Error('The game’s source coverage does not match the current material.');
  const units=inventory.units,batches=list(v.batches,'game batches',2000).map((raw,index):GameDesignBatch=>{
-  const b=obj(raw,'game batch');fields(b,['id','unitIds','status','missions','study','drafts','checks'],'Game batch');const expected=fresh.batches[index];
+  const b=obj(raw,'game batch');fields(b,['id','unitIds','status','missions','study','drafts','checks','overviewNotes'],'Game batch');const expected=fresh.batches[index];
   if(!expected||b.id!==expected.id||!exact(b.unitIds,expected.unitIds)||!['pending','planned','written','checked'].includes(String(b.status)))throw new Error('Invalid game batch coverage.');
   const input=context?checkpointBatchKey(raw):undefined,cached=context?.batches.get(expected.id);
   if(input!==undefined&&cached&&cached.input===input)return structuredClone(cached.output);
   const remember=(batch:GameDesignBatch)=>{if(context&&input!==undefined)context.batches.set(expected.id,{input,output:structuredClone(batch)});return batch;};
   const batch:GameDesignBatch={...expected,status:b.status as GameDesignBatch['status']};
-  if(batch.status==='pending'){if(['missions','study','drafts','checks'].some(k=>b[k]!==undefined))throw new Error('An unplanned batch cannot contain generated models.');return remember(batch);}
+  if(batch.status==='pending'){if(['missions','study','drafts','checks','overviewNotes'].some(k=>b[k]!==undefined))throw new Error('An unplanned batch cannot contain generated models.');return remember(batch);}
   Object.assign(batch,validateGameBatchPlan({missions:b.missions,study:b.study},batch,units,notebook));
+  if(b.overviewNotes!==undefined)batch.overviewNotes=validateOverviewNotes(b.overviewNotes,batch.unitIds,{...notebook,units,batches:[]},true);
   if(batch.status==='planned'&&b.checks!==undefined)throw new Error('An unwritten batch cannot contain checked models.');
   batch.drafts=list(b.drafts??(batch.status==='planned'?[]:undefined),'cached mission drafts',3).map(raw=>{
    const d=obj(raw,'cached mission');fields(d,['missionId','activity','teaching','audioDirection'],'Cached mission');const plan=batch.missions!.find(m=>m.id===d.missionId);if(!plan)throw new Error('A cached mission needs its source-bound plan.');
    const checked=validateActivity(d.activity,notebook.sources);if(!checked.success||checked.value.kind!==plan.kind||!fitsSpecificContract(plan.scaffoldId,checked.value)||checked.value.reviewStatus!=='needs-review'||!exact(checked.value.scaffoldIds,[plan.scaffoldId]))throw new Error('Invalid cached practice model.');
    const unit=units.find(u=>u.id===plan.unitId)!;if(checked.value.sourceRefs.some(r=>r.sourceId!==unit.sourceId||!unit.excerpt.includes(r.evidence)))throw new Error('The cached mission left its disclosed source unit.');
    const teaching=validateAILearningPlan({version:1,missions:[d.teaching]},{...notebook,activities:[checked.value]}).missions[0];if(teaching.reviewStatus!=='needs-review')throw new Error('Generated teaching cannot approve itself.');
-   validateGameMissionProse(unit,notebook,checked.value,teaching);
+   validateGameMissionProse(unit,notebook,checked.value,teaching,units);
    const audioErrors=validateGameAudioDirection(d.audioDirection,{ageGroup:notebook.ageGroup,scaffoldId:plan.scaffoldId,activityKind:plan.kind,theme:plan.visualDirection.scene});if(audioErrors.length)throw new Error(audioErrors[0]);
    return{missionId:plan.id,activity:checked.value,teaching,audioDirection:d.audioDirection as GameAudioDirection};
   });
@@ -194,5 +208,6 @@ function validateGameDesignValue(value:unknown,notebook:Pick<Notebook,'sources'|
  const ready=batches.every(b=>b.status==='checked');if(v.status==='ready'&&!ready)throw new Error('A game cannot be ready with unfinished source batches.');
  const result:GameDesign={...fresh,status:v.status as GameDesign['status'],batches,...(v.events===undefined?{}:{events:validateGameCreationEvents(v.events,batches.map(b=>b.id))})};
  if(v.visualDirection!==undefined){const accepted=batches.flatMap(b=>(b.drafts??[]).filter(d=>b.checks?.some(c=>c.missionId===d.missionId&&c.decision==='retain')).map(d=>({d,p:b.missions!.find(m=>m.id===d.missionId)!})));if(!accepted.length||!exact(v.visualDirection,accepted[0].p.visualDirection)||!exact(v.audioDirection,accepted[0].d.audioDirection))throw new Error('The world direction must match its first retained mission.');result.visualDirection=accepted[0].p.visualDirection;result.audioDirection=accepted[0].d.audioDirection;}else if(v.audioDirection!==undefined)throw new Error('Audio direction needs its matching visual scene.');
+ if(v.overview!==undefined){if(!ready)throw new Error('The overall introduction follows the complete saved source plan.');result.overview=validateOverviewWork(v.overview,{...notebook,units,batches});if(result.status==='ready'&&result.overview.nodes.some(node=>node.status==='pending'))throw new Error('The game introduction is not finished.');}
  return result;
 }

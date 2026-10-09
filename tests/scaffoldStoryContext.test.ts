@@ -65,7 +65,7 @@ describe('one visual setting for authored and AI learning stories',()=>{
 
 describe('new AI stories are grounded in the selected offline game world',()=>{
  it('propagates the world through plan/write/check, binds supplied fiction locally, and retains it in offline play without extra calls',async()=>{
-  const requests=mockWriter(true),result=await prepareGameExperience(input(),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','write','check']);
+  const requests=mockWriter(true),result=await prepareGameExperience(input(),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','write','check','overview']);
   const activity=result.notebook.activities!.find(a=>a.id===result.ai.activityIds![0])!,scaffoldId=activity.scaffoldIds![0],context=scaffoldStoryContext(scaffoldId,result.notebook.ageGroup,activity),teaching=result.notebook.aiLearningPlan!.missions.find(m=>m.activityId===activity.id)!;
   expect(requests[0].data.choices.find((c:any)=>c.scaffoldId===scaffoldId).story).toEqual(scaffoldStorySummary(scaffoldId,result.notebook.ageGroup));
   expect(requests[1].data.missions[0].storyContext).toEqual(scaffoldStoryContext(scaffoldId,result.notebook.ageGroup,{kind:activity.kind}));expect(requests[2].data.missions[0].storyContext).toEqual(context);
@@ -77,7 +77,7 @@ describe('new AI stories are grounded in the selected offline game world',()=>{
   expect(offline.aiLearningPlan!.missions.find(m=>m.activityId===activity.id)?.storyFrame).toEqual(teaching.storyFrame);
   const lesson=buildLearningBriefing({notebook:offline,scaffold,activity:offline.activities!.find(a=>a.id===activity.id)!});expect(lesson.story).toMatchObject({setting:context.setting,role:context.role,mission:teaching.storyFrame!.mission,payoff:teaching.storyFrame!.success});
   expect(offline.sources).toEqual(result.notebook.sources);expect(offline.gameDesign!.receipts).toEqual(result.notebook.gameDesign!.receipts);
-  const resumed=await prepareGameExperience(offline,{}, {aiPolicy:'required'});expect(resumed.ai.requestCount).toBe(0);expect(requests).toHaveLength(3);expectResumePreserved(offline,resumed.notebook);
+  const resumed=await prepareGameExperience(offline,{}, {aiPolicy:'required'});expect(resumed.ai.requestCount).toBe(0);expect(requests).toHaveLength(4);expectResumePreserved(offline,resumed.notebook);
  });
  it('supplies a source-neutral authored frame when a new writer omits optional fiction',async()=>{
   mockWriter();const result=await prepareGameExperience(input(),{},options);expect(result.creationStatus).toBe('ready');const activity=result.notebook.activities!.find(a=>a.id===result.ai.activityIds![0])!,teaching=result.notebook.aiLearningPlan!.missions.find(m=>m.activityId===activity.id)!,context=scaffoldStoryContext(activity.scaffoldIds![0],result.notebook.ageGroup,activity);
@@ -89,7 +89,7 @@ describe('new AI stories are grounded in the selected offline game world',()=>{
   const legacy={fictional:true as const,setting:'The previously saved workshop.',role:'archive keeper',mission:'Rebuild the documented sequence.',success:'The saved source order remains intact.'};
   for(const mission of old.aiLearningPlan!.missions){if(mode==='omitted')delete mission.storyFrame;else mission.storyFrame={...legacy};}
   for(const batch of old.gameDesign!.batches)for(const draft of batch.drafts??[]){if(mode==='omitted')delete draft.teaching.storyFrame;else draft.teaching.storyFrame={...legacy};}
-  const resumed=await prepareGameExperience(old,{}, {aiPolicy:'required'});expect(resumed.ai.requestCount).toBe(0);expect(requests).toHaveLength(3);expectResumePreserved(old,resumed.notebook);
+  const resumed=await prepareGameExperience(old,{}, {aiPolicy:'required'});expect(resumed.ai.requestCount).toBe(0);expect(requests).toHaveLength(4);expectResumePreserved(old,resumed.notebook);
   const activity=old.activities!.find(a=>a.id===created.ai.activityIds![0])!,scaffold=scaffoldById(activity.scaffoldIds![0])!,lesson=buildLearningBriefing({notebook:old,scaffold,activity});expect(lesson.story.setting).toBe(mode==='custom'?legacy.setting:scaffoldStoryContext(scaffold.id,old.ageGroup,activity).setting);if(mode==='custom')expect(lesson.story).toMatchObject({role:legacy.role,mission:legacy.mission,payoff:legacy.success});
  });
 });

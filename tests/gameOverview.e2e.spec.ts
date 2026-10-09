@@ -1,0 +1,21 @@
+import {test,expect} from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import {build} from 'esbuild';
+import {writeFile} from 'node:fs/promises';
+import {pathToFileURL} from 'node:url';
+
+for(const generated of [false,true])test(`${generated?'generated introduction':'older saved lesson preview'} is compact, cited, readable and completely offline`,async({page,context},info)=>{
+ const contents=`import React from 'react';import{createRoot}from'react-dom/client';import GameOverview from'./src/components/GameOverview';import{campaignTeachingFixture}from'./tests/campaignTeaching.fixture';import'./src/styles.css';
+ const notebook=campaignTeachingFixture();
+ if(${generated}){const mission=notebook.aiLearningPlan.missions[0],claim=mission.conceptExplanation;notebook.gameDesign={overview:{version:1,nodes:[{id:'ui-saved-overview',status:'ready',content:{title:'Make thoughtful tool decisions',introduction:{...claim,text:'A tool can perform a task only within its limits. This game helps you connect the task, the tool’s limits, and the conditions of your decision.'},learningGoals:[{...claim,text:'Compare the task with the tool’s limits before recording a decision.'}],keyIdeas:[{title:'Keep the conditions visible',...claim,activityIds:[mission.activityId]}]}}]}};}
+ window.qa={notebook,started:0};createRoot(document.getElementById('root')).render(<main style={{maxWidth:1000,margin:'auto',padding:24}}><h1>Tasks and tools expedition</h1><GameOverview notebook={notebook}/><button onClick={()=>window.qa.started++}>Continue learning</button></main>);`;
+ const compiled=await build({stdin:{contents,resolveDir:process.cwd(),loader:'tsx'},bundle:true,format:'esm',target:'es2022',jsx:'automatic',write:false,outdir:info.outputPath('bundle'),loader:{'.woff2':'dataurl','.ogg':'dataurl'}}),js=compiled.outputFiles!.find(file=>file.path.endsWith('.js'))!.text,css=compiled.outputFiles!.find(file=>file.path.endsWith('.css'))!.text;
+ const file=info.outputPath('overview.html');await writeFile(file,`<!doctype html><html lang="en"><head><title>Game introduction</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><div id="root"></div><script type="module">${js.replace(/<\/script/gi,'<\\/script')}</script></body></html>`);
+ const errors:string[]=[],network:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))network.push(r.url());});await context.setOffline(true);await page.setViewportSize({width:1440,height:960});await page.goto(pathToFileURL(file).href);
+ const before=await page.evaluate(()=>JSON.stringify((window as any).qa.notebook));await expect(page.getByRole('heading',{name:'Learn about this game and what it teaches',exact:true})).toBeVisible();await expect(page.locator('.game-overview-grid')).not.toBeVisible();
+ const continueButton=page.getByRole('button',{name:'Continue learning',exact:true}),bounds=await continueButton.boundingBox();expect(bounds!.y+bounds!.height).toBeLessThan(960);await continueButton.click();expect(await page.evaluate(()=>(window as any).qa.started)).toBe(1);
+ await page.screenshot({path:info.outputPath('overview-compact-desktop.png'),fullPage:true});await page.getByText('Explore what you’ll learn',{exact:true}).focus();await page.keyboard.press('Enter');await expect(page.locator('.game-overview-grid')).toBeVisible();
+ await page.locator('.game-overview-grid').getByText('Check the source',{exact:true}).first().click();await expect(page.locator('.game-overview-grid blockquote').first()).toContainText('A task review separates');await expect(page.locator('.game-overview-grid figcaption').first()).toContainText('Page 2');
+ expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);await page.screenshot({path:info.outputPath('overview-expanded-mobile.png'),fullPage:true});
+ expect(await page.evaluate(()=>JSON.stringify((window as any).qa.notebook))).toBe(before);expect(network).toEqual([]);expect(errors).toEqual([]);
+});

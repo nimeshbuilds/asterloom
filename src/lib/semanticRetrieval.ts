@@ -9,21 +9,31 @@ const keyFor=(text:string)=>`${RETRIEVAL_CACHE_VERSION}:${textDigest(text)}`;
 const checkAbort=(signal?:AbortSignal)=>{if(signal?.aborted)throw new DOMException('Retrieval indexing cancelled.','AbortError');};
 export class SemanticEvidenceIndex {
  private entries:{block:EvidenceBlock;vector:number[]}[]=[];private queryCache=new Map<string,number[]>();
- constructor(private embedder:Embedder,private cache:VectorCache){}
+ private updateGeneration=0;
+ constructor(private embedder:Embedder,private cache:VectorCache,private options:{maxBlocks?:number;spreadAcrossDocument?:boolean}={}){}
+ get indexedCount(){return this.entries.length;}
  async update(blocks:EvidenceBlock[],onStatus:(status:SemanticStatus)=>void,signal?:AbortSignal):Promise<void>{
-  this.entries=[];const bounded=blocks.slice(0,512);let warning:string|undefined;
+  const generation=++this.updateGeneration,check=()=>{checkAbort(signal);if(generation!==this.updateGeneration)throw new DOMException('Retrieval source changed.','AbortError');};
+  this.entries=[];const maximum=Math.max(1,Math.min(20000,this.options.maxBlocks??512)),bounded=blocks.slice(0,maximum);let warning:string|undefined;
+  if(this.options.spreadAcrossDocument&&bounded.length>8){
+   // Breadth-first sampling warms all parts of a document before filling gaps.
+   // Every block is still indexed once; there is no permanent first-pages cap.
+   const original=[...bounded],order:number[]=[],queue:[number,number][]=[[0,original.length]];
+   for(let cursor=0;cursor<queue.length;cursor++){const [start,end]=queue[cursor];if(start>=end)continue;const middle=(start+end)>>>1;order.push(middle);queue.push([start,middle],[middle+1,end]);}
+   bounded.splice(0,bounded.length,...order.map(index=>original[index]));
+  }
   onStatus({phase:'loading',completed:0,total:blocks.length,message:'Starting the bundled local model. Your material stays on this device.'});
   try{
-   const device=await this.embedder.ready();checkAbort(signal);const entries:{block:EvidenceBlock;vector:number[]}[]=[];
-   for(let start=0;start<bounded.length;start+=8){checkAbort(signal);const batch=bounded.slice(start,start+8),vectors:(number[]|undefined)[]=[],missing:number[]=[];
+   const device=await this.embedder.ready();check();const entries:{block:EvidenceBlock;vector:number[]}[]=[];
+   for(let start=0;start<bounded.length;start+=8){check();const batch=bounded.slice(start,start+8),vectors:(number[]|undefined)[]=[],missing:number[]=[];
     for(let i=0;i<batch.length;i++){try{const stored=await this.cache.get(keyFor(batch[i].quote));vectors[i]=validVector(stored)?stored:undefined;}catch{warning='Embedding cache unavailable; matching works for this session.';}if(!vectors[i])missing.push(i);}
-    if(missing.length){const inferred=await this.embedder.embed(missing.map(i=>batch[i].quote));checkAbort(signal);if(inferred.length!==missing.length||inferred.some(v=>!validVector(v)))throw new Error('Invalid local embedding output.');for(let j=0;j<missing.length;j++){const i=missing[j];vectors[i]=inferred[j];try{await this.cache.set(keyFor(batch[i].quote),inferred[j]);}catch{warning='Embedding cache could not be saved; matching works for this session.';}}}
-    entries.push(...batch.map((block,i)=>({block,vector:vectors[i]!})));onStatus({phase:'indexing',completed:entries.length,total:blocks.length,device,cacheWarning:warning,message:`Matching ${entries.length} of ${bounded.length} passages locally…`});
+    if(missing.length){const inferred=await this.embedder.embed(missing.map(i=>batch[i].quote));check();if(inferred.length!==missing.length||inferred.some(v=>!validVector(v)))throw new Error('Invalid local embedding output.');for(let j=0;j<missing.length;j++){const i=missing[j];vectors[i]=inferred[j];try{await this.cache.set(keyFor(batch[i].quote),inferred[j]);}catch{warning='Embedding cache could not be saved; matching works for this session.';}}}
+    check();entries.push(...batch.map((block,i)=>({block,vector:vectors[i]!})));this.entries=[...entries];onStatus({phase:'indexing',completed:entries.length,total:blocks.length,device,cacheWarning:warning,message:`Matching ${entries.length} of ${bounded.length} passages locally…`});
     // Yield between batches so keyboard input and cancel/source edits can be processed.
     await new Promise(resolve=>setTimeout(resolve,0));
    }
-   checkAbort(signal);this.entries=entries;onStatus({phase:'ready',completed:entries.length,total:blocks.length,device,cacheWarning:warning,message:blocks.length>512?`Semantic matching covers the first 512 passages; all ${blocks.length} passages remain searchable by exact words.`:'Local meaning + exact word search ready.'});
-  }catch(error){if(signal?.aborted)return;this.entries=[];onStatus({phase:'unavailable',completed:0,total:blocks.length,message:error instanceof Error?error.message:'Local semantic search is unavailable. Exact word search is active.'});}
+   check();this.entries=entries;onStatus({phase:'ready',completed:entries.length,total:blocks.length,device,cacheWarning:warning,message:blocks.length>maximum?`Semantic matching covers ${maximum} passages; all ${blocks.length} passages remain searchable by exact words.`:'Local meaning + exact word search ready.'});
+  }catch(error){if(generation!==this.updateGeneration)return;this.entries=[];if(signal?.aborted)return;onStatus({phase:'unavailable',completed:0,total:blocks.length,message:error instanceof Error?error.message:'Local semantic search is unavailable. Exact word search is active.'});}
  }
  async search(query:string,limit=30):Promise<{block:EvidenceBlock;score:number}[]>{
   if(!this.entries.length||!query.trim())return[];const text=query.trim().slice(0,500);let vector=this.queryCache.get(text);

@@ -132,6 +132,8 @@ test('production static serving supports app routes and prevents traversal',asyn
   const index=await fetch(base+'/library');assert.equal(index.status,200);assert.match(await index.text(),/Asterloom/);
   const traversal=await fetch(base+'/%2e%2e%2frooms.json');assert.equal(traversal.status,403);
   const missing=await fetch(base+'/missing.js');assert.equal(missing.status,404);
+  await fs.writeFile(path.join(dist,'transition.webm'),Buffer.from([0x1a,0x45,0xdf,0xa3]));
+  const video=await fetch(base+'/transition.webm');assert.equal(video.status,200);assert.equal(video.headers.get('content-type'),'video/webm');assert.equal(video.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(Buffer.from(await video.arrayBuffer()),Buffer.from([0x1a,0x45,0xdf,0xa3]));
 });
 test('DOCX and PPTX imports extract real Office XML into usable source text',async()=>{
   const word=zipSync({

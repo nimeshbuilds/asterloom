@@ -567,7 +567,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
         assert(filename.startsWith(path.resolve(distDir)+path.sep),'This file path is not allowed.',403);
         let file=filename;let content;
         try {content=await fs.readFile(file);} catch {if(path.extname(relative)) throw new ApiError(404,'The file was not found.');file=path.join(distDir,'index.html');try {content=await fs.readFile(file);} catch {throw new ApiError(404,'The application is not built. Run npm run build, or use the development server.');}}
-        const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.wasm':'application/wasm','.mp3':'audio/mpeg'};
+        const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.wasm':'application/wasm','.mp3':'audio/mpeg','.webm':'video/webm'};
         response.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':path.extname(file)==='.html'?'no-cache':'public, max-age=3600'});response.end(content);return;
       }
       send(404,{error:'This endpoint was not found.',code:'NOT_FOUND'});

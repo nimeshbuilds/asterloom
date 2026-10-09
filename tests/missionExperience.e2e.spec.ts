@@ -15,6 +15,10 @@ async function checkActionReachable(page:Page){
 test('teaching hands off to a visible quest, mistakes explain the rule, and a solved model earns a visible saved reward',async({page},info)=>{
  await page.setViewportSize({width:1440,height:960});await enter(page);
  await visibleBelowHud(page,'.structured-heading h2');
+ await expect(page.getByRole('region',{name:'Your goal and how to play',exact:true})).toContainText('Apply the documented review order while preserving its conditions.');
+ await expect(page.getByRole('region',{name:'Your goal and how to play',exact:true})).toContainText('Move earlier or Move later');
+ await expect(page.getByRole('region',{name:'Your goal and how to play',exact:true})).not.toContainText('Place here');
+ const savedDirections=page.locator('.quest-saved-directions');await expect(savedDirections.locator('p')).not.toBeVisible();await savedDirections.locator('summary').click();await expect(savedDirections.locator('p')).toHaveText(notebook.activities![0].instruction);await savedDirections.locator('summary').click();
  await expect(page.locator('.mission-arena')).toBeVisible();
  await expect(page.locator('.arena-stage')).toBeVisible();
  await checkActionReachable(page);await page.screenshot({path:info.outputPath('reachable-arena-check-desktop.png')});

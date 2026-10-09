@@ -89,7 +89,7 @@ for(const change of ['Change mission','Replace source','Change notebook','Switch
 });
 
 test('a game without supporting source material never calls AI and gives local guidance',async({page},info)=>{
- const qa=await openAster(page,info,{noSources:true});await enable(page);await ask(page);await expect(page.getByRole('region',{name:'Source search results'})).toBeVisible();await expect(page.getByRole('region',{name:'Aster AI answer'})).toHaveCount(0);expect(qa.generations).toEqual([]);expect(await receipts(page)).toEqual([]);
+ const qa=await openAster(page,info,{noSources:true});await enable(page);await ask(page);await expect(page.getByRole('region',{name:'Aster AI answer'})).toBeVisible();await expect(page.getByRole('region',{name:'Source search results'})).toHaveCount(0);expect(qa.generations).toEqual([]);expect(await receipts(page)).toEqual([]);
  await page.getByRole('button',{name:'What is next?',exact:true}).click();await expect(page.getByRole('region',{name:'Current activity answer'})).toBeVisible();expect(qa.generations).toEqual([]);expect(qa.errors).toEqual([]);
 });
 
@@ -100,6 +100,17 @@ test('provider failure records known usage and leaves explicit offline source se
 
 test('an AI evidence refusal explains the limit, keeps exact local excerpts and records the billed request',async({page},info)=>{
  const qa=await openAster(page,info,{insufficient:true});await enable(page);await ask(page);
- const sources=page.getByRole('region',{name:'Source search results'});await expect(sources).toContainText('The selected passages do not provide enough support to answer that.');await expect(sources.locator('blockquote')).toHaveText(sourceText);
- await expect(page.getByRole('region',{name:'Aster AI answer'})).toHaveCount(0);expect(qa.generations).toHaveLength(1);expect((await receipts(page))[0]).toMatchObject({status:'completed',usage});expect(qa.errors).toEqual([]);expect(qa.external).toEqual([]);
+ const sources=page.getByRole('region',{name:'Aster AI answer'});await expect(sources).toContainText('The selected passages do not provide enough support to answer that.');await expect(sources.locator('blockquote')).not.toBeVisible();await sources.getByText('Related passages Aster checked',{exact:true}).click();await expect(sources.locator('blockquote p')).toHaveText(sourceText);
+ await expect(page.getByRole('region',{name:'Source search results'})).toHaveCount(0);expect(await page.locator('.aster-ai-usage').evaluate(usage=>!!(document.querySelector('.aster-ai-answer')!.compareDocumentPosition(usage)&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);expect(qa.generations).toHaveLength(1);expect((await receipts(page))[0]).toMatchObject({status:'completed',usage});expect(qa.errors).toEqual([]);expect(qa.external).toEqual([]);
+});
+
+test('short follow-ups keep the source topic without leaking it into new questions or a changed source',async({page},info)=>{
+ const qa=await openAster(page,info);await enable(page);await ask(page);
+ await expect(page.getByRole('region',{name:'Aster AI answer'})).toContainText(answerText);
+ await ask(page,'Why?');await expect.poll(()=>qa.generations.length).toBe(2);await expect(page.locator('.aster-search-status')).toHaveCount(0);
+ const follow=JSON.parse(qa.generations[1].body.prompt.split('REFERENCE DATA (JSON):\n')[1]);expect(follow.question).toBe('Why?');expect(follow.previousQuestion).toBe('How does evaporation change water?');expect(follow.passages[0].text).toBe(sourceText);expect(JSON.stringify(follow)).not.toContain(answerText);
+ await ask(page,'What is condensation?');await expect.poll(()=>qa.generations.length).toBe(3);await expect(page.locator('.aster-search-status')).toHaveCount(0);
+ expect(JSON.parse(qa.generations[2].body.prompt.split('REFERENCE DATA (JSON):\n')[1]).previousQuestion).toBeUndefined();
+ await page.getByRole('button',{name:'Replace source',exact:true}).click();await ask(page,'Why?');await expect(page.locator('.aster-search-status')).toHaveCount(0);expect(qa.generations).toHaveLength(3);
+ await expect(page.getByRole('region',{name:'Aster AI answer'})).toContainText('Include the concept or subject');expect(qa.errors).toEqual([]);expect(qa.external).toEqual([]);
 });

@@ -23,18 +23,18 @@ afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe('finite complete creation without forced manual continuation',()=>{
  it('finishes all37 source units in one action beyond the former60-request cutoff',async()=>{
   const calls=mock(),input=notebook(37),result=await runGameDirector(input,options);
-  expect(result.status,result.message).toBe('ready');expect(calls).toHaveLength(63);expect(result.requestCount).toBe(63);
+  expect(result.status,result.message).toBe('ready');expect(calls).toHaveLength(64);expect(result.requestCount).toBe(64);
   expect(gameDesignProgress(result.notebook.gameDesign!)).toMatchObject({coveredUnits:37,totalUnits:37,completedBatches:13,pendingBatches:0,missionCount:37,percent:100});
   expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.aiLearningPlan?.missions).toHaveLength(37);
-  expect(new Set(result.notebook.gameDesign!.receipts.map(receipt=>receipt.id)).size).toBe(63);
+  expect(new Set(result.notebook.gameDesign!.receipts.map(receipt=>receipt.id)).size).toBe(64);
   expect(result.notebook.gameDesign!.receipts.every(receipt=>receipt.status==='completed'&&typeof receipt.finishedAt==='string'&&Number.isSafeInteger(receipt.durationMs))).toBe(true);
  },15000);
- it('honors an explicit60-request pause and resumes only the three unsent requests',async()=>{
+ it('honors an explicit60-request pause and resumes only the four unsent requests including its overview',async()=>{
   const calls=mock(),first=await runGameDirector(notebook(37),{...options,maxRequests:60});
   expect(first.status).toBe('incomplete');expect(first.requestCount).toBe(60);expect(first.notebook.gameDesign!.status).toBe('preparing');
   const receipts=structuredClone(first.notebook.gameDesign!.receipts);
   const second=await runGameDirector(parsePackage(serializePackage(first.notebook)),options);
-  expect(second.status,second.message).toBe('ready');expect(second.requestCount).toBe(3);expect(calls).toHaveLength(63);
+  expect(second.status,second.message).toBe('ready');expect(second.requestCount).toBe(4);expect(calls).toHaveLength(64);
   expect(second.notebook.gameDesign!.receipts.slice(0,60)).toEqual(receipts);
   expect(gameDesignProgress(second.notebook.gameDesign!)).toMatchObject({coveredUnits:37,pendingBatches:0});
  },15000);
@@ -42,7 +42,7 @@ describe('finite complete creation without forced manual continuation',()=>{
   let elapsed=100;vi.spyOn(performance,'now').mockImplementation(()=>elapsed);
   vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const request=JSON.parse(body.body),stage=request.prompt.match(/STAGE: (\w+)/)[1],data=JSON.parse(request.prompt.split('REFERENCE DATA (JSON):\n')[1]);elapsed+=125;return{ok:true,json:async()=>({text:JSON.stringify(directorFixtureResponse(stage,data)),usage})};}));
   const result=await runGameDirector(notebook(),{...options,onCheckpoint:async()=>{elapsed+=9000;return true;}});
-  expect(result.status,result.message).toBe('ready');expect(result.notebook.gameDesign!.receipts.map(receipt=>receipt.durationMs)).toEqual([125,125,125]);
+  expect(result.status,result.message).toBe('ready');expect(result.notebook.gameDesign!.receipts.map(receipt=>receipt.durationMs)).toEqual([125,125,125,125]);
   expect(parsePackage(serializePackage(result.notebook)).gameDesign!.receipts).toEqual(result.notebook.gameDesign!.receipts);
  });
  it('records measured network-failure duration without retrying or fabricating token usage',async()=>{
@@ -85,7 +85,9 @@ describe('lossless compact source checking',()=>{
   const writingPrompt=JSON.parse((vi.mocked(fetch).mock.calls.find(([,body])=>JSON.parse((body as any).body).prompt.includes('STAGE: write'))![1] as any).body).prompt;
   expect(writingPrompt).toContain('this AI output always remains needs-review');expect(writingPrompt).toContain('does not prohibit an accurately cited source claim about peer-reviewed research');
   expect(JSON.stringify(data).length).toBeLessThan(JSON.stringify({missions:original}).length*0.9);
-  expect(data.evidencePool.every((entry:any)=>original.some(mission=>mission.activity.sourceRefs.some(reference=>reference.sourceId===entry.sourceId&&reference.evidence.includes(entry.text))))).toBe(true);
+  expect(data.evidencePool.every((entry:any)=>original.some(mission=>mission.activity.sourceRefs.some(reference=>reference.sourceId===entry.sourceId&&reference.evidence.includes(entry.text))||mission.teaching.sourceWindows.some(reference=>reference.sourceId===entry.sourceId&&reference.quote.includes(entry.text))))).toBe(true);
+  const disclosed=JSON.parse(writingPrompt.split('REFERENCE DATA (JSON):\n')[1]).missions;expect(disclosed.every((mission:any)=>mission.teachingContextWindow.excerpt.includes(mission.unit.excerpt))).toBe(true);
+  expect(data.evidencePool.every((entry:any)=>input.sources.some(source=>source.id===entry.sourceId&&source.text.includes(entry.text)))).toBe(true);
  });
  it('keeps identical quoted wording from different sources as distinct evidence entries',async()=>{
   mock();const result=await runGameDirector(notebook(),options),batch=structuredClone(result.notebook.gameDesign!.batches[0]);

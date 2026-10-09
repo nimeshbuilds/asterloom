@@ -10,11 +10,12 @@ export class EvidenceIndex {
   private cache=new Map<string,{revision:string;title:string;postings:Posting[]}>();
   private postings:Posting[]=[];private frequencies=new Map<string,number>();private average=1;
   readonly stats={rebuiltSources:0,queries:0};
+  constructor(private readonly passages:(source:Source)=>EvidenceBlock[]=evidenceBlocks){}
   update(sources:readonly Source[]):void {
     const next=new Map<string,{revision:string;title:string;postings:Posting[]}>();
     for(const source of sources){if(source.status!=='ready')continue;const revision=sourceRevision(source),old=this.cache.get(source.id);
       if(old?.revision===revision){next.set(source.id,old.title===source.title?old:{...old,title:source.title,postings:old.postings.map(p=>({...p,block:{...p.block,sourceTitle:source.title}}))});continue;}
-      const postings=evidenceBlocks(source).map(block=>{const terms=new Map<string,number>();const tokens=retrievalTerms(block.quote);for(const term of tokens)terms.set(term,(terms.get(term)||0)+1);return{block,terms,length:tokens.length};});
+      const postings=this.passages(source).map(block=>{const terms=new Map<string,number>();const tokens=retrievalTerms(block.quote);for(const term of tokens)terms.set(term,(terms.get(term)||0)+1);return{block,terms,length:tokens.length};});
       next.set(source.id,{revision,title:source.title,postings});this.stats.rebuiltSources++;
     }
     this.cache=next;this.postings=[...next.values()].flatMap(x=>x.postings).slice(0,20000);this.frequencies=new Map();

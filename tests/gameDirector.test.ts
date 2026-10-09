@@ -71,7 +71,7 @@ describe('resumable AI game director',()=>{
   const provider=mock(),short=createSource('# First detail\nBrief note.\n\n# Second detail\nAnother short note.\n\n# Third detail\nA final note.','Short fragments');short.id='a-short';
   const procedure=n().sources[0];procedure.id='z-procedure';const input=createNotebook({sources:[short,procedure]});
   const first=await prepareGameExperience(input,{},options);expect(first.creationStatus,first.ai.message).toBe('ready');
-  expect(provider.requests.map(request=>request.stage)).toEqual(['plan','write','check']);
+  expect(provider.requests.map(request=>request.stage)).toEqual(['plan','write','check','overview']);
   expect(first.notebook.gameDesign!.batches[0].study).toHaveLength(3);
   const second=await prepareGameExperience(first.notebook,{}, {aiPolicy:'required'});
   expect(second.creationStatus).toBe('ready');expect(second.ai.requestCount).toBe(0);
@@ -80,10 +80,10 @@ describe('resumable AI game director',()=>{
  });
  it('covers every chapter beyond six using bounded planning, writing and checking, with source-bound teaching and chosen audio',async()=>{
   const provider=mock(),checkpoints:GameDesign[]=[],result=await prepareGameExperience(n(8),{}, {...options,onCheckpoint:async d=>{checkpoints.push(d);return true;}});
-  expect(result.creationStatus,result.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','write','write','check','plan','write','write','write','check','plan','write','write','check']);
+  expect(result.creationStatus,result.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','write','write','check','plan','write','write','write','check','plan','write','write','check','overview']);
   const design=result.notebook.gameDesign!;expect(gameDesignProgress(design)).toMatchObject({totalUnits:8,coveredUnits:8,completedBatches:3,missionCount:8,pendingBatches:0});
   expect(result.notebook.aiLearningPlan?.missions).toHaveLength(8);expect(design.visualDirection?.scene).toBe(provider.requests[0].data.choices.find((c:any)=>c.kind==='sequence').scene);expect(design.audioDirection?.effects).toBe('quiet');
-  expect(design.receipts).toHaveLength(14);expect(design.receipts.every(r=>r.status==='completed'&&r.actualModels?.[0]==='actual-provider-model')).toBe(true);expect(summarizeAIUsage(design.receipts).input.value).toBe(1400);expect(summarizeAIUsage(design.receipts).total.value).toBe(2240);
+  expect(design.receipts).toHaveLength(15);expect(design.receipts.every(r=>r.status==='completed'&&r.actualModels?.[0]==='actual-provider-model')).toBe(true);expect(summarizeAIUsage(design.receipts).input.value).toBe(1500);expect(summarizeAIUsage(design.receipts).total.value).toBe(2400);
   expect(checkpoints.some(d=>d.batches[0].status==='written')).toBe(true);expect(checkpoints.some(d=>d.receipts.some(r=>r.status==='started'))).toBe(true);
   const games=result.notebook.activities!.filter(a=>a.id.startsWith('director-'));expect(games).toHaveLength(8);expect(games.every(a=>a.reviewStatus==='needs-review')).toBe(true);
   expect(evaluateActivity(games[0],{order:['open','choose','confirm']})).toMatchObject({valid:false,outcome:'draft-preview',score:0});
@@ -95,16 +95,16 @@ describe('resumable AI game director',()=>{
   source.text=source.text.replaceAll('2. Select the command.','2. Select the command.\n3. Confirm the command.');
   const result=await prepareGameExperience(createNotebook({sources:[source]}),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');expect(gameDesignProgress(result.notebook.gameDesign!)).toMatchObject({totalUnits:2,coveredUnits:2,missionCount:1,studyOnlyCount:1});expect(result.notebook.activities!.filter(a=>a.kind==='sequence')).toHaveLength(1);
  });
- it('resumes a persisted written batch with only its check request, and reuses a completed game without a connection or recounting tokens',async()=>{
+ it('resumes a persisted written batch with only its check and overview requests, and reuses a completed game without a connection or recounting tokens',async()=>{
   const provider=mock(),first=await prepareGameExperience(n(),{}, {...options,maxRequests:2});expect(first.creationStatus).toBe('incomplete');expect(first.notebook.gameDesign!.batches[0].status).toBe('written');expect(first.notebook.activities?.some(a=>a.id.startsWith('director-'))).toBe(false);
-  const saved=parsePackage(serializePackage(first.notebook)),second=await prepareGameExperience(saved,{},options);expect(second.creationStatus,second.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','check']);
-  const third=await prepareGameExperience(second.notebook,{}, {aiPolicy:'required'});expect(third.creationStatus,third.ai.message).toBe('ready');expect(third.ai.requestCount).toBe(0);expect(third.notebook.gameDesign!.receipts).toHaveLength(3);expect(provider.fetch).toHaveBeenCalledTimes(3);
+  const saved=parsePackage(serializePackage(first.notebook)),second=await prepareGameExperience(saved,{},options);expect(second.creationStatus,second.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','check','overview']);
+  const third=await prepareGameExperience(second.notebook,{}, {aiPolicy:'required'});expect(third.creationStatus,third.ai.message).toBe('ready');expect(third.ai.requestCount).toBe(0);expect(third.notebook.gameDesign!.receipts).toHaveLength(4);expect(provider.fetch).toHaveBeenCalledTimes(4);
  });
  it('reuses unchanged source batches after an ID-keyed source collection is reordered',async()=>{
   const provider=mock(),firstSource=n().sources[0],secondSource=createSource('# Another maintenance procedure\n1. Open the alternate panel.\n2. Choose its command.\n3. Confirm that selection.','Second procedure');
   const input=createNotebook({sources:[firstSource,secondSource]}),first=await prepareGameExperience(input,{},options);expect(first.creationStatus,first.ai.message).toBe('ready');
   const reordered={...first.notebook,sources:[...first.notebook.sources].reverse()},second=await prepareGameExperience(parsePackage(serializePackage(reordered)),{}, {aiPolicy:'required'});
-  expect(second.creationStatus,second.ai.message).toBe('ready');expect(second.ai.requestCount).toBe(0);expect(second.notebook.gameDesign!.receipts).toHaveLength(4);expect(provider.fetch).toHaveBeenCalledTimes(4);
+  expect(second.creationStatus,second.ai.message).toBe('ready');expect(second.ai.requestCount).toBe(0);expect(second.notebook.gameDesign!.receipts).toHaveLength(5);expect(provider.fetch).toHaveBeenCalledTimes(5);
  });
  it('never invokes AI without explicit Create consent, including when a connection is supplied',async()=>{
   const provider=mock();const result=await prepareGameExperience(n(),{}, {aiPolicy:'required',ai:{config} as any});expect(result.creationStatus).toBe('needs-connection');expect(provider.fetch).not.toHaveBeenCalled();
@@ -120,22 +120,22 @@ describe('resumable AI game director',()=>{
  });
  it('retains measured historical usage when source/model changes invalidate cached planning',async()=>{
   const provider=mock(),first=await prepareGameExperience(n(),{},options),changed={...first.notebook,sources:first.notebook.sources.map(s=>({...s,text:s.text+'\nA newly documented condition belongs to the source.'}))};
-  const next=await prepareGameExperience(changed,{}, {aiPolicy:'required'});expect(next.creationStatus).toBe('needs-connection');expect(next.notebook.gameDesign!.receipts).toHaveLength(3);expect(next.notebook.gameDesign!.batches.every(b=>b.status==='pending')).toBe(true);expect(provider.fetch).toHaveBeenCalledTimes(3);
-  const model=await prepareGameExperience(first.notebook,{}, {...options,ai:{config:{...config,model:'second-model'},consent:'create-game'}});expect(model.creationStatus,model.ai.message).toBe('ready');expect(model.notebook.gameDesign!.receipts).toHaveLength(6);expect(model.notebook.activities!.filter(a=>a.id.startsWith('director-'))).toHaveLength(1);expect(model.notebook.gameDesign!.receipts.slice(3).every(r=>r.model==='second-model')).toBe(true);
+  const next=await prepareGameExperience(changed,{}, {aiPolicy:'required'});expect(next.creationStatus).toBe('needs-connection');expect(next.notebook.gameDesign!.receipts).toHaveLength(4);expect(next.notebook.gameDesign!.batches.every(b=>b.status==='pending')).toBe(true);expect(provider.fetch).toHaveBeenCalledTimes(4);
+  const model=await prepareGameExperience(first.notebook,{}, {...options,ai:{config:{...config,model:'second-model'},consent:'create-game'}});expect(model.creationStatus,model.ai.message).toBe('ready');expect(model.notebook.gameDesign!.receipts).toHaveLength(8);expect(model.notebook.activities!.filter(a=>a.id.startsWith('director-'))).toHaveLength(1);expect(model.notebook.gameDesign!.receipts.slice(4).every(r=>r.model==='second-model')).toBe(true);
  });
  it('never sends a request when its preflight checkpoint fails',async()=>{
   const provider=mock(),result=await prepareGameExperience(n(),{}, {...options,onCheckpoint:async design=>!design.receipts.some(r=>r.status==='started')});expect(result.creationStatus).toBe('failed');expect(provider.fetch).not.toHaveBeenCalled();expect(result.ai.requestCount).toBe(0);expect(result.notebook.gameDesign!.receipts).toEqual([]);
  });
  it('cancels after a saved writer without replaying charged stages on resume',async()=>{
   const provider=mock(),controller=new AbortController();const first=await prepareGameExperience(n(),{}, {...options,signal:controller.signal,onProgress:p=>{if(p.stage==='validating')controller.abort();}});expect(first.creationStatus).toBe('canceled');expect(first.notebook.gameDesign!.batches[0].status).toBe('written');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write']);
-  const second=await prepareGameExperience(first.notebook,{},options);expect(second.creationStatus,second.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','check']);
+  const second=await prepareGameExperience(first.notebook,{},options);expect(second.creationStatus,second.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','check','overview']);
  });
  it('marks interrupted provider usage unknown and rejects a late response without adding models',async()=>{
   let release!:(value:any)=>void;vi.stubGlobal('fetch',vi.fn(()=>new Promise(resolve=>{release=resolve;})));const controller=new AbortController();let started!:()=>void;const ready=new Promise<void>(resolve=>{started=resolve;});
   const pending=prepareGameExperience(n(),{}, {...options,signal:controller.signal,onCheckpoint:async d=>{if(d.receipts.some(r=>r.status==='started'))setTimeout(started,0);return true;}});await ready;controller.abort();const result=await pending;expect(result.creationStatus).toBe('canceled');expect(result.notebook.gameDesign!.receipts[0]).toMatchObject({status:'canceled',usage:{status:'unavailable',inputTokens:null,outputTokens:null}});const before=JSON.stringify(result);release({ok:true,json:async()=>({text:'{}',usage})});await Promise.resolve();expect(JSON.stringify(result)).toBe(before);
  });
  it('keeps later author edits intact when reusing completed generated work',async()=>{
-  const provider=mock(),first=await prepareGameExperience(n(),{},options),id=first.ai.activityIds![0];const edited={...first.notebook,activities:first.notebook.activities!.map(a=>a.id===id?{...a,title:'My reviewed procedure',reviewStatus:'reviewed' as const}:a)};const second=await prepareGameExperience(edited,{}, {aiPolicy:'required'});expect(second.creationStatus).toBe('ready');expect(second.notebook.activities!.find(a=>a.id===id)).toMatchObject({title:'My reviewed procedure',reviewStatus:'reviewed'});expect(provider.fetch).toHaveBeenCalledTimes(3);
+  const provider=mock(),first=await prepareGameExperience(n(),{},options),id=first.ai.activityIds![0];const edited={...first.notebook,activities:first.notebook.activities!.map(a=>a.id===id?{...a,title:'My reviewed procedure',reviewStatus:'reviewed' as const}:a)};const second=await prepareGameExperience(edited,{}, {aiPolicy:'required'});expect(second.creationStatus).toBe('ready');expect(second.notebook.activities!.find(a=>a.id===id)).toMatchObject({title:'My reviewed procedure',reviewStatus:'reviewed'});expect(provider.fetch).toHaveBeenCalledTimes(4);
  });
  it.each([{age:'3-5',kind:'child-play',source:childPlaySources[0],fixture:puppetStoryFixture,recipe:'puppet-stories'},{age:'6-8',kind:'rule-switch',source:ruleSwitchSources[0],fixture:ruleSwitchFixture,recipe:'changing-rule-sorter'}])('prepares $age source-scripted $kind with its actual contract and caregiver-safe draft boundary',async({age,kind,source,fixture,recipe})=>{
   mock((stage,data,value)=>{
@@ -184,7 +184,7 @@ describe('resumable AI game director',()=>{
   const restored=parsePackage(serializePackage(prior)),normalized=restored.gameDesign!;
   expect(normalized.status).toBe('ready');expect(normalized.inputRevision).toBe(design.inputRevision);expect(normalized.batches).toEqual(design.batches);expect(normalized.events).toEqual(design.events);expect(normalized.receipts).toEqual(design.receipts);expect(normalized.generatedModels).toEqual(design.generatedModels);expect(normalized.audioDirection).toEqual(design.audioDirection);expect(normalized.visualDirection).toEqual(design.visualDirection);expect(restored.activities).toEqual(prior.activities);expect(restored.aiLearningPlan).toEqual(prior.aiLearningPlan);
   expect(normalized.units[index]).toEqual({...design.units[index],missionEligible:true,limitation:MIXED_CODE_PROSE_LIMITATION});
-  const replay=await prepareGameExperience(restored,{}, {aiPolicy:'required'});expect(replay.creationStatus,replay.ai.message).toBe('ready');expect(replay.ai.requestCount).toBe(0);expect(provider.fetch).toHaveBeenCalledTimes(3);expect(replay.notebook.gameDesign!.receipts).toEqual(design.receipts);
+  const replay=await prepareGameExperience(restored,{}, {aiPolicy:'required'});expect(replay.creationStatus,replay.ai.message).toBe('ready');expect(replay.ai.requestCount).toBe(0);expect(provider.fetch).toHaveBeenCalledTimes(4);expect(replay.notebook.gameDesign!.receipts).toEqual(design.receipts);
   for(const patch of [{start:design.units[index].start+1},{limitation:'Invented exemption'},{missionEligible:true}]){const forged=structuredClone(design);Object.assign(forged.units[index],patch);expect(()=>validateGameDesign(forged,prior)).toThrow(/coverage/);}
  });
  it('strictly rejects metadata, approval, coverage and audio forgeries on portable import',async()=>{

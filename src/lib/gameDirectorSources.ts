@@ -19,6 +19,27 @@ export interface DirectorSourceInventory {
 export const LEGACY_CODE_STUDY_LIMITATION='This code remains available for source study; this bounded game writer does not execute or infer an unprovided program specification.';
 export const MIXED_CODE_PROSE_LIMITATION='This unit includes inert code for context. A mission may teach only its explicit non-code explanations, definitions or instructions. Preserve all stated conditions; do not execute code or infer behavior, rules or answers from it. If the prose depends on unprovided code semantics, use source study.';
 
+export interface DirectorTeachingWindow {sourceId:string;start:number;end:number;excerpt:string}
+/** New lessons may need the definition immediately before their procedure, or a
+ * qualification immediately after it. Disclose complete adjacent units, never
+ * splice quotations or widen the primary activity's answer model. This does not
+ * change source inventory IDs, saved planning, or historical teaching windows. */
+export function teachingContextWindow(unit:DirectorSourceUnit,units:DirectorSourceUnit[],notebook:Pick<Notebook,'sources'>):DirectorTeachingWindow {
+ const source=notebook.sources.find(item=>item.id===unit.sourceId);
+ const current=(candidate:DirectorSourceUnit)=>candidate.sourceId===unit.sourceId&&candidate.sourceRevision===unit.sourceRevision&&Number.isSafeInteger(candidate.start)&&Number.isSafeInteger(candidate.end)&&candidate.start>=0&&candidate.end>candidate.start&&candidate.end<=source!.text.length&&source!.text.slice(candidate.start,candidate.end)===candidate.excerpt;
+ if(!source||!current(unit)||unit.end-unit.start>6000)throw new Error('Teaching context requires the complete current source unit within 6000 characters.');
+ const ordered=units.filter(item=>item.sourceId===unit.sourceId).sort((a,b)=>a.start-b.start),index=ordered.findIndex(item=>item.id===unit.id&&item.start===unit.start&&item.end===unit.end&&item.excerpt===unit.excerpt);
+ if(index<0)throw new Error('Teaching context requires a unit in the disclosed source inventory.');
+ let start=unit.start,end=unit.end;
+ // Only immediate neighbors qualify. A missing/fragmented/oversized neighbor is
+ // a boundary, not permission to jump to a different chapter farther away.
+ const previous=ordered[index-1],next=ordered[index+1];
+ const complete=(candidate:DirectorSourceUnit|undefined):candidate is DirectorSourceUnit=>!!candidate&&current(candidate)&&!candidate.limitation?.startsWith('This fragment');
+ if(complete(previous)&&previous.end<=start&&start-previous.end<=512&&end-previous.start<=6000)start=previous.start;
+ if(complete(next)&&next.start>=end&&next.start-end<=512&&next.end-start<=6000)end=next.end;
+ return{sourceId:source.id,start,end,excerpt:source.text.slice(start,end)};
+}
+
 /** Mixed technical material keeps its complete context. Only the evidence used to
  * teach a bounded mission must be entirely supported by complete non-code spans. */
 export function assertDirectorProseEvidence(unit:DirectorSourceUnit,sources:Source[],references:{sourceId:string;evidence:string;start?:number;end?:number}[]):void {

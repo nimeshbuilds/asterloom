@@ -14,7 +14,7 @@
 .aster-connected .aster-launcher-portrait::before,.aster-connected .aster-portrait::before{opacity:1;inset:-7%;background-image:var(--aster-aura-image,none),radial-gradient(ellipse at 50% 62%,#b1dffb77 0%,#5776d344 37%,transparent 70%);background-position:center;background-repeat:no-repeat;background-size:contain}
 .aster-connected .aster-launcher-portrait img,.aster-connected .aster-portrait img{filter:drop-shadow(0 0 9px #60bcd580)}
 .aster-connected .aster-launcher>span:last-child{background:linear-gradient(105deg,#21435f,#393661);border-color:#a7bce4}
-.aster-connection-badge{position:absolute;z-index:3;top:8px;right:0;display:flex;align-items:center;gap:4px;padding:5px 7px;border-radius:20px;background:#e6f4fd;color:#183957;border:1px solid #6c94b6;font-size:10px;font-weight:750;line-height:1.4;box-shadow:0 2px 8px #18374320;white-space:nowrap}
+
 .aster-connected .aster-header{background:linear-gradient(125deg,#e9f3fa,#edeafa);border-bottom-color:#c4d0e6}
 .aster-thinking .aster-launcher-portrait::before{opacity:1;background-color:#bddad321}
 .aster-connection-arrival .aster-launcher-portrait::before{animation:aster-connect-halo .85s ease-out 1}
@@ -24,7 +24,19 @@
 .aster-search input{font-size:14px}.aster-panel-body{scrollbar-gutter:stable}.aster-bubble p{font-size:13px}.aster-bubble strong{font-size:14px}
 @keyframes aster-connect-halo{0%{opacity:0;transform:scale(.72)}60%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
 @keyframes aster-connect-rise{0%{transform:translateY(7px) scale(.95)}65%{transform:translateY(-3px) scale(1.025)}100%{transform:translateY(0) scale(1)}}
-@media(max-width:1359px){.aster-guide .aster-bubble{right:auto}.aster-launcher>span:last-child{width:88px}.aster-panel{max-height:min(660px,calc(100dvh - 32px))}.aster-panel-body{max-height:480px}.aster-connection-badge{font-size:9px;top:5px}}
+@media(max-width:1359px){.aster-guide .aster-bubble{right:auto}.aster-launcher>span:last-child{width:88px}.aster-panel{max-height:min(660px,calc(100dvh - 32px))}.aster-panel-body{max-height:480px}}
 @media(max-width:480px){.aster-header{padding:13px 10px;gap:8px}.aster-portrait{width:66px;height:88px}.aster-panel-body{padding:14px}.aster-header h2{font-size:22px}.aster-context-actions button{min-height:36px}.aster-search input{font-size:16px}}
 @media(max-height:700px) and (min-width:1360px){.aster-guide{width:112px}.aster-launcher{width:112px}.aster-launcher-portrait{width:112px;height:148px}.aster-panel{bottom:182px;max-height:calc(100dvh - 212px)}}
 @media(prefers-reduced-motion:reduce){.aster-launcher-portrait::before,.aster-portrait::before{transition:none}.aster-connection-arrival .aster-launcher-portrait::before,.aster-connection-arrival .aster-launcher-portrait img{animation:none}}
+
+/* The portrait is decorative. Keep the pointer and click target on the label below her. */
+.aster-launcher-shell{position:relative;width:132px;display:flex;flex-direction:column;align-items:center;pointer-events:none;filter:drop-shadow(0 4px 8px #253b451f)}
+.aster-launcher-shell>.aster-launcher{width:auto;min-width:100px;filter:none;z-index:2}
+.aster-launcher-shell>.aster-launcher-portrait{pointer-events:none;user-select:none}
+.aster-launcher-shell:has(>.aster-launcher:hover)>.aster-launcher-portrait{transform:translateY(-3px)}
+.aster-automatic .aster-launcher-shell:has(>.aster-launcher:hover)>.aster-launcher-portrait{transform:scale(1.22)}
+.aster-transformation-video{position:absolute;inset:-7%;width:114%;height:114%;object-fit:contain;pointer-events:none;z-index:0}
+.aster-mode-transition .aster-launcher-portrait::before{opacity:0;animation:none;transition:none}
+@media(max-width:1359px){.aster-launcher-shell{width:112px}}
+@media(max-height:700px) and (min-width:1360px){.aster-launcher-shell{width:112px}}
+@media(prefers-reduced-motion:reduce){.aster-transformation-video{display:none}.aster-launcher-shell:has(>.aster-launcher:hover)>.aster-launcher-portrait{transform:none}.aster-automatic .aster-launcher-shell:has(>.aster-launcher:hover)>.aster-launcher-portrait{transform:scale(1.22)}}

@@ -156,7 +156,18 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const auraBytes=await fs.readFile(path.join(process.cwd(),'public/assets/aster/agentic-aura.png'));
     const auraDigest=await page.evaluate(async()=>{const response=await fetch('/assets/aster/agentic-aura.png');if(!response.ok)throw Error('Bundled connected Aster artwork missing');const bytes=await response.arrayBuffer();return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(byte=>byte.toString(16).padStart(2,'0')).join('');});
     assert.equal(auraDigest,createHash('sha256').update(auraBytes).digest('hex'));
-    features.asterAI={exportedConfigurationAvailable:true,offlineByDefault:true,connectedArtworkBundled:true,liveProviderTested:false};
+    const transitionProofs=[];
+    for(const direction of ['connect','disconnect']){
+      const asset=`/assets/aster/transitions/${direction}.webm`,expected=await fs.readFile(path.join(ROOT,'public',asset));
+      const proof=await page.evaluate(async asset=>{
+        const response=await fetch(asset);if(!response.ok)throw Error('Bundled Aster transition missing');
+        const bytes=await response.arrayBuffer(),sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(byte=>byte.toString(16).padStart(2,'0')).join('');
+        const video=document.createElement('video');video.muted=true;video.playsInline=true;video.src=asset;document.body.append(video);
+        try{return await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('Bundled transition could not play')),15000);video.onerror=()=>{clearTimeout(timeout);reject(Error('Bundled transition decode failed'));};video.ontimeupdate=()=>{if(video.currentTime>.15){clearTimeout(timeout);resolve({sha256,mime:response.headers.get('content-type'),width:video.videoWidth,height:video.videoHeight,played:true});}};video.play().catch(error=>{clearTimeout(timeout);reject(error);});});}finally{video.pause();video.remove();}
+      },asset);
+      assert.equal(proof.sha256,createHash('sha256').update(expected).digest('hex'));assert.equal(proof.mime,'video/webm');assert.equal(proof.width,480);assert.equal(proof.height,640);assert.equal(proof.played,true);transitionProofs.push({direction,...proof});
+    }
+    features.asterAI={exportedConfigurationAvailable:true,offlineByDefault:true,connectedArtworkBundled:true,transitions:transitionProofs,liveProviderTested:false};
     const bundledSpeech=await page.evaluate(async id=>{const response=await fetch('/api/media/assets/'+id);const bytes=await response.arrayBuffer();return {status:response.status,size:bytes.byteLength,hash:[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(byte=>byte.toString(16).padStart(2,'0')).join('')};},speechAsset.id);assert.equal(bundledSpeech.status,200);assert.equal(bundledSpeech.size,mediaBytes.length);assert.equal(bundledSpeech.hash,speechAsset.sha256);
     const exportedHealth=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(exportedHealth.ok,true);
     const exportedPdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'exported-native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());

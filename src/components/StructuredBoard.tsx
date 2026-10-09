@@ -1,5 +1,5 @@
 import AsterGuide from './AsterGuide';
-import {learnerControlWording} from '../lib/learnerWording';
+import {questDirections} from './questDirections';
 import SourceMaterials from './SourceMaterials';
 import {designedMission} from '../lib/gameDesign';
 import {modelPracticeFeedback,modelPracticeReflection} from '../lib/modelPractice';
@@ -237,6 +237,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   const scene = activityScene(activity, response);
   const palette = WORLD_PALETTES[theme] ?? WORLD_PALETTES.islands;
   const arenaPrimary=(activity.kind==='sequence'||activity.kind==='classification')&&activity.items.length<=24;
+  const directions=questDirections(activity,lessonPlan.teaching?.objective);
   const workControls=<>
     {activity.kind === 'completion' && 'slotTokens' in response && <CompletionBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'data' && 'evidenceRows' in response && <DataBoard activity={activity} response={response} onChange={change}/>}
@@ -267,7 +268,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     {materials}
     <header className="structured-heading"><div><span className="structured-kicker">{ACTIVITY_KIND_LABELS[activity.kind]}</span><h2 ref={questHeading} tabIndex={-1}>{activity.title}</h2></div><span className="structured-badge">{activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Reflection' : 'Hands-on challenge'}</span></header>
     <div className="quest-learning-status"><BookOpen size={16}/><span>Lesson complete · {lessonQuestSupport(lessonPlan,lesson).assisted?'Apply what you just learned':'Independent retrieval'}</span><button type="button" disabled={savingResult||!!saveError} onClick={()=>void saveLesson(restartLesson(lessonPlan,lesson))}>Revisit the lesson</button></div>
-    <p className="structured-instruction">{learnerControlWording(activity.instruction,activity.reviewStatus==='reviewed')}</p>
+    <section className="quest-directions" aria-label="Your goal and how to play"><div><h3>Your goal</h3><p className="structured-instruction">{directions.goal}</p>{directions.detail&&!directions.detailCollapsed&&<p className="quest-directions-detail">{directions.detail}</p>}</div><div><h3>How to play</h3><p>{directions.action}</p><small>{directions.finish&&`${directions.finish} `}{activity.kind==='rubric'&&activity.mode==='self-assessment'?'Choose Save my reflection when you are ready.':'Choose Check my work to see feedback and improve your next move.'}</small></div>{directions.detailCollapsed&&<details className="quest-saved-directions"><summary>Original task details</summary><small>Saved task wording. Use How to play above for the current controls.</small><p>{directions.detail}</p></details>}</section>
     {activity.reviewStatus === 'needs-review' && <details className="structured-rules-note"><summary>About practice scoring</summary><p>Practice follows this game’s generated rules. Their meaning has not been reviewed against the source. You can earn practice XP; mastery and competition credit need author review.</p></details>}
     <div className="sr-only" aria-live="polite">{announcement}</div>
     <div className="structured-workspace" inert={savingResult || !!saveError || undefined}>
