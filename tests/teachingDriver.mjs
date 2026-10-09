@@ -33,7 +33,7 @@ export async function learnBeforeQuest(page) {
  if(await context.count()){
   const teaching=context.locator('.lesson-teaching');
   if(await teaching.count()){
-   const walkthrough=context.getByRole('button',{name:'Study the walkthrough',exact:true});
+   const walkthrough=context.getByRole('button',{name:/^(?:Study the walkthrough|Try it in practice)$/,exact:true});
    for(let step=0;step<12&&!await walkthrough.isEnabled();step++){
     const exploreIdea=teaching.getByRole('button',{name:/^Explore idea \d+$/});
     if(await exploreIdea.count()){const name=await exploreIdea.innerText();await exploreIdea.click();await expect(teaching.getByRole('button',{name,exact:true})).toHaveCount(0);}
@@ -43,7 +43,7 @@ export async function learnBeforeQuest(page) {
   }
   const unread=context.getByRole('button',{name:/^Mark passage \d+ explored$/});
   while(await unread.count()){const name=await unread.first().innerText();await unread.first().click();await expect(context.getByRole('button',{name,exact:true})).toHaveCount(0);}
-  await context.getByRole('button',{name:'Study the walkthrough',exact:true}).click();await expect(briefing.locator('.lesson-walkthrough')).toBeVisible();
+  await context.getByRole('button',{name:/^(?:Study the walkthrough|Try it in practice)$/,exact:true}).click();await expect(briefing.locator('.lesson-walkthrough,.lesson-practice')).toBeVisible();
  }
  const quotedSteps=[];
  while(await briefing.locator('.lesson-walkthrough').count()){

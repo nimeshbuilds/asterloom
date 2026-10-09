@@ -1,7 +1,7 @@
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 import {ExternalLink,RefreshCw,ShieldCheck,KeyRound,Download,Check,LoaderCircle} from 'lucide-react';
 import type {ProviderConfig} from '../lib/provider';
-import {subscriptionLoginUrl,subscriptionStatuses,providerModelCatalog,type SubscriptionEngineId,type SubscriptionEngineStatus} from '../lib/providerConnections';
+import {subscriptionLoginUrl,subscriptionStatuses,providerModelCatalog,claudeLoginContinuation,type ClaudeLoginContinuation,type SubscriptionEngineId,type SubscriptionEngineStatus} from '../lib/providerConnections';
 import {api} from '../lib/imports';
 import './provider-connection.css';
 type Model={id:string;name:string};
@@ -12,11 +12,13 @@ const isPlan=(provider:ProviderConfig['provider'])=>provider==='chatgpt'||provid
 export default function ProviderConnection({config,onChange,disabled=false,images=false}:{config:ProviderConfig;onChange:(v:ProviderConfig)=>void;disabled?:boolean;images?:boolean}){
  const [engines,setEngines]=useState<SubscriptionEngineStatus[]>([]),[connectionError,setConnectionError]=useState('');
  const [models,setModels]=useState<Model[]>([]),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
- type Login={id:SubscriptionEngineId;url:string;code?:string};
+ type Login={id:SubscriptionEngineId;url:string;code?:string;continuation?:ClaudeLoginContinuation};
  type ClaudeMethod='claudeai'|'console'|'sso';
  const [claudeMethod,setClaudeMethod]=useState<ClaudeMethod>('claudeai');
  type Flow={method?:ClaudeMethod;id:SubscriptionEngineId;token:number;selection:string;stage:'installing'|'starting'|'pending';opened?:boolean};
  const [action,setAction]=useState<SubscriptionEngineId|null>(null),[login,setLogin]=useState<Login|null>(null),[ending,setEnding]=useState(false);
+ const [claudeCode,setClaudeCode]=useState(''),[sendingCode,setSendingCode]=useState(false),[codeError,setCodeError]=useState('');
+ const claudeCodeInputId=useId();
  const epoch=useRef(0),latest=useRef(config),change=useRef(onChange),mounted=useRef(false),lifecycle=useRef(0);
  const authEpoch=useRef(0),statusEpoch=useRef(0),flow=useRef<Flow|null>(null),loginRef=useRef<Login|null>(null);
  const connectionFlight=useRef<{generation:number;life:number;promise:Promise<void>}|null>(null),pollFailures=useRef(0),nextPoll=useRef(0);
@@ -26,9 +28,9 @@ export default function ProviderConnection({config,onChange,disabled=false,image
  const alive=(life:number)=>mounted.current&&lifecycle.current===life;
  const current=(token:number,life:number)=>alive(life)&&authEpoch.current===token;
  function choose(selected:ProviderConfig){latest.current=selected;change.current(selected);}
- function showLogin(value:Login|null){loginRef.current=value;setLogin(value);}
+ function showLogin(value:Login|null){if(value?.id!==loginRef.current?.id||value?.continuation?.sessionId!==loginRef.current?.continuation?.sessionId){setClaudeCode('');setSendingCode(false);setCodeError('');}loginRef.current=value;setLogin(value);}
  useEffect(()=>{mounted.current=true;lifecycle.current++;return()=>{mounted.current=false;lifecycle.current++;authEpoch.current++;statusEpoch.current++;epoch.current++;flow.current=null;};},[]);
- useEffect(()=>{epoch.current++;setModels([]);setBusy(false);setNotice('');},[identity]);
+ useEffect(()=>{epoch.current++;setModels([]);setBusy(false);setNotice('');setClaudeCode('');},[identity]);
  async function refresh(selected=latest.current){
   const request=++epoch.current,life=lifecycle.current,selectedIdentity=JSON.stringify([selected.provider,selected.apiKey,selected.baseUrl]);
   setBusy(true);setNotice('Reading your provider’s current model catalog…');
@@ -46,10 +48,10 @@ export default function ProviderConnection({config,onChange,disabled=false,image
   if(signature(latest.current)===active.selection)useConnection(active.id);
   else setNotice('Sign-in completed. Your current provider selection was kept; use the connected account whenever you are ready.');
  }
- function presentLogin(active:Flow,value:{authUrl?:unknown;verificationUrl?:unknown;userCode?:unknown}){
+ function presentLogin(active:Flow,value:{authUrl?:unknown;verificationUrl?:unknown;userCode?:unknown;loginContinuation?:unknown}){
   const address=value.authUrl??value.verificationUrl;if(!address)return;
   const url=subscriptionLoginUrl(active.id,address);
-  showLogin({id:active.id,url,code:typeof value.userCode==='string'?value.userCode.slice(0,200):undefined});setAction(null);
+  showLogin({id:active.id,url,code:typeof value.userCode==='string'?value.userCode.slice(0,200):undefined,...(active.id==='claude'?{continuation:claudeLoginContinuation(value.loginContinuation)}:{})});setAction(null);
   if(!active.opened&&signature(latest.current)===active.selection){active.opened=true;window.open(url,'_blank','noopener,noreferrer');}
  }
  function acceptConnections(rows:SubscriptionEngineStatus[]){
@@ -68,7 +70,7 @@ export default function ProviderConnection({config,onChange,disabled=false,image
   }
   // A provider-owned login can outlive this panel. Restore its link, never its automatic selection.
   const pending=rows.find(row=>row.pending&&!row.connected&&(row.authUrl||row.verificationUrl));
-  if(pending){try{showLogin({id:pending.id,url:subscriptionLoginUrl(pending.id,pending.authUrl??pending.verificationUrl),code:pending.userCode});}catch(e){showLogin(null);setConnectionError((e as Error).message);}}
+  if(pending){try{showLogin({id:pending.id,url:subscriptionLoginUrl(pending.id,pending.authUrl??pending.verificationUrl),code:pending.userCode,continuation:pending.loginContinuation});}catch(e){showLogin(null);setConnectionError((e as Error).message);}}
   else if(loginRef.current)showLogin(null);
  }
  function readConnections():Promise<void>{
@@ -104,10 +106,25 @@ export default function ProviderConnection({config,onChange,disabled=false,image
   catch(e){if(current(active.token,life)){flow.current=null;setAction(null);setConnectionError((e as Error).message);}}
  }
  async function endConnection(id:SubscriptionEngineId,cancel=false){
+  setClaudeCode('');setSendingCode(false);setCodeError('');
   const token=++authEpoch.current,life=lifecycle.current;flow.current=null;statusEpoch.current++;setAction(id);setEnding(true);setConnectionError('');
   try{await api(`/api/ai/engines/${id}/${cancel?'cancel':'logout'}`,{});if(!current(token,life))return;showLogin(null);if(!cancel&&latest.current.provider===providerFor(id))choose({provider:'openai',apiKey:'',model:''});statusEpoch.current++;await readConnections();}
   catch(e){if(current(token,life))setConnectionError((e as Error).message);}
   finally{if(current(token,life)){setAction(null);setEnding(false);}}
+ }
+ async function submitClaudeCode(){
+  const selected=loginRef.current,continuation=selected?.continuation,code=claudeCode.trim();
+  if(disabled||ending||sendingCode||selected?.id!=='claude'||!continuation||continuation.state!=='awaiting-code'||!code)return;
+  const token=authEpoch.current,life=lifecycle.current,sessionId=continuation.sessionId;
+  setClaudeCode('');setSendingCode(true);setCodeError('');statusEpoch.current++;
+  const sameSession=()=>current(token,life)&&loginRef.current?.continuation?.sessionId===sessionId;
+  try{
+   const result=await api('/api/ai/engines/claude/login-code',{sessionId,code});if(!sameSession())return;
+   if(result.connected===true&&flow.current?.id==='claude'){finishFlow(flow.current);}
+   else if(result.pending===true)showLogin({...selected,continuation:claudeLoginContinuation(result.loginContinuation)});
+   statusEpoch.current++;await readConnections();
+  }catch(e){if(sameSession())setCodeError((e as Error).message);}
+  finally{if(current(token,life))setSendingCode(false);}
  }
  return <div className="provider-connection">
  {!images&&<details className="subscription-connections" open><summary>Connect a subscription</summary>
@@ -126,7 +143,16 @@ export default function ProviderConnection({config,onChange,disabled=false,image
    </article>;})}
 
   </div>
-  {login&&<div className="provider-login" role="status"><strong>Finish sign-in with {loginLabels[login.id]}</strong>{login.code&&<p>Enter this one-time code: <code>{login.code}</code></p>}<a href={login.url} target="_blank" rel="noreferrer">Reopen the provider’s sign-in page <ExternalLink size={13}/></a><small>Return here after signing in. If you keep this selection, its model catalog will load automatically.</small></div>}
+  {login&&<div className="provider-login"><strong>Finish sign-in with {loginLabels[login.id]}</strong>{login.code&&<p>Enter this one-time code: <code>{login.code}</code></p>}<a href={login.url} target="_blank" rel="noreferrer">Reopen the provider’s sign-in page <ExternalLink size={13}/></a><small>Return here after signing in. If you keep this selection, its model catalog will load automatically.</small>
+   {login.id==='claude'&&login.continuation&&<form className="claude-code-return" onSubmit={event=>{event.preventDefault();void submitClaudeCode();}}>
+    <strong>Did Claude give you a sign-in code?</strong><p>Copy the complete code shown after approving Claude Code in your browser, then paste it here. Automatic browser return also works.</p>
+    <label htmlFor={claudeCodeInputId}>Claude browser sign-in code<input id={claudeCodeInputId} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={8192} value={claudeCode} disabled={disabled||ending||sendingCode||login.continuation.state==='submitting'||Date.now()>=Date.parse(login.continuation.expiresAt)} onChange={event=>setClaudeCode(event.target.value)}/></label>
+    <small>This is the browser approval code, not your password, API key, or setup-token. It is cleared here when submitted or canceled and sent only to this active Claude sign-in.</small>
+    <button type="submit" className="button primary" disabled={disabled||ending||sendingCode||login.continuation.state==='submitting'||!claudeCode.trim()||Date.now()>=Date.parse(login.continuation.expiresAt)}>{sendingCode||login.continuation.state==='submitting'?<><LoaderCircle size={15} className="spin"/>Waiting for Claude to confirm…</>:'Complete Claude sign-in'}</button>
+    <small role="status">{Date.now()>=Date.parse(login.continuation.expiresAt)?'This sign-in has expired. Cancel and start again for a fresh code.':`This sign-in expires at ${new Date(login.continuation.expiresAt).toLocaleTimeString()}.`}</small>
+    {codeError&&<p className="provider-error" role="alert">{codeError}</p>}
+   </form>}
+  </div>}
   {connectionError&&<p className="provider-error" role="status">{connectionError}</p>}
   <div className="provider-actions"><button type="button" className="text-button" disabled={disabled} onClick={()=>choose({provider:'anthropic',apiKey:'',model:''})}>Use an API key</button><a href="https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use" target="_blank" rel="noreferrer">Claude Code connection terms <ExternalLink size={12}/></a></div>
   <button type="button" className="text-button" disabled={disabled} onClick={()=>void readConnections()}><RefreshCw size={13}/>Check connections</button>

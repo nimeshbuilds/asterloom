@@ -1,6 +1,10 @@
 # Build status and evidence
 
-Asterloom 0.7.2 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+Asterloom 0.7.6 is a working development preview. It implements a local creator and player, selected-notebook native exports with the full offline remixing studio, saved progress, optional model/visual assistance, and asynchronous private competition. The project belongs to the private NimeshBuilds/asterloom repository.
+
+## Lesson and creation repairs in 0.7.6
+
+Prepared AI lessons now lead the main journey; original material remains in the source library. Creation completes its finite inventory without a forced pause every 60 requests. Claude sign-in accepts its browser return code. The [audit and repair plan](LESSON-AND-CREATION-REPAIR-0.7.6.md) records the reported game’s findings, preservation rules and verification limits.
 
 ## Source teaching, audio and progress in 0.7.2
 

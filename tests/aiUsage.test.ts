@@ -7,4 +7,13 @@ describe('honest AI usage ledger',()=>{
  it('preserves known zero and unknown as different values',()=>{const r=receipt('a',{usage:{...unavailableAIUsage(),status:'reported',inputTokens:0,outputTokens:0,totalTokens:0}});expect(summarizeAIUsage([r]).input.value).toBe(0);expect(summarizeAIUsage([r]).cached.value).toBeNull();expect(summarizeAIUsage([]).input.value).toBeNull();});
  it('rejects forged status, unsafe counts, invalid subsets, and duplicate request IDs on import',()=>{for(const inputTokens of [-1,NaN,1.5,Infinity,Number.MAX_SAFE_INTEGER+1])expect(()=>validateAITokenUsage({...unavailableAIUsage(),inputTokens})).toThrow();expect(()=>validateAITokenUsage({...unavailableAIUsage(),status:'reported'})).toThrow();expect(()=>validateAITokenUsage({...receipt('a').usage,cachedInputTokens:101})).toThrow();expect(()=>validateAIUsageReceipts([receipt('a'),receipt('a')])).toThrow();});
  it('whitelists portable fields without keeping credentials or provider diagnostics',()=>{const result=validateAIUsageReceipts([{...receipt('a'),apiKey:'private',usage:{...receipt('a').usage,private:'source text'}}]);expect(JSON.stringify(result)).not.toMatch(/private|apiKey/);});
+ it('preserves new measured request timing while leaving historical timing unknown',()=>{
+  const old=receipt('legacy'),timed=receipt('timed',{finishedAt:'2026-10-04T10:00:02Z',durationMs:1234});
+  expect(validateAIUsageReceipts([old,timed])).toEqual([old,timed]);
+  expect(validateAIUsageReceipts([old])[0]).not.toHaveProperty('finishedAt');
+  expect(validateAIUsageReceipts([old])[0]).not.toHaveProperty('durationMs');
+ });
+ it('rejects invented or unfinished request durations',()=>{
+  for(const patch of [{durationMs:2},{finishedAt:'invalid',durationMs:2},{status:'started',finishedAt:'2026-10-04T10:00:02Z'},...[-1,NaN,Infinity,0.5,Number.MAX_SAFE_INTEGER+1].map(durationMs=>({finishedAt:'2026-10-04T10:00:02Z',durationMs}))])expect(()=>validateAIUsageReceipts([{...receipt('a'),...patch}])).toThrow();
+ });
 });

@@ -157,7 +157,8 @@ describe('resumable AI game director',()=>{
   });
   const result=await prepareGameExperience(input,{},options);expect(result.creationStatus,result.ai.message).toBe('ready');
   expect(provider.requests[0].data.units[0].excerpt).toContain(code);expect(provider.requests[1].data.missions[0].unit.excerpt).toContain(code);
-  expect(provider.requests[2].data.missions[0].exactEvidence.some((ref:any)=>ref.evidence.includes(code))).toBe(true);
+  const check=provider.requests[2].data;
+  expect(check.missions[0].exactEvidence.some((ref:any)=>check.evidencePool.find((entry:any)=>entry.id===ref.evidence.evidenceId&&entry.sourceId===ref.sourceId)?.text.includes(code))).toBe(true);
   const design=result.notebook.gameDesign!,draft=design.batches[0].drafts![0];expect(design.units[0].limitation).toBe(MIXED_CODE_PROSE_LIMITATION);expect(draft.teaching.sourceWindows[0].quote).toContain(code);expect(draft.activity.sourceRefs[0].evidence).toBe(steps);
   expect(parsePackage(serializePackage(result.notebook)).gameDesign).toEqual(design);
   const forged=structuredClone(design),codeRef=evidenceReference(evidenceBlocks(input.sources[0]).find(block=>block.quote===code)!);

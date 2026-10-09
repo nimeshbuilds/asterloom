@@ -3,7 +3,7 @@ import { compileNotebook, isUnmodifiedCompilerCard } from './compiler';
 import { proposeSourceObjectives } from './objectives';
 import { reconcileObjectives } from './evidence';
 import { sourceLearningUnits } from './sourceUnits';
-import { extractStructuredActivities, type StructuredActivity } from './structuredEngine';
+import { extractStructuredActivities, hasAmbiguousExtractedRelationships, type StructuredActivity } from './structuredEngine';
 import { sourceSupportedScaffoldIds } from './scaffoldSelection';
 import { isReadyLearningSource } from './scaffoldRuntime';
 
@@ -49,7 +49,7 @@ function priorExtraction(activity:StructuredActivity,notebook:Notebook):Structur
 }
 
 /** Prepare from the entire readable collection. A focused passage selection is never an input requirement. */
-export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebook; warnings: string[] } {
+export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebook; warnings: string[]; replaceableTextActivityIds:string[] } {
   const readable = notebook.sources.filter(source => isReadyLearningSource(source, notebook.sources) && source.text.trim());
   const compiled = compileNotebook(readable, { maxCards: 120, ageGroup: notebook.ageGroup, goal: notebook.goal });
   const units=readable.flatMap(sourceLearningUnits);
@@ -68,8 +68,18 @@ export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebo
   const cards = [...preservedCards, ...compiled.cards.filter(card => !preservedCards.some(saved => saved.id === card.id))].slice(0, 2000);
   const generatedById=new Map(extracted.activities.map(activity=>[activity.id,activity]));
   const existing=new Map<string,StructuredActivity>();
+  const replaceableTextActivityIds=new Set<string>();
   for(const activity of notebook.activities??[]){
     if(!activity.extractedFrom||activity.reviewStatus==='reviewed'||/^media-/.test(activity.id)){existing.set(activity.id,activity);continue;}
+    if(hasAmbiguousExtractedRelationships(activity)){
+      // The stricter parser deliberately cannot recreate the old invented edge.
+      // That must not turn an unchanged old extraction into an authored model.
+      // Retain its exact provenance for the runtime's source-review gate.
+      existing.set(activity.id,activity);
+      const source=notebook.sources.find(source=>source.id===activity.extractedFrom);
+      if(activity.title===`${source?.title}: relationships`&&activity.instruction==='Reconstruct the structure explicitly stated in the source.'&&activity.explanation==='This answer follows the supplied source structure. Review factual accuracy before publishing.'&&activity.hint==='Use the exact relationships, categories or order stated in the source.')replaceableTextActivityIds.add(activity.id);
+      continue;
+    }
     const baseline=generatedById.get(activity.id)??priorExtraction(activity,notebook);
     if(baseline&&comparableActivity(activity)===comparableActivity(baseline))continue;
     // This was edited (or its origin can no longer be established). Retain the authored model,
@@ -82,12 +92,13 @@ export function prepareAutomaticLearning(notebook: Notebook): { notebook: Notebo
     // Link only compatible primitives. A parsed conditional is not a branching simulation.
     const scaffoldId = defaults[activity.kind as keyof typeof defaults];
     existing.set(activity.id, { ...activity, ...(scaffoldId ? { scaffoldIds:[scaffoldId] } : {}) });
+    replaceableTextActivityIds.add(activity.id);
   }
   const authoredObjectives=(reconcileObjectives(notebook.learningObjectives,readable)??[]);
   const generatedObjectives=proposeSourceObjectives(readable).filter(objective=>!authoredObjectives.some(saved=>saved.id===objective.id)).map(({rationale:_r,supportedMechanics:_s,...objective})=>objective);
   const learningObjectives=[...authoredObjectives,...generatedObjectives].slice(0,100);
   const prepared = { ...notebook, generationVersion:2, cards, learningObjectives, activities:[...existing.values()].slice(0, 300) };
-  return { notebook: { ...prepared, scaffoldIds:sourceSupportedScaffoldIds(prepared) }, warnings:[...new Set([...compiled.warnings, ...extracted.warnings])] };
+  return { notebook: { ...prepared, scaffoldIds:sourceSupportedScaffoldIds(prepared) }, warnings:[...new Set([...compiled.warnings, ...extracted.warnings])],replaceableTextActivityIds:[...replaceableTextActivityIds] };
 }
 
 /** Upgrade only recognizably generated legacy work. Authored/sample notebooks are never silently recompiled. */

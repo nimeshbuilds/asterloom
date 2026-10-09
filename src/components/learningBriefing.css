@@ -85,3 +85,5 @@
 .lesson-learning-target>div>p{margin:0;font-weight:650;font-size:.92rem;line-height:1.55}
 .lesson-learning-target small{display:block;margin-top:5px;font-size:.72rem;color:#53644f}
 @media(max-width:620px){.lesson-learning-target>div{margin-top:7px}}
+
+.lesson-focus-copy{display:flex;flex-direction:column;gap:8px;min-width:0}.lesson-focus-copy>strong{font-size:.94rem;color:var(--lesson-ink)}.lesson-focus-copy>span{line-height:1.75}.lesson-preserved-note{border:1px solid #b9cbb0;background:#f0f5e9;padding:14px 17px;border-radius:10px;font-size:.9rem;line-height:1.65}.lesson-teaching-card>div,.lesson-learning-target>div{min-width:0}.lesson-teaching-card h3,.lesson-teaching-card p,.lesson-application-guide p,.lesson-application-guide li{overflow-wrap:break-word}.lesson-application-steps{padding-left:24px;line-height:1.8;max-width:70ch}.lesson-teaching-card p{white-space:pre-line}

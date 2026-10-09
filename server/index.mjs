@@ -497,6 +497,10 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
        catch(error){if(!error.aiUsage)error.aiUsage=normalizeAIUsage('',null);generationStatus.update(requestId,{phase:error.code==='PROVIDER_CANCELED'?'canceled':'failed',usage:error.aiUsage});throw error;}
       }
       if(request.method==='GET'&&url.pathname==='/api/ai/engines')return send(200,{engines:await Promise.all(Object.values(engines).map(engine=>engine.status()))});
+      if(request.method==='POST'&&url.pathname==='/api/ai/engines/claude/login-code'){
+        const input=await readBody(request);assert(typeof engines.claude?.continueLogin==='function','Claude sign-in code continuation is unavailable. Update the local engine connection.',404);
+        return send(200,await engines.claude.continueLogin(input));
+      }
       const engineRoute=url.pathname.match(/^\/api\/ai\/engines\/(codex|grok|claude)\/(install|login|cancel|logout)$/);
       if(request.method==='POST'&&engineRoute){
         const input=await readBody(request);const engine=engines[engineRoute[1]];assert(engine,'This engine is unavailable in this distribution.',404);

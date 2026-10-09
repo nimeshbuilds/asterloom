@@ -70,6 +70,19 @@ describe('source-grounded teaching and authored mission coverage',()=>{
   const n=fixture();n.sources.push({...n.sources[0],id:'copy',title:'Independent copied document'});n.cards.push({...n.cards[0],id:'copy-card',sourceId:'copy'});const p=plan(n);expect(new Set(p.passages.map(x=>x.reference.sourceId))).toEqual(new Set(['source-notes','copy']));expect(new Set(p.passages.map(x=>x.id)).size).toBe(p.passages.length);
  });
  it('keeps long-source fragments substantial and exactly cited instead of making a one-word lesson',()=>{const text='source notes '.repeat(77)+'photographs.';const n=fixture(text),p=plan(n);expect(p.coverage.uncoveredTargetIds).toEqual([]);expect(p.passages.every(passage=>passage.reference.quote.length>=40&&isCurrentEvidence(passage.reference,n.sources))).toBe(true);expect(p.passages[0].reference.start).toBe(0);expect(p.passages.at(-1)!.reference.end).toBe(text.length);});
+ it('preserves wrapped sentence conditions, decimals and abbreviations as untouched source spans',()=>{
+  const text='Dr. Rao measures 1.25 liters before the apparatus\nstarts its cycle. The stated threshold applies only to the\nsupplied training apparatus, not other equipment.';
+  const n=fixture(text),p=plan(n),quotes=p.practice.focusOptions.map(option=>option.reference.quote);
+  expect(quotes).toEqual(['Dr. Rao measures 1.25 liters before the apparatus\nstarts its cycle.','The stated threshold applies only to the\nsupplied training apparatus, not other equipment.']);
+  for(const reference of [...p.practice.focusOptions.map(option=>option.reference),...p.walkthrough.steps.map(step=>step.reference)])expect(isCurrentEvidence(reference,n.sources)).toBe(true);
+  expect(p.walkthrough.steps[0].reference.quote).not.toBe('Rao measures 1.');
+ });
+ it('keeps multiple-choice alternatives and labels together instead of presenting a distractor as a fact',()=>{
+  const choices='A. Ignore the required access conditions.\nB. Retain the required access conditions.\nC. Pick a name without checking its purpose.';
+  const n=fixture('Question: Which option follows the stated requirement?\n\n'+choices+'\n\nAnswer: B preserves the required access conditions.'),p=plan(n);
+  expect(p.practice.focusOptions.filter(option=>option.reference.quote.includes('Ignore')).map(option=>option.reference.quote)).toEqual([choices]);
+  expect(p.walkthrough.steps.filter(step=>step.reference.quote.includes('Ignore')).every(step=>step.reference.quote.includes('B. Retain'))).toBe(true);
+ });
  it('retains a nonadjacent explained example within the target source unit',()=>{
   const n=fixture('# Packet model\n\nPacket: a small unit of data that travels between the two modeled devices.\n\nThis training model contains one sender and one receiver.\n\nThe description applies only to the two devices supplied in the exercise.\n\nExample: In this packet model, the receiver reads the packet after arrival. The packet can be inspected because the receiver now has the data. This example is limited to the model.\n\n# Garden notes\n\nThe garden notebook has a separate watering procedure.');const p=plan(n);expect(p.passages.some(x=>x.reference.quote.startsWith('Example:'))).toBe(true);expect(p.walkthrough.kind).toBe('source-example');expect(p.coverage.uncoveredTargetIds).toEqual([]);expect(p.passages).toHaveLength(4);expect(p.passages.every(x=>isCurrentEvidence(x.reference,n.sources))).toBe(true);expect(JSON.stringify(p)).not.toContain('separate watering');
  });
@@ -133,6 +146,16 @@ describe('target-scoped teaching selection',()=>{
 });
 
 describe('bounded durable lesson progression and later independent retrieval',()=>{
+ it('preserves typed notes without silently attaching or approving them when preparation changes',()=>{
+  const n=fixture(),old=plan(n),saved=done(old),original=JSON.stringify(saved);
+  const changed=plan({...n,sources:[{...n.sources[0],text:n.sources[0].text+' More contextual source material.'}]});
+  const restored=initialLessonState(changed,saved);
+  expect(restored.stage).toBe('mission');expect(restored.completedAt).toBeUndefined();
+  expect(restored.practice).toMatchObject({focusId:'',compared:false,explanation:saved.practice.explanation,connection:saved.practice.connection,notesFromPlanKey:old.id});
+  expect(lessonPracticeReady(changed,restored)).toBe(false);expect(lessonReady(changed,restored)).toBe(false);
+  expect(initialLessonState(changed,JSON.parse(JSON.stringify(restored)))).toEqual(restored);expect(JSON.stringify(saved)).toBe(original);
+  expect(validateLessonState({...restored,practice:{...restored.practice,notesFromPlanKey:'unbounded-origin'}})).toBeUndefined();
+ });
  it('serializes partial notes and exact progress without storing source facts or provider configuration',()=>{
   const p=plan(),s=prepared(p);s.practice.compared=false;const restored=initialLessonState(p,JSON.parse(JSON.stringify(s)));expect(restored).toEqual(s);expect(JSON.stringify(restored).length).toBeLessThan(4000);expect(lessonReady(p,restored)).toBe(false);
  });

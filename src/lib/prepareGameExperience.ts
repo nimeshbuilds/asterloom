@@ -202,7 +202,13 @@ export async function prepareGameExperience(notebook:Notebook,preferences:GamePr
  if(preferences.goal!==undefined&&(typeof preferences.goal!=='string'||preferences.goal.length>300))throw new Error('Keep the learning goal under 300 characters.');
  const input={...notebook,...(preferences.ageGroup?{ageGroup:preferences.ageGroup}:{}),...(preferences.goal!==undefined?{goal:preferences.goal.trim()}: {})};
  try{options.onProgress?.({stage:'local',message:'Preparing complete source coverage on this device…'});}catch{/* Observer only. */}
- const local=prepareAutomaticLearning(input);
+ const automatic=prepareAutomaticLearning(input);
+ // The required writer owns the playable mission set. Automatic learning first
+ // recognizes author edits (removing extraction provenance from those models),
+ // so only untouched text extractions are omitted here. Reviewed, authored and
+ // recording activities remain intact. Their sources and source study stay saved.
+ const replaceable=new Set(automatic.replaceableTextActivityIds);
+ const local={...automatic,notebook:{...automatic.notebook,activities:automatic.notebook.activities?.filter(activity=>!replaceable.has(activity.id))}};
  const directed=await runGameDirector(local.notebook,{ai:options.ai,signal:options.signal,timeoutMs:options.timeoutMs,maxRequests:options.maxRequests,onCheckpoint:options.onCheckpoint,onProgress:options.onProgress});
  const result=preparedWithOrder(directed.notebook,directed.activityIds[0]),ready=directed.status==='ready';
  const aiStatus:GameAIResult['status']=ready?(directed.requestCount?'draft-added':'kept-existing'):directed.status==='canceled'?'canceled':directed.status==='needs-connection'?'unavailable':directed.status==='needs-source'?'insufficient-source':'failed';

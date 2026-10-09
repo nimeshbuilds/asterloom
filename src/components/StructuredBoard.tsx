@@ -1,4 +1,5 @@
 import AsterGuide from './AsterGuide';
+import {learnerControlWording} from '../lib/learnerWording';
 import SourceMaterials from './SourceMaterials';
 import {designedMission} from '../lib/gameDesign';
 import {modelPracticeFeedback,modelPracticeReflection} from '../lib/modelPractice';
@@ -239,7 +240,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     {materials}
     <header className="structured-heading"><div><span className="structured-kicker">{ACTIVITY_KIND_LABELS[activity.kind]}</span><h2 ref={questHeading} tabIndex={-1}>{activity.title}</h2></div><span className="structured-badge">{activity.kind === 'rubric' && activity.mode === 'self-assessment' ? 'Reflection' : 'Hands-on challenge'}</span></header>
     <div className="quest-learning-status"><BookOpen size={16}/><span>Lesson complete · {lessonQuestSupport(lessonPlan,lesson).assisted?'Apply what you just learned':'Independent retrieval'}</span><button type="button" disabled={savingResult||!!saveError} onClick={()=>void saveLesson(initialLessonState(lessonPlan))}>Revisit the lesson</button></div>
-    <p className="structured-instruction">{activity.instruction}</p>
+    <p className="structured-instruction">{learnerControlWording(activity.instruction,activity.reviewStatus==='reviewed')}</p>
     {activity.reviewStatus === 'needs-review' && <details className="structured-rules-note"><summary>About practice scoring</summary><p>Practice follows this game’s generated rules. Their meaning has not been reviewed against the source. You can earn practice XP; mastery and competition credit need author review.</p></details>}
     <div className="sr-only" aria-live="polite">{announcement}</div>
     <div className="structured-workspace" inert={savingResult || !!saveError || undefined}>

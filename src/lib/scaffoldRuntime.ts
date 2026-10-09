@@ -1,6 +1,6 @@
 import { getPictureBuildCapabilities } from './pictureBuildEngine';
 import { SCAFFOLDS, scaffoldById } from '../data/scaffolds';
-import {validateActivity,type StructuredActivity} from './structuredEngine';
+import {validateActivity,hasAmbiguousExtractedRelationships,type StructuredActivity} from './structuredEngine';
 import {canScoreRecallCard} from './utils';
 import {hasLearningContentQuote} from './sourceContent';
 import {validateMediaTranscript} from './mediaTranscript';
@@ -115,7 +115,7 @@ export function isReadyLearningSource(source:Source|undefined,sources:Source[]):
 }
 /** A draft may have current evidence without having an author-approved answer model. */
 export function hasCurrentActivityEvidence(activity:StructuredActivity,sources:Source[]):boolean {
-  if(!Array.isArray(sources)||!validateActivity(activity,sources).success)return false;
+  if(!Array.isArray(sources)||!validateActivity(activity,sources).success||hasAmbiguousExtractedRelationships(activity))return false;
   const ready=new Map<string,boolean>();
   return activity.sourceRefs.every(reference=>{
     const source=sources.find(item=>item.id===reference.sourceId);

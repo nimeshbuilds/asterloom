@@ -2,7 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {isCurrentEvidence} from '../src/lib/evidence';
 import {validateAILearningMissionDraft,validateAILearningPlan,reconcileAILearningPlan,currentAILearningMission,AI_TEACHING_VERIFICATION_NOTE,type AILearningMission} from '../src/lib/aiLearningPlan';
-import {buildLearningBriefing,initialLessonState,completeLesson,lessonReady,lessonContextReady,lessonTeachingChunkIds,beginLessonRehearsal} from '../src/lib/learningBriefing';
+import {buildLearningBriefing,initialLessonState,completeLesson,lessonReady,lessonContextReady,lessonTeachingChunkIds,beginLessonRehearsal,beginLessonPractice,lessonRequiresWalkthrough} from '../src/lib/learningBriefing';
 import {SCAFFOLDS} from '../src/data/scaffolds';
 import type {StructuredActivity} from '../src/lib/structuredEngine';
 
@@ -71,8 +71,30 @@ describe('source-cited digestible AI teaching',()=>{
 describe('AI teaching runtime with existing lesson gates',()=>{
  function plan(){const f=generated();return{...f,plan:buildLearningBriefing({notebook:f.notebook,activity:f.activity,scaffold:SCAFFOLDS.find(s=>s.id==='process-reconstruction')!})};}
  it('uses the generated teaching and fictional frame while retaining source evidence and an honest draft assessment',()=>{const f=plan();expect(f.plan.teaching).toEqual(f.mission);expect(f.plan.title).toBe(f.draft.title);expect(f.plan.story.setting).toBe(f.draft.storyFrame.setting);expect(f.plan.walkthrough.steps[0].instruction).toBe(f.draft.workedExample.steps[0].text);expect(f.plan.mission.assignment).toBe(f.activity.instruction);expect(f.plan.reviewed).toBe(false);});
+ it('keeps an AI explanation paired with all citations instead of choosing a document heading for reflection',()=>{
+  const f=plan(),options=f.plan.practice.focusOptions;
+  expect(options[0].explanation).toBe(f.mission.conceptExplanation.text);
+  expect(options[0].references).toEqual(f.mission.conceptExplanation.citations);
+  expect(options.slice(1).map(option=>option.explanation)).toEqual(f.mission.chunks.map(chunk=>chunk.text));
+  for(const option of options)expect(option.references!.every(ref=>isCurrentEvidence(ref,f.notebook.sources))).toBe(true);
+ });
+ it('moves complete AI ideas directly to practice when there is no actual worked example, without bypassing the ideas or saved practice',()=>{
+  const f=fixture(),source={...f.source,text:overview+'\n\nThe documented check reads an observation, compares it with the rule, and records the decision.'},activity={...f.activity,sourceRefs:[{sourceId:f.source.id,evidence:overview}]};
+  const draft={...f.draft,workedExample:undefined,chunks:[{...f.draft.chunks[0],citations:[{sourceId:source.id,evidence:overview}]},{...f.draft.chunks[1],citations:[{sourceId:source.id,evidence:source.text.split('\n\n')[1]}]}]};
+  const mission=validateAILearningMissionDraft(draft,{...f.context,sources:[source],activity,sourceWindow:{sourceId:source.id,start:0,end:source.text.length}});
+  const notebook={...f.notebook,sources:[source],activities:[activity],aiLearningPlan:{version:1 as const,missions:[mission]}},p=buildLearningBriefing({notebook,activity,scaffold:SCAFFOLDS.find(s=>s.id==='process-reconstruction')!});
+  expect(p.walkthrough.kind).toBe('source-reading');expect(lessonRequiresWalkthrough(p)).toBe(false);
+  const initial=initialLessonState(p);expect(beginLessonPractice(p,initial)).toEqual(initial);
+  const reading={...initial,stage:'context' as const,missionAccepted:true,viewedPassageIds:[lessonTeachingChunkIds(p)[0]]};expect(beginLessonPractice(p,reading).stage).toBe('context');
+  const explored={...reading,viewedPassageIds:lessonTeachingChunkIds(p)},practice=beginLessonPractice(p,explored);
+  expect(practice.stage).toBe('practice');expect(practice.walkthroughStep).toBe(0);expect(lessonReady(p,completeLesson(p,practice))).toBe(false);
+  const prepared={...practice,practice:{...practice.practice,explanation:'I will keep observations connected to the supplied rule and evidence.',compared:true}},ready=completeLesson(p,prepared);
+  expect(lessonReady(p,ready)).toBe(true);expect(initialLessonState(p,JSON.parse(JSON.stringify(ready)))).toEqual(ready);
+  expect(lessonReady(p,{...ready,viewedPassageIds:[]})).toBe(false);
+  expect(initialLessonState(p,{...explored,stage:'walkthrough'}).stage).toBe('practice');
+ });
  it('requires teaching and walkthrough before a source kit can unlock the quest, saves chunk progress, and rejects forged completion',()=>{
-  const {plan:p}=plan();const state=initialLessonState(p);expect(beginLessonRehearsal(p,state).rehearsal).toBeUndefined();const first={...state,stage:'context' as const,missionAccepted:true,viewedPassageIds:[lessonTeachingChunkIds(p)[0]]};expect(initialLessonState(p,JSON.parse(JSON.stringify(first)))).toEqual(first);expect(lessonContextReady(p,first)).toBe(false);
+  const {plan:p}=plan();const state=initialLessonState(p);expect(lessonRequiresWalkthrough(p)).toBe(true);expect(beginLessonRehearsal(p,state).rehearsal).toBeUndefined();const first={...state,stage:'context' as const,missionAccepted:true,viewedPassageIds:[lessonTeachingChunkIds(p)[0]]};expect(initialLessonState(p,JSON.parse(JSON.stringify(first)))).toEqual(first);expect(lessonContextReady(p,first)).toBe(false);
   const viewed={...first,viewedPassageIds:lessonTeachingChunkIds(p),walkthroughStep:p.walkthrough.steps.length};expect(lessonContextReady(p,viewed)).toBe(true);const kit=beginLessonRehearsal(p,viewed);kit.rehearsal={...kit.rehearsal!,checked:true,answers:Object.fromEntries(p.rehearsal!.slots.map(slot=>[slot.id,slot.acceptedTileIds[0]]))};const complete=completeLesson(p,kit);expect(lessonReady(p,complete)).toBe(true);expect(lessonReady(p,{...complete,viewedPassageIds:[]})).toBe(false);expect(lessonReady(p,{...complete,walkthroughStep:0})).toBe(false);
  });
  it('binds saved preparation to teaching text and clears obsolete approval without losing unchanged progress',()=>{

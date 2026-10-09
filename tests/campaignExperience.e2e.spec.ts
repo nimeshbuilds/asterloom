@@ -12,6 +12,12 @@ async function progress(page:Page,id:string){return page.evaluate(id=>new Promis
 
 test('an existing generated game presents its teaching and excludes the reported cover-page passage',async({page},info)=>{
  const n=campaignTeachingFixture();await open(page,n);
+ await expect(page.locator('.campaign-summary')).toContainText('1 prepared lesson');
+ await expect(page.locator('.campaign-chapter')).toHaveCount(1);
+ await expect(page.locator('.campaign-chapters')).toContainText(n.aiLearningPlan!.missions[0].conceptExplanation.text);
+ await page.getByRole('button',{name:'Source library',exact:true}).click();
+ await expect(page.locator('.campaign-library-note')).toContainText('not additional required lessons');
+ await page.getByRole('button',{name:'Lessons & quests 1',exact:true}).click();
  await expect(page.locator('.campaign-invitation')).toContainText('Understand tasks before choosing a tool');
  await expect(page.locator('.campaign-chapters')).not.toContainText(coverMetadata);
  await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();

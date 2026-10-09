@@ -49,6 +49,31 @@ test('keyboard kit feedback, saved selection and arrangement survive reload, and
 test('visible teaching driver completes both a term kit and a procedure kit without hidden answers',async({page})=>{
  await page.goto(address+'/');await learnBeforeQuest(page);await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();await page.evaluate(()=>localStorage.clear());await page.goto(address+'/?route');await learnBeforeQuest(page);await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();
 });
+test('a note from older preparation stays editable and needs an explicit source selection before reuse',async({page})=>{
+ const enterPractice=async()=>{
+  await page.getByRole('button',{name:'Explore the source',exact:true}).click();
+  while(await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).count())await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).first().click();
+  await page.getByRole('button',{name:'Study the walkthrough',exact:true}).click();
+  while(await page.getByRole('button',{name:'Next walkthrough step',exact:true}).count())await page.getByRole('button',{name:'Next walkthrough step',exact:true}).click();
+  await page.getByRole('button',{name:'Build my field note',exact:true}).click();
+ };
+ await page.goto(address+'/?prose');await enterPractice();
+ const note='I described the supplied picture, while the rest of its story remains open.';
+ await page.getByLabel('Explain it in your own words').fill(note);
+ await expect.poll(()=>page.evaluate(()=>(window as any).workbench.durable?.practice.explanation)).toBe(note);
+ await page.evaluate(()=>{const saved=JSON.parse(localStorage.getItem('kit')!);saved.planKey='lesson-'+'0'.repeat(64);saved.practice.compared=true;localStorage.setItem('kit',JSON.stringify(saved));});
+ await page.reload();await enterPractice();
+ await expect(page.locator('.lesson-preserved-note')).toBeVisible();
+ await expect(page.getByLabel('Explain it in your own words')).toHaveValue(note);
+ await expect(page.locator('.lesson-focus-options input:checked')).toHaveCount(0);
+ await expect(page.getByLabel('I compared my note with the source',{exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Save briefing & start quest',exact:true})).toBeDisabled();
+ await page.locator('.lesson-current-focus input').check();
+ await page.getByLabel('I compared my note with the source',{exact:true}).check();
+ await page.getByRole('button',{name:'Save briefing & start quest',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Quest opened',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>(window as any).workbench.durable.practice.explanation)).toBe(note);
+});
 test('adult and child workbenches remain legible, accessible and usable at narrow width',async({browser})=>{
  await mkdir('.qa/lesson-workbench',{recursive:true});
  for(const mode of ['adult','child'])for(const width of [1280,390]){

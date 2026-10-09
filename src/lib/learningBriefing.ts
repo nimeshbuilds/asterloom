@@ -2,7 +2,7 @@ import type { EvidenceReference, LearningCard, Notebook, Source } from '../types
 import type { Scaffold } from '../data/scaffolds';
 import type { StructuredActivity } from './structuredEngine';
 import { evidenceBlocks, evidenceReference, sourceRevision, textDigest } from './evidence';
-import { sourceConcepts, sourceLearningUnits, explicitSourceProcedures } from './sourceUnits';
+import { sourceConcepts, sourceLearningUnits, explicitSourceProcedures, sourceSentences } from './sourceUnits';
 import { isPictureRaster } from './pictureEngine';
 import { mediaPlaybackUrl, sourceMediaIdentity } from './mediaAssets';
 import { buildLessonStory, buildLessonActionGuide, type LessonStory, type LessonActionGuide } from './lessonStory';
@@ -21,7 +21,7 @@ export interface LearningPlan {
   id:string; version:1; scaffoldId:string; title:string; theme:string; story:LessonStory;
   ageGroup:string; status:'grounded'|'limited'|'blocked'; warnings:string[];
   passages:LessonPassage[]; walkthrough:{kind:'source-procedure'|'source-example'|'source-reading'; title:string; limitation:string; steps:LessonStep[]};
-  practice:{prompt:string; focusOptions:{id:string; passageId:string; reference:EvidenceReference}[]; orderIds:string[]; spokenAllowed:boolean};
+  practice:{prompt:string; focusOptions:{id:string; passageId:string; reference:EvidenceReference; title?:string; explanation?:string; references?:EvidenceReference[]}[]; orderIds:string[]; spokenAllowed:boolean};
   targets:string[]; reviewed:boolean;
   mission:{assignment:string;assignmentOrigin:'author'|'source-guide';sourceTitles:string[];evidence:EvidenceReference[];handoff:string;actionGuide:LessonActionGuide};
   rehearsal?:LessonRehearsal;
@@ -33,7 +33,7 @@ export interface LearningPlan {
 export interface LessonState {
   version:1; planKey:string; stage:'mission'|'context'|'walkthrough'|'practice'|'ready';
   missionAccepted:boolean; viewedPassageIds:string[]; walkthroughStep:number;
-  practice:{focusId:string; explanation:string; connection:string; mode:'written'|'spoken'; spokenConfirmed:boolean; compared:boolean; order:string[]};
+  practice:{focusId:string; explanation:string; connection:string; mode:'written'|'spoken'; spokenConfirmed:boolean; compared:boolean; order:string[]; notesFromPlanKey?:string};
   mediaPositions:Record<string,number>; completedAt?:string; rehearsal?:LessonRehearsalState;
 }
 export const LESSON_SUPPORT_WINDOW_MS=24*60*60*1000;
@@ -94,9 +94,14 @@ function teachingBlocks(source:Source,reference:ReferenceLookup):TeachingBlock[]
 function fragments(passage:LessonPassage,sources:Source[],reference:ReferenceLookup):EvidenceReference[] {
   const source=sources.find(s=>s.id===passage.reference.sourceId)!;
   const quote=passage.reference.quote;
-  const chunks=[...quote.matchAll(/[^\n.!?]+(?:[.!?](?=\s|$)|$)|[^\n]+$/gm)];
+  // Answer choices are alternatives, not standalone statements of truth. Keep
+  // their labels and surrounding choices together rather than extracting one.
+  if(/^[ \t]*[A-H][.)][ \t]+\S/m.test(quote))return[passage.reference];
+  // PDF visual line wraps are not sentence boundaries. Use equal-length spaces
+  // only to find boundaries, then cite the untouched original source span.
+  const chunks=sourceSentences(quote.replace(/[\r\n]/g,' '));
   const out:EvidenceReference[]=[];
-  for(const m of chunks){const text=m[0].trim();if(text.length<18||text.length>500)continue;const start=passage.reference.start+m.index!+m[0].indexOf(text);out.push(reference(source,start,start+text.length));if(out.length>=6)break;}
+  for(const chunk of chunks){if(chunk.quote.length<18||chunk.quote.length>500)continue;const start=passage.reference.start+chunk.start;out.push(reference(source,start,passage.reference.start+chunk.end));if(out.length>=6)break;}
   return out.length?out:[passage.reference];
 }
 
@@ -200,13 +205,15 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   if(teaching?.workedExample){kind='source-example';title=teaching.workedExample.title;limitation='AI-prepared walkthrough of an example supplied by the source. Check each explanation against its cited evidence; exact citations alone do not validate the reasoning.';steps=teaching.workedExample.steps.map((step,i)=>({id:`step-${i}`,title:step.title,instruction:step.text,reference:step.citations[0]}));}
   const subjectLabels=rehearsal?.kind==='reference-kit'?rehearsal.tiles.map(tile=>tile.label):Array.from(new Set(passages.filter(p=>p.role==='focus').map(p=>p.title)));
   const assignment=activity?.instruction??`${story.mission} Your material: ${subjectLabels.join(' · ')}.`;
-  const focusOptions=passages.flatMap(p=>fragments(p,notebook.sources,reference).slice(0,2).map((ref,i)=>({id:`focus-${textDigest(p.id).slice(0,12)}-${i}`,passageId:p.id,reference:ref}))).slice(0,12);
+  const focusOptions:LearningPlan['practice']['focusOptions']=teaching?
+    [{id:'concept',title:teaching.title,...teaching.conceptExplanation},...teaching.chunks].map((chunk,index)=>({id:`focus-ai-${index}-${textDigest(chunk.id).slice(0,20)}`,passageId:passages.find(p=>chunk.citations.some(ref=>ref.sourceId===p.reference.sourceId&&ref.start<p.reference.end&&ref.end>p.reference.start))?.id??passages[0]?.id??'',reference:chunk.citations[0],title:chunk.title,explanation:chunk.text,references:chunk.citations})):
+    passages.flatMap(p=>fragments(p,notebook.sources,reference).slice(0,2).map((ref,i)=>({id:`focus-${textDigest(p.id).slice(0,12)}-${i}`,passageId:p.id,reference:ref}))).slice(0,12);
   const mediaIds=new Set(raw.map(ref=>ref.sourceId));
   if(activity?.kind==='media')mediaIds.add(activity.mediaSourceId);
   notebook.sources.filter(s=>mediaIds.has(s.id)).forEach(s=>{if(s.transcript)mediaIds.add(s.transcript.mediaSourceId);if(s.visualEvidence)mediaIds.add(s.visualEvidence.parentSourceId);});
   if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')mediaIds.add(activity.sceneSourceId);
   if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)mediaIds.add(r.narrationSourceId);});
-  const planData={version:2,selection:'target-source-unit',scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),...(teaching?{teaching:aiLearningMissionKey(teaching)}:{}),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
+  const planData={version:3,selection:'target-source-unit',scaffoldId:scaffold.id,age:notebook.ageGroup,notebookId:notebook.id,model:modelFingerprint(cards,activity),evidence:passages.map(p=>p.reference),...(teaching?{teaching:aiLearningMissionKey(teaching)}:{}),media:notebook.sources.filter(s=>mediaIds.has(s.id)).map(s=>({id:s.id,identity:attachmentIdentity(s),transcript:s.transcript,visualEvidence:s.visualEvidence}))};
   const visualIds=new Set(mediaIds);if(activity&&'sceneSourceId' in activity&&typeof activity.sceneSourceId==='string')visualIds.add(activity.sceneSourceId);if(activity?.kind==='picture'&&Array.isArray(activity.rounds))activity.rounds.forEach(r=>{if(r.narrationSourceId)visualIds.add(r.narrationSourceId);});
   const media=notebook.sources.filter(s=>visualIds.has(s.id)&&(s.status==='ready'||(s.kind==='audio'||s.kind==='video')&&s.status==='needs-transcript')).flatMap<LearningPlan['media'][number]>(s=>{if(s.kind==='image'&&isPictureRaster(s.dataUrl))return[{sourceId:s.id,title:s.title,kind:'image' as const,url:s.dataUrl,alt:`Original uploaded image: ${s.title}. The source annotation is quoted below.`}];if(s.kind==='audio'||s.kind==='video'){const url=mediaPlaybackUrl(s);if(url)return[{sourceId:s.id,title:s.title,kind:s.kind,url,alt:s.title}];}return[];}).slice(0,6);
   return{id:`lesson-${textDigest(canonical(planData))}`,version:1,scaffoldId:scaffold.id,title:teaching?.title??activity?.title??notebook.title,theme:notebook.theme,story,ageGroup:notebook.ageGroup,status:!passages.length||uncoveredTargetIds.length?'blocked':sparse||warnings.some(w=>w.startsWith('Some mission'))?'limited':'grounded',warnings:[...new Set(warnings)],passages,walkthrough:{kind,title,limitation,steps},practice:{prompt:teaching?.guidedApplication.prompt??story.reflection,focusOptions,orderIds:kind==='source-procedure'?steps.map(s=>s.id):[],spokenAllowed:notebook.ageGroup==='3-5'||notebook.ageGroup==='6-8'},targets,reviewed,mission:{assignment,assignmentOrigin:activity?'author':'source-guide',sourceTitles:Array.from(new Set(passages.map(p=>p.title))),evidence:raw.flatMap(ref=>targetReferences.get(ref)??[]).slice(0,3),handoff:story.transfer,actionGuide:buildLessonActionGuide(activity)},...(rehearsal?{rehearsal}:{}),...(teaching?{teaching}:{}),coverage:{coveredTargetIds,uncoveredTargetIds},media};
@@ -235,9 +242,19 @@ function buildRehearsal(passages:LessonPassage[],sources:Source[],kind:LearningP
 }
 export function beginLessonRehearsal(plan:LearningPlan,saved?:unknown):LessonState {
   const state=initialLessonState(plan,saved);if(!plan.rehearsal||plan.status==='blocked')return state;
-  if(plan.teaching&&(!lessonContextReady(plan,state)||state.walkthroughStep<plan.walkthrough.steps.length))return state;
+  if(plan.teaching&&(!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan)&&state.walkthroughStep<plan.walkthrough.steps.length))return state;
   const first=plan.rehearsal.slots[0];
   return{...state,missionAccepted:true,stage:'practice',rehearsal:state.rehearsal??{answers:{[first.id]:first.acceptedTileIds[0]},revealed:[first.id],selectedTileId:'',checked:false}};
+}
+/** A valid AI explanation already supplies guided application. Do not force it
+ * through the generic source-reading tour; actual examples remain required. */
+export function lessonRequiresWalkthrough(plan:LearningPlan):boolean {
+  return !plan.teaching||!!plan.teaching.workedExample||plan.walkthrough.kind!=='source-reading';
+}
+export function beginLessonPractice(plan:LearningPlan,saved?:unknown):LessonState {
+  const state=initialLessonState(plan,saved);
+  if(plan.status==='blocked'||!state.missionAccepted||!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan)&&state.walkthroughStep<plan.walkthrough.steps.length)return state;
+  return plan.rehearsal?beginLessonRehearsal(plan,state):{...state,stage:'practice'};
 }
 export function lessonRehearsalChecks(plan:LearningPlan,saved?:LessonRehearsalState){
   return(plan.rehearsal?.slots??[]).map(slot=>({id:slot.id,correct:slot.acceptedTileIds.includes(saved?.answers[slot.id]??''),reference:slot.reference}));
@@ -254,7 +271,7 @@ export function lessonToolkit(plan:LearningPlan,saved?:unknown):{id:string;label
 export function validateLessonState(value:unknown):LessonState|undefined {
   if(!plain(value)||!exact(value,['version','planKey','stage','missionAccepted','viewedPassageIds','walkthroughStep','practice','mediaPositions','completedAt','rehearsal'])||value.version!==1||typeof value.planKey!=='string'||!/^lesson-[a-f0-9]{64}$/.test(value.planKey)||!STAGES.includes(value.stage as LessonState['stage'])||typeof value.missionAccepted!=='boolean'||!ids(value.viewedPassageIds,16)||!Number.isInteger(value.walkthroughStep)||(value.walkthroughStep as number)<0||(value.walkthroughStep as number)>6||!plain(value.practice))return;
   const p=value.practice;
-  if(!exact(p,['focusId','explanation','connection','mode','spokenConfirmed','compared','order'])||!bounded(p.focusId,100)||!bounded(p.explanation,1200)||!bounded(p.connection,700)||!['written','spoken'].includes(String(p.mode))||typeof p.spokenConfirmed!=='boolean'||typeof p.compared!=='boolean'||!ids(p.order,6))return;
+  if(!exact(p,['focusId','explanation','connection','mode','spokenConfirmed','compared','order','notesFromPlanKey'])||!bounded(p.focusId,100)||!bounded(p.explanation,1200)||!bounded(p.connection,700)||!['written','spoken'].includes(String(p.mode))||typeof p.spokenConfirmed!=='boolean'||typeof p.compared!=='boolean'||!ids(p.order,6)||p.notesFromPlanKey!==undefined&&(typeof p.notesFromPlanKey!=='string'||!/^lesson-[a-f0-9]{64}$/.test(p.notesFromPlanKey)))return;
   if(value.completedAt!==undefined&&(typeof value.completedAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.completedAt)||!Number.isFinite(Date.parse(value.completedAt))))return;
   const positions=value.mediaPositions===undefined?{}:value.mediaPositions;if(!plain(positions)||Object.keys(positions).length>6||Object.entries(positions).some(([id,time])=>!id||id.length>100||['__proto__','constructor','prototype'].includes(id)||typeof time!=='number'||!Number.isFinite(time)||time<0||time>43200))return;
   const r=value.rehearsal;let rehearsal:LessonRehearsalState|undefined;
@@ -262,7 +279,7 @@ export function validateLessonState(value:unknown):LessonState|undefined {
     if(!plain(r)||!exact(r,['answers','revealed','selectedTileId','checked'])||!plain(r.answers)||Object.keys(r.answers).length>6||Object.entries(r.answers).some(([key,answer])=>!/^[-a-zA-Z0-9_]{1,80}$/.test(key)||['constructor','prototype','__proto__'].includes(key)||typeof answer!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(answer))||!ids(r.revealed,6)||!bounded(r.selectedTileId,80)||typeof r.checked!=='boolean')return;
     rehearsal={answers:{...r.answers} as Record<string,string>,revealed:[...r.revealed],selectedTileId:r.selectedTileId,checked:r.checked};
   }
-  return{version:1,...(rehearsal?{rehearsal}:{}),mediaPositions:{...positions} as Record<string,number>,planKey:value.planKey,stage:value.stage as LessonState['stage'],missionAccepted:value.missionAccepted,viewedPassageIds:[...value.viewedPassageIds],walkthroughStep:value.walkthroughStep as number,practice:{focusId:p.focusId,explanation:p.explanation,connection:p.connection,mode:p.mode as 'written'|'spoken',spokenConfirmed:p.spokenConfirmed,compared:p.compared,order:[...p.order]},...(typeof value.completedAt==='string'?{completedAt:value.completedAt}:{})};
+  return{version:1,...(rehearsal?{rehearsal}:{}),mediaPositions:{...positions} as Record<string,number>,planKey:value.planKey,stage:value.stage as LessonState['stage'],missionAccepted:value.missionAccepted,viewedPassageIds:[...value.viewedPassageIds],walkthroughStep:value.walkthroughStep as number,practice:{focusId:p.focusId,explanation:p.explanation,connection:p.connection,mode:p.mode as 'written'|'spoken',spokenConfirmed:p.spokenConfirmed,compared:p.compared,order:[...p.order],...(typeof p.notesFromPlanKey==='string'?{notesFromPlanKey:p.notesFromPlanKey}:{})},...(typeof value.completedAt==='string'?{completedAt:value.completedAt}:{})};
 }
 function fresh(plan:LearningPlan):LessonState{return{version:1,mediaPositions:{},planKey:plan.id,stage:'mission',missionAccepted:false,viewedPassageIds:[],walkthroughStep:0,practice:{focusId:plan.practice.focusOptions.find(option=>plan.passages.some(passage=>passage.role==='focus'&&passage.id===option.passageId))?.id??plan.practice.focusOptions[0]?.id??'',explanation:'',connection:'',mode:plan.ageGroup==='3-5'?'spoken':'written',spokenConfirmed:false,compared:false,order:[...plan.practice.orderIds].reverse()}};}
 export function lessonTeachingChunkIds(plan:LearningPlan):string[]{return(plan.teaching?.chunks??[]).map(chunk=>`teaching-${textDigest(chunk.id).slice(0,20)}`);}
@@ -277,12 +294,18 @@ export function lessonPracticeReady(plan:LearningPlan,state:LessonState):boolean
 }
 /** Revalidate each prerequisite; a stale or hand-written completed flag cannot unlock a new source/model. */
 export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState {
-  const parsed=validateLessonState(saved);if(!parsed||parsed.planKey!==plan.id)return fresh(plan);
+  const parsed=validateLessonState(saved);if(!parsed)return fresh(plan);
+  if(parsed.planKey!==plan.id){
+    const state=fresh(plan);
+    if(parsed.practice.explanation.trim()||parsed.practice.connection.trim())state.practice={...state.practice,focusId:'',explanation:parsed.practice.explanation,connection:parsed.practice.connection,notesFromPlanKey:parsed.practice.notesFromPlanKey??parsed.planKey};
+    return state;
+  }
   const teachingIds=lessonTeachingChunkIds(plan);
   const state:LessonState={...parsed,mediaPositions:Object.fromEntries(Object.entries(parsed.mediaPositions).filter(([id])=>plan.media.some(m=>m.sourceId===id))),viewedPassageIds:parsed.viewedPassageIds.filter(id=>plan.passages.some(p=>p.id===id)||teachingIds.includes(id)),walkthroughStep:Math.min(parsed.walkthroughStep,plan.walkthrough.steps.length),practice:{...parsed.practice,focusId:plan.practice.focusOptions.some(f=>f.id===parsed.practice.focusId)?parsed.practice.focusId:'',order:parsed.practice.order.length===plan.practice.orderIds.length&&parsed.practice.order.every(id=>plan.practice.orderIds.includes(id))?parsed.practice.order:[...plan.practice.orderIds].reverse()}};
   if(state.rehearsal){if(!plan.rehearsal){delete state.rehearsal;}else{const validTiles=new Set(plan.rehearsal.tiles.map(t=>t.id)),validSlots=new Set(plan.rehearsal.slots.map(s=>s.id));state.rehearsal={...state.rehearsal,answers:Object.fromEntries(Object.entries(state.rehearsal.answers).filter(([key,value])=>validSlots.has(key)&&validTiles.has(value))),revealed:state.rehearsal.revealed.filter(id=>validSlots.has(id)),selectedTileId:validTiles.has(state.rehearsal.selectedTileId)?state.rehearsal.selectedTileId:''};}}
   const context=!!state.rehearsal&&!plan.teaching||lessonContextReady(plan,state);
-  const walked=!!state.rehearsal&&!plan.teaching||state.walkthroughStep===plan.walkthrough.steps.length&&plan.walkthrough.steps.length>0;
+  const walked=!lessonRequiresWalkthrough(plan)||!!state.rehearsal&&!plan.teaching||state.walkthroughStep===plan.walkthrough.steps.length&&plan.walkthrough.steps.length>0;
+  if(state.stage==='walkthrough'&&context&&!lessonRequiresWalkthrough(plan))state.stage='practice';
   const allowed=!state.missionAccepted?0:!context?1:!walked?2:!lessonPracticeReady(plan,state)||!state.completedAt?3:4;
   if(STAGES.indexOf(state.stage)>allowed)state.stage=STAGES[allowed];
   if(allowed<4||plan.status==='blocked'){delete state.completedAt;if(state.stage==='ready')state.stage='practice';}
@@ -290,7 +313,7 @@ export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState
 }
 export function lessonReady(plan:LearningPlan,saved?:unknown):boolean {const state=initialLessonState(plan,saved);return plan.status!=='blocked'&&state.stage==='ready'&&!!state.completedAt&&lessonPracticeReady(plan,state);}
 export function completeLesson(plan:LearningPlan,saved:unknown,now=Date.now()):LessonState {
-  const state=initialLessonState(plan,saved);if(plan.status==='blocked'||!state.missionAccepted||((!state.rehearsal||plan.teaching)&&(!lessonContextReady(plan,state)||state.walkthroughStep!==plan.walkthrough.steps.length))||!lessonPracticeReady(plan,state)||!Number.isFinite(now))return state;
+  const state=initialLessonState(plan,saved);if(plan.status==='blocked'||!state.missionAccepted||((!state.rehearsal||plan.teaching)&&(!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan)&&state.walkthroughStep!==plan.walkthrough.steps.length))||!lessonPracticeReady(plan,state)||!Number.isFinite(now))return state;
   return{...state,stage:'ready',completedAt:new Date(now).toISOString()};
 }
 export function lessonQuestSupport(plan:LearningPlan,saved:unknown,now=Date.now()):{assisted:boolean;reason:string} {

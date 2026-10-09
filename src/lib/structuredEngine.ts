@@ -222,7 +222,7 @@ export function validateActivity(input: unknown, sources?: (Pick<Source, 'id' | 
         assigned.forEach(id => reference(id, categories, `membership[${i}].categoryIds`, errors));
         if (new Set(assigned).size !== assigned.length) errors.push('membership: duplicate category');
       });
-      if ([...ids].some(id => !seen.has(id))) errors.push('membership: every item requires a reviewed membership');
+      if ([...ids].some(id => !seen.has(id))) errors.push('membership: every item requires an explicit membership');
       break;
     }
     case 'decision': {
@@ -430,6 +430,43 @@ export function evaluateActivity(activity: StructuredActivity, response: unknown
 }
 
 function hash(text: string): string { let result = 2166136261; for (let i = 0; i < text.length; i++) { result ^= text.charCodeAt(i); result = Math.imul(result, 16777619); } return (result >>> 0).toString(36); }
+/** A bare chain is not a labeled edge: “parse → chunk → embed” has three
+ * steps, not a relation named “chunk”. Ambiguous notation stays in the source
+ * for the AI/author to interpret with context instead of acquiring an answer key. */
+export function explicitSourceRelationship(line:string):{from:string;relation:string;to:string}|undefined {
+  if(/[\r\n]/.test(line))return;
+  const parts=line.trim().split(/\s*(?:->|→)\s*/);
+  if(parts.length!==3||parts.some(part=>!part.trim()||/[\r\n]/.test(part)))return;
+  const [from,raw,to]=parts.map(part=>part.trim());
+  if(from.length>120||to.length>120||raw.length>100)return;
+  const labeled=/^\[([^\[\]]+)\]$/.exec(raw);
+  if(labeled&&!labeled[1].trim())return;
+  const relational=/^(?:precedes|follows|requires|depends on|is required by|is part of|contains|includes|produces|consumes|enables|blocks|supports|supplies|causes|inhibits|activates|connects to|sends to|receives from|routes to|is a type of|is an example of|is associated with|is composed of|is contained in)$/i.test(raw);
+  if(!labeled&&!relational)return;
+  // Sentence continuations and independent mappings on one PDF line do not
+  // provide a complete three-part relation, even if a middle word looks valid.
+  if(/[.!?]\s+\S/.test(from)||/[.!?]\s+\S/.test(to)||/[;→]|->/.test(from+to))return;
+  return{from,relation:labeled?labeled[1].trim():raw,to};
+}
+/** Recognize only unchanged legacy extractor models. Keep their bytes for
+ * author inspection and preserve reviewed/edited models, but do not invite a
+ * learner to solve a relationship invented by the old arrow parser. */
+export function hasAmbiguousExtractedRelationships(activity:StructuredActivity):boolean {
+  if(activity.kind!=='dependency'||!activity.extractedFrom||activity.reviewStatus==='reviewed')return false;
+  const nodes=new Map<string,string>(),edges:DependencyActivity['edges']=[];let ambiguous=false;
+  for(const ref of activity.sourceRefs){
+    if(ref.sourceId!==activity.extractedFrom)return false;
+    const relation=ref.evidence.match(/^\s*([^>\n]{1,120}?)\s*(?:->|→)\s*([^>\n]{1,100}?)\s*(?:->|→)\s*([^>\n]{1,120})\s*$/);
+    if(!relation)return false;
+    const from=relation[1].trim(),label=relation[2].trim(),to=relation[3].trim();
+    if(!nodes.has(from))nodes.set(from,`node-${nodes.size+1}`);
+    if(!nodes.has(to))nodes.set(to,`node-${nodes.size+1}`);
+    const edge={from:nodes.get(from)!,to:nodes.get(to)!,relation:label};
+    if(!edges.some(item=>JSON.stringify(item)===JSON.stringify(edge)))edges.push(edge);
+    if(!explicitSourceRelationship(ref.evidence))ambiguous=true;
+  }
+  return ambiguous&&JSON.stringify(activity.nodes)===JSON.stringify([...nodes].map(([label,id])=>({id,label})))&&JSON.stringify(activity.edges)===JSON.stringify(edges);
+}
 /** Only explicit structures are extracted. This is source-faithful parsing, not truth verification. */
 export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title' | 'text' | 'status'>[]): { activities: StructuredActivity[]; warnings: string[] } {
   const activities: StructuredActivity[] = [], warnings: string[] = [];
@@ -456,9 +493,9 @@ export function extractStructuredActivities(sources: Pick<Source, 'id' | 'title'
       const step = line.match(/^\s*(\d{1,3})[.)]\s+(.{1,500})$/);
       if (step) { const ordinal = Number(step[1]); if (run.length && ordinal !== run[run.length - 1].ordinal + 1) flush(); run.push({ ordinal, label: step[2].trim(), line }); }
       else flush();
-      const relation = line.match(/^\s*([^>\n]{1,120}?)\s*(?:->|→)\s*([^>\n]{1,100}?)\s*(?:->|→)\s*([^>\n]{1,120})\s*$/);
+      const relation = explicitSourceRelationship(line);
       if (relation && edges.length < 120) {
-        const from = relation[1].trim(), rel = relation[2].trim(), to = relation[3].trim();
+        const {from,relation:rel,to} = relation;
         if (nodes.size < 40 || nodes.has(from) && nodes.has(to)) {
           if (!nodes.has(from)) nodes.set(from, `node-${nodes.size + 1}`);
           if (!nodes.has(to)) nodes.set(to, `node-${nodes.size + 1}`);

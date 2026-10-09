@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {subscriptionLoginUrl,subscriptionStatuses,providerModelCatalog} from '../src/lib/providerConnections';
+import {subscriptionLoginUrl,subscriptionStatuses,providerModelCatalog,claudeLoginContinuation} from '../src/lib/providerConnections';
 import {canRequest} from '../src/lib/providerSession';
 describe('official subscription connections',()=>{
  it('accepts both documented Codex login hosts and Grok account login',()=>{
@@ -31,4 +31,16 @@ describe('local provider response boundaries',()=>{
   expect(providerModelCatalog({models:[{id:'a'},{id:'a',name:'Duplicate'},{id:'b',name:'Second'}],notice:'Your account may not have access.'})).toEqual({models:[{id:'a',name:'a'},{id:'b',name:'Second'}],notice:'Your account may not have access.'});
  });
  it.each([{}, {models:null}, {models:[{id:''}]}, {models:[{id:'a',name:{unexpected:true}}]}])('rejects malformed model catalogs without storing them: %j',value=>expect(()=>providerModelCatalog(value)).toThrow('unreadable model catalog'));
+});
+
+describe('ephemeral Claude browser-code sessions',()=>{
+ const session={sessionId:'11111111-2222-4333-8444-555555555555',expiresAt:'2026-10-09T12:00:00.000Z',state:'awaiting-code'};
+ it('retains only exact pending Claude session metadata and accepts the submitting state',()=>{
+  expect(claudeLoginContinuation(session)).toEqual(session);expect(claudeLoginContinuation({...session,state:'submitting'})?.state).toBe('submitting');expect(claudeLoginContinuation(undefined)).toBeUndefined();
+  const base={enabled:true,installed:true,installing:false,pending:true,connected:false,loginContinuation:session};
+  expect(subscriptionStatuses({engines:[{...base,id:'claude'}]})[0].loginContinuation).toEqual(session);
+  expect(subscriptionStatuses({engines:[{...base,id:'codex'}]})[0].loginContinuation).toBeUndefined();
+  expect(subscriptionStatuses({engines:[{...base,id:'claude',pending:false}]})[0].loginContinuation).toBeUndefined();
+ });
+ it.each([null,{}, {...session,sessionId:'an arbitrary command'}, {...session,expiresAt:'not a date'}, {...session,state:'connected'}, {...session,code:'must-never-be-returned'}])('rejects malformed or secret-bearing session metadata: %j',value=>expect(()=>claudeLoginContinuation(value)).toThrow('unreadable sign-in session'));
 });
