@@ -52,11 +52,28 @@ describe('creation resumes real mission work without a paid retry loop',()=>{
   let writes=0;const requests:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);requests.push(r);if(r.stage==='write'&&++writes===1)return{ok:false,status:422,json:async()=>({code:'PROVIDER_TRUNCATED',truncated:true,finishReason:'max_tokens',usage})};return reply(directorFixtureResponse(r.stage,r.data));}));
   const result=await prepareGameExperience(notebook(),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','write','write','check','overview']);expect(requests[2].prompt).toContain('Make this single mission and its teaching more concise');expect(result.notebook.gameDesign!.receipts[1]).toMatchObject({status:'failed',usage:{inputTokens:100,outputTokens:60}});
  });
- it('bounds repeated invalid content, keeps a valid sibling, and does not repeat declined missions on Continue',async()=>{
-  let badMission:string|undefined;const requests:any[]=[];
-  vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body),value=directorFixtureResponse(r.stage,r.data);requests.push(r);if(r.stage==='write'){badMission??=r.data.missions[0].plan.id;if(r.data.missions[0].plan.id===badMission)value.missions[0].activity.sourceRefs[0].evidence='Invented citation.';}return reply(value);}));
-  const result=await prepareGameExperience(notebook(2),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','write','write','write','check','overview']);expect(result.notebook.aiLearningPlan?.missions).toHaveLength(1);expect(gameDesignProgress(result.notebook.gameDesign!)).toMatchObject({studyOnlyCount:1,missionCount:1,canResume:false,percent:100});
-  const again=await prepareGameExperience(parsePackage(serializePackage(result.notebook)),{}, {aiPolicy:'required'});expect(again.creationStatus).toBe('ready');expect(again.ai.requestCount).toBe(0);expect(requests).toHaveLength(6);
+ it('stops after two invalid responses while preserving a valid sibling, then explicitly resumes only unfinished work',async()=>{
+  const requests:any[]=[];let invalid=true,writes=0;
+  vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body),value=directorFixtureResponse(r.stage,r.data);requests.push(r);if(r.stage==='write'&&++writes>1&&invalid)value.missions[0].activity.sourceRefs[0].evidence='Invented citation.';return reply(value);}));
+  const result=await prepareGameExperience(notebook(3),{},options);expect(result.creationStatus).toBe('failed');expect(requests.map(r=>r.stage)).toEqual(['plan','write','write','write']);
+  const saved=parsePackage(serializePackage(result.notebook)),draft=saved.gameDesign!.batches[0].drafts![0],receipts=structuredClone(saved.gameDesign!.receipts);
+  expect(saved.gameDesign!.batches[0].drafts).toHaveLength(1);expect(saved.gameDesign!.batches[0].missions).toHaveLength(3);expect(saved.gameDesign!.batches[0].study).toEqual([]);expect(result.ai.message).toContain('does not mean your material cannot make a game');
+  const missingConnection=await prepareGameExperience(saved,{}, {aiPolicy:'required'});expect(missingConnection.creationStatus).toBe('needs-connection');expect(requests).toHaveLength(4);
+  invalid=false;const nextConfig={...config,model:'corrected-model'},again=await prepareGameExperience(saved,{}, {...options,ai:{config:nextConfig,consent:'create-game'}});
+  expect(again.creationStatus,again.ai.message).toBe('ready');expect(requests.slice(4).map(r=>r.stage)).toEqual(['write','write','check','overview']);expect(requests.slice(4).every(r=>r.model==='corrected-model')).toBe(true);
+  expect(again.notebook.gameDesign!.batches[0].drafts![0]).toEqual(draft);expect(again.notebook.gameDesign!.receipts.slice(0,4)).toEqual(receipts);expect(again.notebook.aiLearningPlan?.missions).toHaveLength(3);expect(again.notebook.sources).toEqual(saved.sources);
+ });
+ it('gives each explicit resumed stage two bounded attempts even after earlier validation failures',async()=>{
+  const requests:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);requests.push(r);return reply({missions:[],study:[]});}));
+  const first=await prepareGameExperience(notebook(9),{},options);expect(first.creationStatus).toBe('failed');expect(requests).toHaveLength(2);
+  const second=await prepareGameExperience(parsePackage(serializePackage(first.notebook)),{},options);expect(second.creationStatus).toBe('failed');expect(second.ai.requestCount).toBe(2);expect(requests).toHaveLength(4);
+  expect(second.notebook.gameDesign!.receipts.slice(0,2)).toEqual(first.notebook.gameDesign!.receipts);expect(second.notebook.gameDesign!.batches.every(batch=>batch.status==='pending'&&!batch.study)).toBe(true);
+  expect(requests[2].prompt).toContain('explicit new attempt');expect(requests[3].prompt).toContain('final automatic repair attempt for this run');
+ });
+ it.each(['', '   ', 'x'.repeat(501)])('does not turn a malformed writer refusal into a source-study decision (%#)',async(reason)=>{
+  const calls:string[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);calls.push(r.stage);return reply(r.stage==='write'?{cannotBuild:reason}:directorFixtureResponse(r.stage,r.data));}));
+  const input=notebook(),result=await prepareGameExperience(input,{},options);
+  expect(result.creationStatus).toBe('failed');expect(calls).toEqual(['plan','write','write']);expect(result.ai.message).toContain('cannotBuild needs a nonempty reason');expect(result.notebook.gameDesign!.batches[0].status).toBe('planned');expect(result.notebook.gameDesign!.batches[0].study).toEqual([]);expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.receipts).toHaveLength(3);
  });
  it('finishes unsupported source disposition once without advertising an endless resume',async()=>{
   const fetch=vi.fn(async(_url,body)=>{const r=request(body);return reply(r.stage==='write'?{cannotBuild:'The evidence cannot justify the plan.'}:directorFixtureResponse(r.stage,r.data));});vi.stubGlobal('fetch',fetch);

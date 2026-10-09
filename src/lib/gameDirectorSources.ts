@@ -110,3 +110,12 @@ export function directorInputRevision(notebook:Pick<Notebook,'sources'|'ageGroup
  const sources=notebook.sources.map(source=>({id:source.id,title:source.title,revision:sourceRevision(source),status:source.status,transcript:source.transcript,visualEvidence:source.visualEvidence,asset:source.asset?.sha256})).sort((a,b)=>a.id.localeCompare(b.id));
  return textDigest(JSON.stringify({version:notebook.sources.some(source=>sourceContentExclusions(source.text).length)?2:1,sources,ageGroup:notebook.ageGroup,goal:notebook.goal,provider:provider.provider,model:provider.model,endpoint:provider.endpointFingerprint??(provider.baseUrl?textDigest(provider.baseUrl):null)}));
 }
+
+/** Presentation-only cleanup for legacy inventories whose PDF headings include
+ * an un-fenced code control line. Do not change saved unit IDs, ranges, grouping
+ * or exact excerpts: they bind completed missions to the original source. */
+export function directorUnitPresentation(unit:DirectorSourceUnit):{title:string;headingPath:string[]} {
+ const codeHeading=(value:string)=>/^(?:(?:if|elif|while|for)\s+.*(?:["'()[\]{}=<>]|\s(?:in|not in)\s)|(?:def|class)\s+[\w.]+\s*\(|(?:try|else|except|finally)\s*:)/.test(value.trim());
+ const headingPath=unit.headingPath.filter(heading=>!codeHeading(heading));
+ return{title:codeHeading(unit.title)?headingPath.at(-1)??'Source section':unit.title,headingPath};
+}

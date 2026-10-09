@@ -1,5 +1,6 @@
 import type {Notebook,Progress} from '../types';
 import {gameDesignProgress,type GameCreationEvent} from './gameDesign';
+import {gameCreationRecovery} from './gameCreationRecovery';
 import {directorInputRevision} from './gameDirectorSources';
 import {isReadyLearningSource} from './scaffoldRuntime';
 import {journeyXp,practiceXp} from './progression';
@@ -93,6 +94,8 @@ function lastFailure(context:AsterAwarenessContext,design=currentDesign(context.
  if(live?.status==='paused')return`Creation is paused.${live.message?` ${diagnostic(live.message)}`:' No request is running on this screen.'}`;
  if(live?.status==='canceled')return`Creation was canceled.${live.message?` ${diagnostic(live.message)}`:' Previously saved work is retained.'}`;
  if(live?.status==='failed')return live.message?`Creation needs attention: ${diagnostic(live.message)}`:'Creation stopped, but this screen has not supplied a reason.';
+ const recovery=gameCreationRecovery(design);
+ if(context.mode==='creation'&&context.creationRunning!==true&&recovery.unitCount)return`Earlier AI replies failed validation for ${recovery.unitCount} source sections. Your material and usage records remain saved; this does not establish that the material cannot support a game.`;
  const failed=[...(design?.events??[])].reverse().find(event=>event.kind==='failed'||event.kind==='retry');
  if(failed)return`Last recorded creation issue: ${phaseLabel[failed.phase]}${failed.category?` (${failed.category})`:''}. ${diagnostic(failed.message)}${context.mode==='creation'&&(live?.status==='running'||context.creationRunning===true)?' Creation is running now; this older issue does not establish a current failure.':''}`;
  const receipt=[...(design?.receipts??[])].reverse().find(receipt=>receipt.status==='failed'||receipt.status==='canceled'||receipt.status==='started'&&context.creationRunning===false);
@@ -109,13 +112,14 @@ export function buildAsterAwareness(context:AsterAwarenessContext):AsterAwarenes
   details.push(`${notebook.sources.length} source${notebook.sources.length===1?'':'s'} added; ${readable} ready for learning. ${notebook.activities?.length??0} game activities and ${notebook.cards.length} recall challenges are stored.`);
   if(context.mode==='creation'){
    if(design){
-    const p=gameDesignProgress(design),sourceReviewOnly=design.status==='ready'&&!p.missionCount,ready=design.status==='ready'&&notebook.creation?.status!=='draft';
+    const p=gameDesignProgress(design),recovery=gameCreationRecovery(design),sourceReviewOnly=design.status==='ready'&&!p.missionCount&&!recovery.unitCount,ready=design.status==='ready'&&notebook.creation?.status!=='draft'&&!recovery.unitCount;
     const selection=context.creationConnection,differentSelection=selection&&(selection.provider!==design.provider.id||selection.model!==design.provider.model||selection.endpointFingerprint!==design.provider.endpointFingerprint),changedSelection=context.creationRunning!==true&&differentSelection;
     const percent=ready||sourceReviewOnly?p.percent:Math.min(99,p.percent);
-    details.push(`Saved ${sourceReviewOnly?'source-review':'creation'} progress${differentSelection?' from the previous AI selection':''}: ${p.completedSteps} of ${p.totalSteps} logical steps (${percent}%). ${p.coveredUnits} of ${p.totalUnits} source sections checked; ${p.completedBatches} of ${p.totalBatches} groups checked.`);
+    details.push(recovery.unitCount?`Saved creation work needs repair: ${recovery.unitCount} source sections have known AI validation failures. Earlier source decisions and all usage records are retained.`:`Saved ${sourceReviewOnly?'source-review':'creation'} progress${differentSelection?' from the previous AI selection':''}: ${p.completedSteps} of ${p.totalSteps} logical steps (${percent}%). ${p.coveredUnits} of ${p.totalUnits} source sections checked; ${p.completedBatches} of ${p.totalBatches} groups checked.`);
     details.push(`${p.completedMissions} of ${p.plannedMissions} planned mission models written; ${p.missionCount} retained game missions and ${p.studyOnlyCount} source-study sections after checking.`);
     summary=context.creationRunning===true?`Game creation is running. ${clean(context.creationStage)||`${phaseLabel[p.currentPhase??'finish']} the game${p.currentPhase!=='finish'?` in group ${p.currentBatch} of ${p.totalBatches}`:''}.`}`:changedSelection?'The saved creation records belong to a different AI selection. Your newly selected model has not started; saved checkpoints remain available.':sourceReviewOnly?'Source review is complete and saved, but it did not retain a playable game mission.':ready?'Game creation is complete and saved.':`Game creation is unfinished${context.creationRunning===false?' and is not running in this screen':''}. The next saved phase is ${phaseLabel[p.currentPhase??'finish'].toLowerCase()}${p.currentPhase!=='finish'?` in group ${p.currentBatch} of ${p.totalBatches}`:''}.`;
     nextAction=context.creationRunning===true?'Let the current step finish. Saved checkpoints show completed work; they are not an estimate of time remaining.':changedSelection?'Continue creation with the selected AI model. Saved checkpoints are kept.':sourceReviewOnly?'Add material with concrete supported examples, rules or procedures, then create from the updated sources. You can also study the retained source sections.':ready?'Open the game and choose a mission.':p.canResume?'Choose Continue creating to resume from the saved checkpoint. Finished work is kept.':'Prepare readable source material, then create the game.';
+    if(recovery.unitCount&&context.creationRunning!==true){summary='The earlier creation contains recoverable AI validation failures. Your original sources are saved.';nextAction='Choose an AI provider and model, then Retry failed sections. This starts only when you choose it.';}
    }else{
     summary=context.creationRunning===true?`Game preparation is running. ${clean(context.creationStage)||'Preparing your materials.'}`:'You are setting up a learning game. Creation has not saved a game plan yet.';
     nextAction=context.creationRunning===true?'Let the current preparation step finish.':!notebook.sources.length?'Add a file, a link, or notes, then choose your audience and learning goal.':readable?'Choose Create my game when the material and learning goal are ready.':'Open material that needs preparation and add or review its readable text.';

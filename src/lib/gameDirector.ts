@@ -1,3 +1,4 @@
+import {gameCreationRecovery} from './gameCreationRecovery';
 import {validateNewMissionClarity,LEARNER_CLARITY_RUBRIC,PLAN_CLARITY_RUBRIC} from './gameClarity';
 import {createOverviewWork,overviewRequestData,validateOverviewDraft,OVERVIEW_INSTRUCTION,OVERVIEW_NOTES_INSTRUCTION} from './gameOverview';
 import {scaffoldStoryContext,alignCreatedMissionStory} from './scaffoldStoryContext';
@@ -12,12 +13,14 @@ import {GAME_DRAFT_SCHEMAS,gameRecipeChoices,gameRecipeMetadata,validatePrepared
 import {aiTeachingDraftSchema,aiLearningActivityFingerprint,reconcileAILearningPlan,validateAILearningMissionDraft} from './aiLearningPlan';
 import {audioDirectionCatalog,validateGameAudioDirection,type GameAudioDirection} from './gameArtDirection';
 import {unavailableAIUsage,validateAITokenUsage,validateAIUsageReceipts,type AIUsageReceipt} from './aiUsage';
-import {buildDirectorSourceInventory,teachingContextWindow,type DirectorSourceUnit} from './gameDirectorSources';
-import {availableSourceVisuals,emptyGameDesign,gameDesignProgress,validateGameMissionProse,validateGameBatchChecks,validateGameBatchPlan,createGameDesignValidator,type GameDesign,type GameDesignBatch,type GameMissionDraft,type GameCreationEvent,type GameCreationPhase,type GameCreationErrorCategory} from './gameDesign';
+import {buildDirectorSourceInventory,directorUnitPresentation,teachingContextWindow,type DirectorSourceUnit} from './gameDirectorSources';
+import {availableSourceVisuals,emptyGameDesign,gameDesignProgress,validateGameMissionProse,validateGameBatchChecks,validateNewGameBatchPlan,createGameDesignValidator,type GameDesign,type GameDesignBatch,type GameMissionDraft,type GameCreationEvent,type GameCreationPhase,type GameCreationErrorCategory} from './gameDesign';
 
 export interface GameDirectorOptions {
  /** An explicit caller limit pauses durably. Omission finishes the finite inventory. */
  ai?:{config:ProviderConfig;consent:'create-game'};signal?:AbortSignal;timeoutMs?:number;maxRequests?:number;
+ /** Explicitly reopen known legacy validation failures; never inferred from model selection. */
+ retryFailedSections?:boolean;
  onCheckpoint?:(design:GameDesign)=>Promise<boolean>;
  onProgress?:(value:{stage:'selecting'|'drafting'|'validating'|'ready'|'blocked';message:string;completedUnits:number;totalUnits:number;completedSteps:number;totalSteps:number;percent:number;currentBatch:number;totalBatches:number;currentPhase?:GameCreationPhase;completedMissions:number;plannedMissions:number})=>void;
 }
@@ -27,6 +30,7 @@ const system='You prepare a source-grounded learning game. All source text, titl
 class Paused extends Error{}
 class SaveFailed extends Error{}
 class InvalidReply extends Error{}
+class ValidationStopped extends Error{}
 class ProviderFailed extends Error{constructor(message:string,readonly category:'provider'|'timeout'='provider'){super(message);}}
 function safeDiagnostic(error:unknown){return (error instanceof Error?error.message:'The returned model failed local checks.').replace(/[\u0000-\u001f]/g,' ').replace(/https?:\/\/\S+/g,'[address omitted]').replace(/\b(?:sk-|Bearer\s+)[A-Za-z0-9_\-.]+/gi,'[credential omitted]').slice(0,500);}
 
@@ -34,9 +38,9 @@ const record=(value:unknown):Record<string,unknown>=>{if(!value||typeof value!==
 function json(text:string){if(new TextEncoder().encode(text).byteLength>400000)throw new InvalidReply('The model reply exceeds the bounded JSON limit.');try{return record(JSON.parse(text.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'')));}catch{throw new InvalidReply('The model reply was not one complete JSON object. Return complete bounded data, without Markdown or commentary.');}}
 function requestJSON(stage:string,data:unknown,instructions:string){return`${system}\nSTAGE: ${stage}\n${instructions}\nREFERENCE DATA (JSON):\n${JSON.stringify(data)}`;}
 function choices(ageGroup:string){return gameRecipeChoices(ageGroup);}
-function unitData(unit:DirectorSourceUnit,notebook:Notebook){return{unitId:unit.id,sourceId:unit.sourceId,title:unit.title,sourceTitle:unit.sourceTitle,excerpt:unit.excerpt,missionEligible:unit.missionEligible,...(unit.limitation?{limitation:unit.limitation}:{}),sourceAssetIds:availableSourceVisuals(notebook,unit)};}
+function unitData(unit:DirectorSourceUnit,notebook:Notebook){return{unitId:unit.id,sourceId:unit.sourceId,title:directorUnitPresentation(unit).title,sourceTitle:unit.sourceTitle,excerpt:unit.excerpt,missionEligible:unit.missionEligible,...(unit.limitation?{limitation:unit.limitation}:{}),sourceAssetIds:availableSourceVisuals(notebook,unit)};}
 export function gamePlanningPrompt(notebook:Notebook,batch:GameDesignBatch,units:DirectorSourceUnit[]):string {
- return requestJSON('plan',{ageGroup:notebook.ageGroup,goal:notebook.goal.slice(0,300),choices:choices(notebook.ageGroup),familyPrerequisites:PREREQUISITES,asterExpressions:asterEmotionCatalog().map(({id,moments,purpose})=>({id,moments,purpose})),units:units.filter(u=>batch.unitIds.includes(u.id)).map(u=>unitData(u,notebook))},'Plan useful hands-on learning for EVERY supplied unit exactly once. Return {"missions":[{id,unitId,kind,scaffoldId,title,objective,visualDirection:{scene,sourceAssetIds:[]},optional asterDirection:{welcome,concept,hint,retry,success,reflection}}],"study":[{unitId,reason}]}. Each unit has either one mission or an honest source-study disposition, never both. Up to3 missions; one strong supported model is better than forced gameplay. Use only supplied kind/scaffold/scene combinations; sourceAssetIds must be from that unit. Choose the visual world deliberately, appropriate to subject and age. Each choice includes its actual bundled story setting and authored role; select that world intentionally rather than inventing a different game. Optionally choose Aster expression IDs from the supplied compatible moments; these are presentation poses, never an assessment of the learner’s feelings. Choose a domain-specific recipe only when the disclosed material supplies its actual prerequisite model; a topic keyword, title or requested learning goal alone does not establish that fit. Prefer a general recipe when the specialized assumptions are absent. Do not invent simulation rules to make ordinary prose fit. A unit marked missionEligible:false must use study. Cover titles, taglines, author/publisher details, dates, page numbers, contents/navigation and promotional promises are not instructional evidence. Never make them a mission or teach the document’s packaging as its subject. If such material remains, use study with a clear noninstructional reason; a genuine short fact, definition or complete rule may still be useful. Use explanations, observations, relationships, procedures and source-provided examples from the body. Titles/objectives describe what the learner will do with the actual evidence, not unsupported story facts. Keep responses concise.'+PLAN_CLARITY_RUBRIC+OVERVIEW_NOTES_INSTRUCTION);
+ return requestJSON('plan',{ageGroup:notebook.ageGroup,goal:notebook.goal.slice(0,300),choices:choices(notebook.ageGroup),familyPrerequisites:PREREQUISITES,asterExpressions:asterEmotionCatalog().map(({id,moments,purpose})=>({id,moments,purpose})),units:units.filter(u=>batch.unitIds.includes(u.id)).map(u=>unitData(u,notebook))},'Plan useful hands-on learning for EVERY supplied unit exactly once. Return a JSON object with exactly missions and study (plus optional overviewNotes defined below). Each mission permits only id, unitId, kind, scaffoldId, title, objective, visualDirection and optional asterDirection. A structural example is {"missions":[{"id":"mission-1","unitId":"COPY_DISCLOSED_UNIT_ID","kind":"COPY_CHOICE_KIND","scaffoldId":"COPY_CHOICE_SCAFFOLD_ID","title":"Short source-based task","objective":"One plain learning goal.","visualDirection":{"scene":"COPY_THE_SAME_CHOICE_SCENE","sourceAssetIds":[]}}],"study":[]}. Replace placeholder values with actual disclosed IDs and content; never emit placeholder values. study entries have exactly unitId and reason. Do not add rationale, sourceRefs, teaching, activity, gameplay, music, evidence, prerequisite, sourceWindow or other mission keys. Keep any choice reasoning internal. Omit asterDirection unless needed; if present it is an object whose only allowed keys are welcome, concept, hint, retry, success and reflection, each using a supplied compatible expression ID. Do not use a literal key named optional asterDirection. Each unit has either one mission or an honest source-study disposition, never both. Up to3 missions; one strong supported model is better than forced gameplay. Use only supplied kind/scaffold/scene combinations; sourceAssetIds must be from that unit. Choose the visual world deliberately, appropriate to subject and age. Each choice includes its actual bundled story setting and authored role; select that world intentionally rather than inventing a different game. Optionally choose Aster expression IDs from the supplied compatible moments; these are presentation poses, never an assessment of the learner’s feelings. Choose a domain-specific recipe only when the disclosed material supplies its actual prerequisite model; a topic keyword, title or requested learning goal alone does not establish that fit. Prefer a general recipe when the specialized assumptions are absent. Do not invent simulation rules to make ordinary prose fit. A unit marked missionEligible:false must use study. Cover titles, taglines, author/publisher details, dates, page numbers, contents/navigation and promotional promises are not instructional evidence. Never make them a mission or teach the document’s packaging as its subject. If such material remains, use study with a clear noninstructional reason; a genuine short fact, definition or complete rule may still be useful. Use explanations, observations, relationships, procedures and source-provided examples from the body. Titles/objectives describe what the learner will do with the actual evidence, not unsupported story facts. Keep responses concise.'+PLAN_CLARITY_RUBRIC+OVERVIEW_NOTES_INSTRUCTION);
 }
 export function gameWritingPrompt(notebook:Notebook,batch:GameDesignBatch,units:DirectorSourceUnit[],missionId?:string):string {
  const plans=(batch.missions??[]).filter(plan=>missionId?plan.id===missionId:!batch.drafts?.some(d=>d.missionId===plan.id)),kinds=[...new Set(plans.map(p=>p.kind))];
@@ -148,22 +152,29 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
  const checkedReply=async<T>(phase:'plan'|'write'|'check'|'finish',batch:GameDesignBatch,missionId:string|undefined,prompt:string,maxTokens:number,validate:(reply:Record<string,unknown>)=>T):Promise<T|undefined>=>{
   active={phase,...(phase==='finish'?{}:{batchId:batch.id}),...(missionId?{missionId}:{})};
   const failures=()=> (design!.events??[]).filter(e=>e.phase===phase&&e.batchId===(phase==='finish'?undefined:batch.id)&&e.missionId===missionId&&e.category==='validation'&&['retry','failed'].includes(e.kind));
-  while(failures().length<2){
-   const prior=failures().at(-1),repair=prior?`\nLOCAL VALIDATION REPAIR: A previous response failed this check: ${prior.message}. Correct this concrete issue. Return the complete requested JSON from the same source; do not weaken the evidence or add unsupported facts. This is the final automatic repair attempt.`:'';
+  let attempts=0;
+  while(attempts<2){
+   const prior=failures().at(-1),repair=prior?`\nLOCAL VALIDATION REPAIR: A previous response failed this check: ${prior.message}. Correct this concrete issue. Return the complete requested JSON from the same source; do not weaken the evidence or add unsupported facts. ${attempts===1?'This is the final automatic repair attempt for this run.':'This is an explicit new attempt from the saved stage; at most one automatic repair may follow.'}`:'';
    try{return validate(await call(phase==='finish'?'overview':phase,batch,repair?prompt.replace('REFERENCE DATA (JSON):',repair+'\nREFERENCE DATA (JSON):'):prompt,maxTokens));}
    catch(error){
     if(error instanceof Paused||error instanceof SaveFailed||error instanceof ProviderFailed||options.signal?.aborted||(error instanceof Error&&error.name==='AbortError'))throw error;
-    const attempts=failures().length+1,message=safeDiagnostic(error);
+    attempts++;const message=safeDiagnostic(error);
     event(phase,attempts<2?'retry':'failed',message,{...(phase==='finish'?{}:{batchId:batch.id}),...(missionId?{missionId}:{}),category:'validation'});await checkpoint();
     if(attempts<2)report(phase==='plan'?'selecting':phase==='write'?'drafting':'validating',`Correcting a returned ${phase==='write'?'mission':phase==='plan'?'plan':'source check'} once using its local validation feedback…`);
    }
   }
-  return undefined;
+  // An optional introduction may fall back to saved lessons; failed mission
+  // planning, writing or checking must stop instead of blaming the material.
+  if(phase==='finish')return undefined;
+  throw new ValidationStopped(failures().at(-1)?.message??'The response did not pass the source and format checks.');
  };
  const validateWrittenMission=(reply:Record<string,unknown>,batch:GameDesignBatch,missionId:string):GameMissionDraft|undefined=>{
-  if(typeof reply.cannotBuild==='string'&&Object.keys(reply).length===1)return undefined;
+  if(Object.keys(reply).length===1&&'cannotBuild' in reply){
+   if(typeof reply.cannotBuild!=='string'||!reply.cannotBuild.trim()||reply.cannotBuild.length>500)throw new InvalidReply('cannotBuild needs a nonempty reason of at most500 characters. Use it only when the disclosed source cannot support the planned model.');
+   return undefined;
+  }
   if(Object.keys(reply).some(k=>k!=='missions')||!Array.isArray(reply.missions)||reply.missions.length!==1)throw new InvalidReply('Return exactly the one requested mission, under missions. Do not include other planned missions.');
-  const item=record(reply.missions[0]);if(Object.keys(item).some(k=>!['missionId','activity','teaching','audioDirection','solution'].includes(k)))throw new InvalidReply('The mission contains unsupported fields.');
+  const item=record(reply.missions[0]),unsupported=Object.keys(item).filter(k=>!['missionId','activity','teaching','audioDirection','solution'].includes(k));if(unsupported.length)throw new InvalidReply(`The mission contains unsupported fields: ${unsupported.slice(0,3).map(key=>/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key)?key:'[nonstandard key]').join(', ')}${unsupported.length>3?' (and more)':''}.`);
   const plan=batch.missions!.find(p=>p.id===missionId)!;if(item.missionId!==missionId)throw new InvalidReply('The writer changed the requested missionId. Keep the supplied missionId exactly.');
   const unit=units.find(u=>u.id===plan.unitId)!,source=notebook.sources.find(s=>s.id===unit.sourceId)!;
   const activityId=`director-${textDigest(JSON.stringify([design!.inputRevision,batch.id,plan.id])).slice(0,40)}`;
@@ -177,14 +188,31 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
   return{missionId:plan.id,activity,teaching,audioDirection:item.audioDirection as GameAudioDirection};
  };
  try{
-  if(design.status!=='ready'&&(!consent||!config||!canRequest(config)))return finished('needs-connection','Connect the selected AI account to continue. Saved creation work and measured usage are retained.');
+  if((design.status!=='ready'||options.retryFailedSections&&gameCreationRecovery(design).unitCount>0)&&(!consent||!config||!canRequest(config)))return finished('needs-connection','Connect the selected AI account to continue. Saved creation work and measured usage are retained.');
   throwIfStopped();
   delete design.control;
   if(design.batches.some(b=>b.status!=='pending')&&design.status!=='ready')event('finish','resumed','Continuing from saved work. Completed requests will not be repeated.');
   await checkpoint();
+  // Recovery is explicit and uses only known legacy failed dispositions.
+  // Plan, write and check each recovered group before spending on the next one.
+  const knownFailures=gameCreationRecovery(design);
+  if(knownFailures.unitCount&&!options.retryFailedSections&&design.status==='ready')return finished('failed',`${knownFailures.unitCount} source sections were previously marked as study after AI validation failed. Your source and usage records are kept. Choose an AI/model, then explicitly retry the failed sections.`);
+  const recovery=options.retryFailedSections?knownFailures:undefined;
+  if(recovery?.batches.length&&design.overview)throw new ValidationStopped('This saved game already has an introduction. Keep it intact; repair its failed sections in a separate copy.');
   for(let index=0;index<design.batches.length;index++){
-   let batch=design.batches[index];throwIfStopped();if(batch.status==='checked')continue;
-   if(options.signal?.aborted)throw new DOMException('Creation canceled.','AbortError');
+   let batch:GameDesignBatch=design.batches[index];throwIfStopped();
+   const retry=recovery?.batches.find(item=>item.batchId===batch.id);
+   if(batch.status==='checked'&&retry){
+    const target:GameDesignBatch={id:batch.id,unitIds:retry.unitIds,status:'pending'};
+    report('selecting',`Retrying ${retry.unitIds.length} source sections whose earlier plan or writer failed validation…`);
+    const plan=await checkedReply('plan',target,undefined,gamePlanningPrompt(notebook,target,units),4000,reply=>validateNewGameBatchPlan(reply,target,units,notebook));
+    if(!plan)throw new ValidationStopped('No complete recovery plan was returned.');
+    const keptStudy=(batch.study??[]).filter(item=>!retry.unitIds.includes(item.unitId));
+    design={...design,status:'preparing',batches:design.batches.map((saved,at)=>at===index?{...saved,status:'planned',missions:plan.missions??[],study:[...keptStudy,...(plan.study??[])],drafts:[],checks:undefined,overviewNotes:undefined}:saved)};
+    event('plan','completed','A replacement plan for the failed sections is saved. Other saved source decisions and all usage records are kept.',{batchId:batch.id});await checkpoint();batch=design.batches[index];
+   }
+   if(batch.status==='checked')continue;
+   throwIfStopped();
    if(batch.status==='pending'&&batch.unitIds.every(id=>units.some(unit=>unit.id===id&&!unit.missionEligible))){
     // The source inventory has already ruled out standalone missions here.
     // Preserve these exact sections for study without buying an AI plan that
@@ -195,9 +223,10 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
    }
    if(batch.status==='pending'){
     report('selecting',`Designing source section group ${index+1} of ${design.batches.length}…`);
-    const plan=await checkedReply('plan',batch,undefined,gamePlanningPrompt(notebook,batch,units),4000,reply=>validateGameBatchPlan(reply,batch,units,notebook));
-    batch={...design.batches[index],...(plan??{missions:[],study:batch.unitIds.map(unitId=>({unitId,reason:'A source-supported game plan could not be validated after one corrective attempt.'}))}),status:'planned'};design.batches[index]=batch;
-    event('plan',plan?'completed':'source-study',plan?'The source group has a saved learning plan.':'This source group remains available for study because its generated plan could not be validated.',{batchId:batch.id});await checkpoint();batch=design.batches[index];
+    const plan=await checkedReply('plan',batch,undefined,gamePlanningPrompt(notebook,batch,units),4000,reply=>validateNewGameBatchPlan(reply,batch,units,notebook));
+    if(!plan)throw new ValidationStopped('No complete plan was returned.');
+    batch={...design.batches[index],...plan,status:'planned'};design.batches[index]=batch;
+    event('plan','completed','The source group has a saved learning plan.',{batchId:batch.id});await checkpoint();batch=design.batches[index];
    }
    if(batch.status==='planned'){
     for(const plan of [...(batch.missions??[])]){
@@ -206,7 +235,7 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
      const draft=await checkedReply('write',batch,plan.id,gameWritingPrompt(notebook,batch,units,plan.id),8000,reply=>validateWrittenMission(reply,batch,plan.id));
      batch=design.batches[index];
      if(draft){design.batches[index]={...batch,drafts:[...(batch.drafts??[]),draft]};event('write','completed','A mission and its short lesson passed local checks and were saved.',{batchId:batch.id,missionId:plan.id});}
-     else{design.batches[index]={...batch,missions:batch.missions!.filter(m=>m.id!==plan.id),study:[...(batch.study??[]),{unitId:plan.unitId,reason:'This mission could not be grounded in a valid model. The complete source section remains available for study.'}]};event('write','source-study','This section remains source study because the writer declined or its model failed the bounded repair checks.',{batchId:batch.id,missionId:plan.id});}
+     else{design.batches[index]={...batch,missions:batch.missions!.filter(m=>m.id!==plan.id),study:[...(batch.study??[]),{unitId:plan.unitId,reason:'The AI writer reported that this section does not supply its selected game model. The complete source section remains available for study.'}]};event('write','source-study','This section remains source study because the writer explicitly declined its selected model.',{batchId:batch.id,missionId:plan.id});}
      await checkpoint();report('drafting','Mission work saved. Continuing with the remaining source material…');
     }
     batch=design.batches[index];design.batches[index]={...batch,drafts:batch.drafts??[],status:batch.missions?.length?'written':'checked',...(!batch.missions?.length?{checks:[]}:{})};await checkpoint();batch=design.batches[index];
@@ -214,8 +243,9 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
    if(batch.status==='written'){
     report('validating',`Checking source support and play rules for group ${index+1} of ${design.batches.length}…`);
     const checks=await checkedReply('check',batch,undefined,gameCheckingPrompt(batch),2000,reply=>validateGameBatchChecks(reply,batch,true));
-    design.batches[index]={...design.batches[index],checks:checks??batch.drafts!.map(d=>({missionId:d.missionId,decision:'source-study',reason:'The independent model check could not be completed with valid data after one repair.'})),status:'checked'};
-    event('check',checks?'completed':'source-study',checks?'The group’s source checks are saved.':'The group remains source study because a valid model check was not returned.',{batchId:batch.id});await checkpoint();report('validating','Source checks saved. Continuing with the remaining groups…');
+    if(!checks)throw new ValidationStopped('No complete source check was returned.');
+    design.batches[index]={...design.batches[index],checks,status:'checked'};
+    event('check','completed','The group’s source checks are saved.',{batchId:batch.id});await checkpoint();report('validating','Source checks saved. Continuing with the remaining groups…');
    }
   }
   active={phase:'finish'};
@@ -275,9 +305,9 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
    report('blocked',message);return finished(control,message);
   }
   const category:GameCreationErrorCategory=error instanceof SaveFailed?'storage':error instanceof ProviderFailed?error.category:'validation';
-  event(active.phase,'failed',error instanceof SaveFailed?error.message:error instanceof ProviderFailed?error.message:safeDiagnostic(error),{...(active.batchId?{batchId:active.batchId}:{}),...(active.missionId?{missionId:active.missionId}:{}),category});
+  event(active.phase,'failed',error instanceof SaveFailed?error.message:error instanceof ProviderFailed?error.message:error instanceof ValidationStopped?`The AI response failed its format or source checks twice. Saved work is kept; no more requests will run automatically. ${safeDiagnostic(error)}`:safeDiagnostic(error),{...(active.batchId?{batchId:active.batchId}:{}),...(active.missionId?{missionId:active.missionId}:{}),category});
   current={...current,gameDesign:design};if(!(error instanceof SaveFailed)){try{await checkpoint(true);}catch{/* Keep the in-memory error record available for a save retry. */}}
   report('blocked',error instanceof ProviderFailed?error.message:'Creation needs attention. Saved work is retained.');
-  return finished('failed',error instanceof SaveFailed?error.message:`Creation could not finish this stage: ${(error as Error).message} Your materials and saved stages are kept.`);
+  return finished('failed',error instanceof SaveFailed?error.message:error instanceof ValidationStopped?`The AI response failed its format or source checks twice. This does not mean your material cannot make a game. Change AI or model if needed, then explicitly continue from the saved stage. Last check: ${safeDiagnostic(error)}`:`Creation could not finish this stage: ${(error as Error).message} Your materials and saved stages are kept.`);
  }
 }

@@ -38,7 +38,15 @@ export interface GameDesign {
 const providers=['openai','anthropic','xai','compatible','chatgpt','grok','claude-code'];
 const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 const obj=(value:unknown,name:string)=>{if(!plain(value))throw new Error(`Invalid ${name}.`);return value;};
-const fields=(value:Record<string,unknown>,allowed:string[],name:string)=>{if(Object.keys(value).some(key=>!allowed.includes(key)))throw new Error(`${name} contains an unsupported field.`);};
+const fields=(value:Record<string,unknown>,allowed:string[],name:string)=>{
+ const extra=Object.keys(value).filter(key=>!allowed.includes(key));
+ if(extra.length){
+  // Name the schema mistake so a bounded repair can fix it, never echo field
+  // values or arbitrary provider text disguised as a property name.
+  const labels=extra.slice(0,3).map(key=>/^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(key)&&!/^sk[-_]/i.test(key)?key:'[nonstandard key]');
+  throw new Error(`${name} contains an unsupported field: ${labels.join(', ')}${extra.length>3?' (and more)':''}. Use only the supplied schema fields.`);
+ }
+};
 const str=(value:unknown,name:string,max=200)=>{if(typeof value!=='string'||!value.trim()||value.length>max)throw new Error(`Invalid ${name}.`);return value;};
 const id=(value:unknown,name:string)=>{const text=str(value,name,200);if(!/^[\w.:~-]+$/.test(text)||['constructor','prototype','__proto__'].includes(text))throw new Error(`Invalid ${name}.`);return text;};
 const list=(value:unknown,name:string,max:number):unknown[]=>{if(!Array.isArray(value)||value.length>max)throw new Error(`Invalid ${name}.`);return value;};
@@ -77,6 +85,22 @@ export function validateGameBatchPlan(value:unknown,batch:GameDesignBatch,units:
  unique(missions.map(m=>m.id),'mission plan IDs');const coverage=[...missions.map(m=>m.unitId),...study.map(s=>s.unitId)];unique(coverage,'source-unit coverage');
  if(coverage.length!==batch.unitIds.length||batch.unitIds.some(id=>!coverage.includes(id)))throw new Error('Every disclosed source unit needs a mission or an explicit study disposition.');
  return{missions,study,...(v.overviewNotes===undefined?{}:{overviewNotes:validateOverviewNotes(v.overviewNotes,batch.unitIds,{...notebook,units,batches:[]})})};
+}
+/** Fresh provider replies may include optional overview notes. A bad summary
+ * must not discard a separately valid, fully covered mission plan or buy another
+ * planning call. Keep every core field strict; omit the entire optional notes
+ * collection unless its coverage, wording and citations all validate. Later
+ * overview creation can use checked lessons or disclose the original unit.
+ * Saved designs deliberately do not use this boundary: imports/checkpoints still
+ * reject invalid stored notes instead of silently changing historical content. */
+export function validateNewGameBatchPlan(value:unknown,batch:GameDesignBatch,units:DirectorSourceUnit[],notebook:Pick<Notebook,'sources'|'ageGroup'>):Pick<GameDesignBatch,'missions'|'study'|'overviewNotes'> {
+ const v=obj(value,'game plan');fields(v,['missions','study','overviewNotes'],'Game plan');
+ const plan=validateGameBatchPlan({missions:v.missions,study:v.study},batch,units,notebook);
+ if(v.overviewNotes!==undefined){
+  try{plan.overviewNotes=validateOverviewNotes(v.overviewNotes,batch.unitIds,{...notebook,units,batches:[]});}
+  catch{/* Optional prose is never admitted without the same strict evidence checks. */}
+ }
+ return plan;
 }
 export function validateGameBatchChecks(value:unknown,batch:GameDesignBatch,requireQuality=false):GameMissionCheck[]{
  const v=obj(value,'game check');fields(v,['checks'],'Game check');

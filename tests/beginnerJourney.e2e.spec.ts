@@ -5,6 +5,8 @@ import {directorReply} from './gameDirector.fixture';
 import {childPlaySources,puppetStoryFixture} from '../src/data/childPlayFixtures';
 import {learnBeforeQuest} from './learningJourney.helpers';
 import {isCurrentEvidence} from '../src/lib/evidence';
+import {emptyGameDesign} from '../src/lib/gameDesign';
+import {createNotebook,createSource} from '../src/lib/utils';
 
 const material='# Maintenance procedure\n1. Open the settings panel.\n2. Choose the reset command.\n3. Confirm the selected reset.';
 async function records(page:Page):Promise<Notebook[]>{return page.evaluate(()=>new Promise<any[]>((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onsuccess=()=>{const db=request.result,read=db.transaction('records','readonly').objectStore('records').getAll();read.onsuccess=()=>{resolve(read.result.filter(value=>Array.isArray(value?.sources)));db.close();};read.onerror=()=>reject(read.error);};request.onerror=()=>reject(request.error);}));}
@@ -16,9 +18,36 @@ async function connect(page:Page){
  await page.route('**/api/models',route=>route.fulfill({json:{models:[{id:'source-planner',name:'Source planner'}]}}));
  await page.getByRole('button',{name:'Connect AI to create',exact:true}).click();const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Connect your AI',exact:true})});
  await expect(dialog).toBeVisible();const api=dialog.getByText('Or use an API / local model',{exact:true});if(await api.isVisible())await api.click();
- await dialog.getByLabel('API key · this session only',{exact:true}).fill('session-only-test-key');await dialog.getByLabel('Model ID',{exact:true}).fill('source-planner');await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.getByRole('button',{name:/^(Create game with AI|Continue creation|Resume creation)$/})).toBeVisible();
+ await dialog.getByLabel('API key · this session only',{exact:true}).fill('session-only-test-key');await dialog.getByLabel('Model ID',{exact:true}).fill('source-planner');await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.getByRole('button',{name:/^(Create game with AI|Continue creation|Resume creation|Retry failed sections)$/})).toBeVisible();
 }
 const reply=directorReply;
+
+test('a rejected generated mission shows its actual review feedback after reload without claiming the source lacks a procedure',async({page})=>{
+ const reason='The lesson promises a route submission control that the displayed game does not provide.',stages:string[]=[];
+ await page.route('**/api/generate',async route=>{const body=route.request().postDataJSON(),stage=body.prompt.match(/STAGE: (\w+)/)?.[1],response=reply(body);stages.push(stage);if(stage==='check'){const value=JSON.parse(response.text);value.checks=value.checks.map((check:any)=>({...check,decision:'source-study',reason,quality:{...check.quality,controlsMatch:false}}));response.text=JSON.stringify(value);}await route.fulfill({json:response});});
+ await begin(page,'A mission with a review issue');await paste(page);await connect(page);await page.getByRole('button',{name:'Create game with AI',exact:true}).click();
+ const status=page.getByRole('region',{name:'Game creation status'});await expect(status).toContainText('No mission passed review');await expect(status).toContainText(reason);await expect(status).not.toContainText('More source detail');await expect(status).not.toContainText('100%');await expect(status.getByRole('progressbar')).toHaveCount(0);await expect(page.getByRole('button',{name:'No mission passed review',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Play game',exact:true})).toHaveCount(0);expect(stages).toEqual(['plan','write','check']);
+ await page.locator('.import-quality-notes>summary').click();await expect(page.locator('.import-quality-notes')).toContainText(reason);await expect(page.locator('.import-quality-notes')).not.toContainText('No explicit structures');
+ const before=(await records(page))[0];expect(before.gameDesign!.batches[0].drafts).toHaveLength(1);expect(before.gameDesign!.batches[0].checks![0]).toMatchObject({decision:'source-study',reason});
+ await page.reload();await page.getByRole('button',{name:'Open A mission with a review issue',exact:true}).click();await expect(status).toContainText('No mission passed review');await expect(status).toContainText(reason);await expect(status).not.toContainText('100%');expect(stages).toHaveLength(3);expect((await records(page))[0].gameDesign!.receipts).toEqual(before.gameDesign!.receipts);
+});
+
+test('legacy failed sections have an explicit retry instead of completed source-review claims, retaining old usage after a model change',async({page})=>{
+ const notebook=createNotebook({title:'A source review that needs repair',creation:{mode:'ai',status:'draft'},sources:[createSource(material,'Maintenance notes')]}),design=emptyGameDesign(notebook,{id:'openai',model:'previous-designer',endpointFingerprint:null});
+ design.status='ready';design.batches=design.batches.map(batch=>({...batch,status:'checked',missions:[],drafts:[],checks:[],study:batch.unitIds.map(unitId=>({unitId,reason:'A source-supported game plan could not be validated after one corrective attempt.'}))}));
+ design.receipts=[{id:'previous-paid-plan',stage:'plan',batchId:design.batches[0].id,provider:'openai',model:'previous-designer',status:'completed',startedAt:'2026-10-01T12:00:00.000Z',finishedAt:'2026-10-01T12:00:01.000Z',durationMs:1000,usage:{status:'reported',inputTokens:321,outputTokens:87,cachedInputTokens:null,cacheWriteTokens:null,reasoningTokens:null,totalTokens:408}}];notebook.gameDesign=design;
+ let releasePlan!:()=>void;const holdPlan=new Promise<void>(resolve=>{releasePlan=resolve;});
+ const requests:any[]=[];await page.route('**/api/generate',async route=>{const body=route.request().postDataJSON();requests.push(body);if(body.prompt.includes('STAGE: plan'))await holdPlan;await route.fulfill({json:reply(body)});});
+ await page.goto('/');await expect(page.getByRole('heading',{name:'What will you discover today?',exact:true})).toBeVisible();
+ await page.evaluate(notebook=>new Promise<void>((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onsuccess=()=>{const db=request.result,tx=db.transaction('records','readwrite');tx.objectStore('records').put(notebook,'notebook:'+notebook.id);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};request.onerror=()=>reject(request.error);}),notebook);
+ await page.reload();await page.getByRole('button',{name:'Open A source review that needs repair',exact:true}).click();
+ const status=page.getByRole('region',{name:'Game creation status'});await expect(status).toContainText('Some sections need another creation attempt');await expect(status).toContainText('1 section needs retry');await expect(status).not.toContainText('More source detail is needed');await expect(status).not.toContainText('100%');await expect(status.getByRole('progressbar')).toHaveCount(0);await expect(page.getByRole('button',{name:'Play game',exact:true})).toHaveCount(0);expect(requests).toEqual([]);
+ await connect(page);await expect(page.getByRole('button',{name:'Retry failed sections',exact:true})).toBeEnabled();expect(requests).toEqual([]);expect((await records(page))[0].gameDesign!.receipts).toEqual(design.receipts);
+ await page.getByRole('button',{name:'Retry failed sections',exact:true}).click();await expect.poll(()=>requests.length).toBe(1);await expect(status).toContainText('1 section needs retry');await expect(status.getByRole('progressbar')).toHaveCount(0);await expect(status.getByRole('button',{name:'Pause creation',exact:true})).toBeEnabled();await expect(status.getByRole('button',{name:'Cancel creation',exact:true})).toBeEnabled();releasePlan();await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();
+ expect(requests.map(request=>request.prompt.match(/STAGE: (\w+)/)?.[1])).toEqual(['plan','write','check','overview']);expect(requests.every(request=>request.model==='source-planner')).toBe(true);
+ const saved=(await records(page))[0];expect(saved.sources).toEqual(notebook.sources);expect(saved.gameDesign!.receipts[0]).toEqual(design.receipts[0]);expect(saved.gameDesign!.receipts).toHaveLength(5);expect(saved.aiLearningPlan?.missions).toHaveLength(1);expect(saved.creation?.status).toBe('ready');
+ await page.reload();await page.getByRole('button',{name:'Open A source review that needs repair',exact:true}).click();await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();expect(requests).toHaveLength(4);expect((await records(page))[0].gameDesign!.receipts[0]).toEqual(design.receipts[0]);
+});
 
 test('creation shows saved percentages, live Aster context and opt-in provider activity through automatic completion',async({page},testInfo)=>{
  let releaseWrite!:()=>void,writeStarted=false,statusReads=0;
@@ -83,7 +112,7 @@ test('a provider timeout shows its saved reason and resumes without repeating th
  await page.locator('button.aster-launcher').click();
  const aster=page.getByRole('dialog',{name:'Ask Aster',exact:true});
  await aster.locator('input').fill('Why did creation fail?');await aster.getByRole('button',{name:'Find in my sources',exact:true}).click();
- await expect(aster.getByRole('region',{name:'Current activity answer'})).toContainText('timeout');
+ await expect(aster.getByRole('region',{name:'Current activity answer'})).toContainText('provider reached its request deadline');await expect(aster.getByRole('region',{name:'Current activity answer'})).toContainText('Continue creation');
  await page.getByRole('button',{name:'Close Aster',exact:true}).click();
  failWrite=false;await connect(page);await page.getByRole('button',{name:'Continue creation',exact:true}).click();
  await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();

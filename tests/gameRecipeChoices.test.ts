@@ -1,6 +1,7 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {AGE_GROUPS,SCAFFOLDS} from '../src/data/scaffolds';
-import {GAME_FAMILY_RECIPES,GAME_WRITER_CAPABILITIES,gameRecipeChoices,gameRecipeCoverage} from '../src/lib/gameDraftAdapters';
+import {GAME_FAMILY_RECIPES,GAME_WRITER_CAPABILITIES,gameRecipeChoices,gameRecipeCoverage,validatePreparedGameDraft} from '../src/lib/gameDraftAdapters';
+import {evaluateActivityForAuthoring} from '../src/lib/structuredEngine';
 import {getScaffoldRuntimeDefinition,scaffoldRequiredCapabilities} from '../src/lib/scaffoldRuntime';
 import {emptyGameDesign,validateGameBatchPlan} from '../src/lib/gameDesign';
 import {buildDirectorSourceInventory} from '../src/lib/gameDirectorSources';
@@ -51,6 +52,15 @@ describe('runtime-derived AI recipe choices',()=>{
   const choice=data.choices.find((choice:any)=>choice.scaffoldId==='infrastructure-change-planner');
   const batch={...design.batches[0],status:'planned' as const,missions:[{id:'change',unitId:units[0].id,kind:'sequence' as const,scaffoldId:choice.scaffoldId,title:'Plan the source change',objective:'Preserve the backup and verification order.',visualDirection:{scene:choice.scene,sourceAssetIds:[]}}],study:[]};
   const writing=JSON.parse(gameWritingPrompt(notebook,batch,units).split('REFERENCE DATA (JSON):\n')[1]);expect(writing.missions[0].recipe.domain).toBe('cloud');expect(writing.missions[0].recipe.requires).toEqual(choice.requires);
+ });
+ it('offers definition building for complete source definitions without demanding invented examples or non-examples',()=>{
+  const source=createSource('A queue is a list of jobs waiting to run. A worker is a process that runs queued jobs.','System vocabulary'),notebook=createNotebook({sources:[source]}),inventory=buildDirectorSourceInventory(notebook),design=emptyGameDesign(notebook,provider);
+  const data=JSON.parse(gamePlanningPrompt(notebook,design.batches[0],inventory.units).split('REFERENCE DATA (JSON):\n')[1]),choice=data.choices.find((item:any)=>item.scaffoldId==='definition-building');
+  expect(choice.kind).toBe('completion');expect(choice.requires.join(' ')).not.toMatch(/example|alternative/i);expect(choice.mechanic).toContain('only when the source provides them');
+  const activity=validatePreparedGameDraft(source,inventory.units[0].excerpt,{activity:{version:1,id:'draft',kind:'completion',title:'Build two precise definitions',instruction:'Place each supplied term in its definition.',explanation:'A queue holds waiting jobs. A worker runs queued jobs.',hint:'Distinguish the waiting list from the process.',reviewStatus:'needs-review',sourceRefs:[{sourceId:source.id,evidence:source.text}],context:source.text,tokens:[{id:'queue',label:'queue'},{id:'worker',label:'worker'}],slots:[{id:'waiting',before:'A ',after:' is a list of jobs waiting to run.',acceptedTokenIds:['queue'],reason:'The source defines a queue as the list of waiting jobs.',evidenceRefs:[0]},{id:'running',before:'A ',after:' is a process that runs queued jobs.',acceptedTokenIds:['worker'],reason:'The source defines a worker as the process that runs queued jobs.',evidenceRefs:[0]}]}},'definition-game',['completion']);
+  expect(evaluateActivityForAuthoring(activity,{slotTokens:{waiting:'queue',running:'worker'}})).toMatchObject({valid:true,correct:true});
+  expect(evaluateActivityForAuthoring(activity,{slotTokens:{waiting:'worker',running:'queue'}})).toMatchObject({valid:true,correct:false});
+  expect(activity.sourceRefs).toEqual([{sourceId:source.id,evidence:source.text}]);
  });
 });
 

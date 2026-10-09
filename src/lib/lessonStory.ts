@@ -122,7 +122,7 @@ export function buildLessonStory(scaffold: Scaffold, ageGroup: string): LessonSt
 }
 
 /** Instructions describe the implemented interaction, not a solution or an invented source fact. */
-export interface LessonActionGuide {id:string;prepare:string;act:string;inspect:string}
+export interface LessonActionGuide {id:string;prepare:string;act:string;inspect:string;commit?:string}
 type GuideActivity={kind:import('./structuredEngine').StructuredActivity['kind'];items?:readonly unknown[];partner?:unknown;codeReview?:unknown;pattern?:unknown;mode?:string;scenarioPresentation?:{prediction?:unknown;campaign?:unknown;dialogue?:unknown;promptComparison?:unknown}};
 const ACTION_GUIDES:Record<GuideActivity['kind']|'recall',readonly [string,string,string]>={
  recall:['Build a distinction from the cited material.','Close the guide and choose the idea that fits.','Use feedback to repair the connection; revisit it later.'],
@@ -164,5 +164,9 @@ export function buildLessonActionGuide(activity?:GuideActivity):LessonActionGuid
  // saved sequences retain the existing placement workspace. Kind-only planning
  // remains valid before the actual inventory has been written.
  if(activity?.kind==='sequence'&&activity.items)act=activity.items.length<=24?'Choose a step card, then use Move earlier or Move later to put it in order.':'Choose a step, then choose Place here at its destination.';
- return{id,prepare:steps[0],act,inspect:steps[2]};
+ // Every structured board exposes this shared commit control. Writer/checker
+ // prompts need it as well as the controls for arranging a response. Recall
+ // choices are committed by their own interaction and do not use this footer.
+ const commit=activity?activity.kind==='rubric'&&activity.mode==='self-assessment'?'Save my reflection':'Check my work':undefined;
+ return{id,prepare:steps[0],act,inspect:commit?`Choose ${commit} when ready. ${steps[2]}`:steps[2],...(commit?{commit}:{})};
 }

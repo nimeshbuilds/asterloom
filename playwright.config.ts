@@ -8,6 +8,8 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { outputFolder: '.qa/playwright-report', open: 'never' }]],
+  // Keep diagnostics for failures without retaining large generated fixtures from every passing case.
+  preserveOutput: 'failures-only',
   outputDir: '.qa/playwright-results',
   use: { baseURL: 'http://127.0.0.1:4319', trace: 'retain-on-failure', screenshot: 'only-on-failure', ...devices['Desktop Chrome'] },
   webServer: { command: 'npm start', url: 'http://127.0.0.1:4319/api/health', reuseExistingServer: true, timeout: 30_000 },

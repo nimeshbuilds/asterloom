@@ -12,6 +12,7 @@ import {summarizeAIUsage} from '../src/lib/aiUsage';
 import type {Notebook} from '../src/types';
 import {LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION} from '../src/lib/gameDirectorSources';
 import {evidenceBlocks,evidenceReference} from '../src/lib/evidence';
+import {prepareAutomaticLearning} from '../src/lib/automaticLearning';
 
 const config={provider:'compatible' as const,model:'source-designer',apiKey:'only-in-session',baseUrl:'http://127.0.0.1:11434/v1'};
 const options={aiPolicy:'required' as const,ai:{config,consent:'create-game' as const}};
@@ -110,13 +111,25 @@ describe('resumable AI game director',()=>{
   const provider=mock();const result=await prepareGameExperience(n(),{}, {aiPolicy:'required',ai:{config} as any});expect(result.creationStatus).toBe('needs-connection');expect(provider.fetch).not.toHaveBeenCalled();
  });
  it('does not silently omit a late unit from a plan, and retains the consumed call receipt',async()=>{
-  mock((stage,_data,value)=>stage==='plan'?{...value,missions:value.missions.slice(0,1)}:value);const result=await prepareGameExperience(n(3),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');expect(result.notebook.gameDesign!.receipts).toHaveLength(2);expect(result.notebook.gameDesign!.receipts[0].usage.inputTokens).toBe(100);
+  mock((stage,_data,value)=>stage==='plan'?{...value,missions:value.missions.slice(0,1)}:value);const result=await prepareGameExperience(n(9),{},options);expect(result.creationStatus).toBe('failed');expect(result.notebook.gameDesign!.batches.every(batch=>batch.status==='pending')).toBe(true);expect(result.notebook.gameDesign!.batches.every(batch=>!batch.study?.length)).toBe(true);expect(result.ai.requestCount).toBe(2);expect(result.notebook.gameDesign!.receipts).toHaveLength(2);expect(result.notebook.gameDesign!.receipts[0].usage.inputTokens).toBe(100);
  });
  it('rejects invented citations or teacher text without sacrificing source material or prior stages',async()=>{
-  mock((stage,_data,value)=>{if(stage==='write')value.missions[0].teaching.chunks[0].citations[0]={sourceId:'missing',evidence:'An invented statement.'};return value;});const input=n(),result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('needs-source');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.activities?.some(a=>a.id.startsWith('director-'))).toBe(false);
+  mock((stage,_data,value)=>{if(stage==='write')value.missions[0].teaching.chunks[0].citations[0]={sourceId:'missing',evidence:'An invented statement.'};return value;});const input=n(),result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('failed');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.batches[0].status).toBe('planned');expect(result.notebook.gameDesign!.batches[0].study).toEqual([]);expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.activities?.some(a=>a.id.startsWith('director-'))).toBe(false);
  });
  it('check-stage rejection becomes explicit source study, never approved gameplay',async()=>{
   mock((stage,_data,value)=>stage==='check'?{checks:value.checks.map((c:any)=>({...c,decision:'source-study',reason:'The source does not justify this model.'}))}:value);const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.launch.kind).toBe('materials');expect(gameDesignProgress(result.notebook.gameDesign!)).toMatchObject({coveredUnits:1,missionCount:0,studyOnlyCount:1});expect(result.notebook.gameDesign!.receipts).toHaveLength(3);
+ });
+ it('shows the saved mission-review reason instead of preliminary extractor claims about the material',async()=>{
+  const input=createNotebook({sources:[createSource('# Maintenance notes\nOpen the settings panel. Then choose the reset command. Finally confirm the selected reset.','Maintenance notes')]}),reason='The lesson promises a route submission control that the displayed game does not provide.';
+  expect(prepareAutomaticLearning(input).warnings.some(warning=>warning.startsWith('No explicit structures found.'))).toBe(true);
+  const provider=mock((stage,_data,value)=>stage==='check'?{checks:value.checks.map((check:any)=>({...check,decision:'source-study',reason,quality:{...check.quality,controlsMatch:false}}))}:value);
+  const result=await prepareGameExperience(input,{},options);expect(result.creationStatus,result.ai.message).toBe('needs-source');expect(provider.requests.map(request=>request.stage)).toEqual(['plan','write','check']);expect(result.ai.message).toContain(reason);expect(result.ai.message).toContain('generated drafts and usage records are kept');expect(result.ai.message).not.toContain('could not justify');expect(result.warnings).toContainEqual(expect.stringContaining(reason));expect(result.warnings.join(' ')).not.toMatch(/No explicit structures|does not provide unambiguous|material did not identify a procedure/);
+  expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.batches[0].drafts).toHaveLength(1);expect(result.notebook.gameDesign!.batches[0].checks![0]).toMatchObject({decision:'source-study',reason});
+  const restored=await prepareGameExperience(parsePackage(serializePackage(result.notebook)),{}, {aiPolicy:'required'});expect(restored.ai.message).toBe(result.ai.message);expect(restored.warnings).toEqual(result.warnings);expect(restored.ai.requestCount).toBe(0);expect(provider.requests).toHaveLength(3);
+ });
+ it('retains actual unreadable-source notices while omitting discarded extraction diagnostics after successful AI creation',async()=>{
+  const pending={...createSource('','Recording transcript'),status:'needs-transcript' as const},input=n();input.sources.push(pending);mock();
+  const result=await prepareGameExperience(input,{},options);expect(result.creationStatus,result.ai.message).toBe('ready');expect(result.warnings).toContain('Recording transcript: This source needs current readable text or checked media evidence.');expect(result.warnings.join(' ')).not.toContain('Explicit source structures were parsed without AI');expect(result.notebook.sources).toEqual(input.sources);
  });
  it('invalidates source-stale work but reuses validated work when only the model changes',async()=>{
   const provider=mock(),first=await prepareGameExperience(n(),{},options),changed={...first.notebook,sources:first.notebook.sources.map(s=>({...s,text:s.text+'\nA newly documented condition belongs to the source.'}))};
@@ -146,7 +159,7 @@ describe('resumable AI game director',()=>{
   const result=await prepareGameExperience(createNotebook({sources:[source],ageGroup:age}),{},options);expect(result.creationStatus,result.ai.message).toBe('ready');const game=result.notebook.activities!.find(a=>a.id===result.ai.activityId)!;expect(game.kind).toBe(kind);expect(game.scaffoldIds).toEqual([recipe]);expect(game.reviewStatus).toBe('needs-review');expect(result.notebook.aiLearningPlan!.missions[0].ageGroup).toBe(age);expect(parsePackage(serializePackage(result.notebook)).gameDesign!.batches[0].missions![0].asterDirection?.retry).toBe('patient-support');
  });
  it('bounds repair of an incompatible companion expression and never approves it',async()=>{
-  mock((stage,_data,value)=>{if(stage==='plan')value.missions[0].asterDirection={retry:'bright-celebration'};return value;});const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('needs-source');expect(result.ai.requestCount).toBe(2);expect(result.notebook.gameDesign!.batches[0].status).toBe('checked');
+  mock((stage,_data,value)=>{if(stage==='plan')value.missions[0].asterDirection={retry:'bright-celebration'};return value;});const result=await prepareGameExperience(n(),{},options);expect(result.creationStatus).toBe('failed');expect(result.ai.requestCount).toBe(2);expect(result.notebook.gameDesign!.batches[0].status).toBe('pending');expect(result.notebook.gameDesign!.batches[0].study).toBeUndefined();
  });
  it('creates a prose-grounded mission from a mixed technical section while every AI stage retains its full code context',async()=>{
   const steps='1. Open the settings panel.\n2. Choose the reset command.\n3. Confirm the selected reset.',code='exampleReset();';
@@ -171,7 +184,7 @@ describe('resumable AI game director',()=>{
    if(stage==='write')for(const item of value.missions){const citations=[{sourceId:input.sources[0].id,evidence:steps}];if(target==='teaching')item.activity.sourceRefs=citations;item.teaching.conceptExplanation.citations=target==='teaching'?[{sourceId:input.sources[0].id,evidence:code}]:citations;for(const chunk of item.teaching.chunks)chunk.citations=citations;}
    return value;
   });
-  const result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('needs-source');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.gameDesign!.events?.some(event=>event.category==='validation'&&event.message.includes('non-code'))).toBe(true);expect(result.ai.activityIds).toEqual([]);
+  const result=await prepareGameExperience(input,{},options);expect(result.creationStatus).toBe('failed');expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.batches[0].status).toBe('planned');expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.gameDesign!.events?.some(event=>event.category==='validation'&&event.message.includes('non-code'))).toBe(true);expect(result.ai.activityIds).toEqual([]);
  });
  it('imports the exact legacy mixed-code exclusion without resetting ready games, source windows or historical token receipts',async()=>{
   const normal=n().sources[0],mixed=createSource('# Events\nPublisher: A component that sends messages to a named topic.\nSubscriber: A component that receives messages from a subscribed topic.\n\n```js\npublish("weather", reading);\n```','Technical reference');

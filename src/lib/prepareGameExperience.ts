@@ -11,6 +11,7 @@ import type {ProviderConfig} from './provider';
 import {canRequest} from './providerSession';
 import {textDigest} from './evidence';
 import {runGameDirector} from './gameDirector';
+import {gameCreationReview} from './gameCreationRecovery';
 import type {GameDesign} from './gameDesign';
 import {requestTrackedAITool,type AIToolUsageObserver} from './aiToolUsage';
 
@@ -32,6 +33,7 @@ export interface PrepareGameOptions {
  /** Required creation defaults to a source-covering plan/write/check pipeline. */
  quality?:'quality'|'fast';
  maxRequests?:number;
+ retryFailedSections?:boolean;
  onCheckpoint?:(design:GameDesign)=>Promise<boolean>;
  /** Legacy single-pass requests require the same durable usage ledger as authoring tools. */
  onAIUsage?:AIToolUsageObserver;
@@ -209,8 +211,14 @@ export async function prepareGameExperience(notebook:Notebook,preferences:GamePr
  // recording activities remain intact. Their sources and source study stay saved.
  const replaceable=new Set(automatic.replaceableTextActivityIds);
  const local={...automatic,notebook:{...automatic.notebook,activities:automatic.notebook.activities?.filter(activity=>!replaceable.has(activity.id))}};
- const directed=await runGameDirector(local.notebook,{ai:options.ai,signal:options.signal,timeoutMs:options.timeoutMs,maxRequests:options.maxRequests,onCheckpoint:options.onCheckpoint,onProgress:options.onProgress});
+ const directed=await runGameDirector(local.notebook,{ai:options.ai,signal:options.signal,timeoutMs:options.timeoutMs,maxRequests:options.maxRequests,retryFailedSections:options.retryFailedSections,onCheckpoint:options.onCheckpoint,onProgress:options.onProgress});
  const result=preparedWithOrder(directed.notebook,directed.activityIds[0]),ready=directed.status==='ready';
  const aiStatus:GameAIResult['status']=ready?(directed.requestCount?'draft-added':'kept-existing'):directed.status==='canceled'||directed.status==='paused'?directed.status:directed.status==='needs-connection'?'unavailable':directed.status==='needs-source'?'insufficient-source':'failed';
- return{...result,creationStatus:directed.status,launch:ready?result.launch:{kind:'materials'},...(ready&&directed.notebook.gameDesign?.visualDirection?{suggestedTheme:directed.notebook.gameDesign.visualDirection.scene}:{}),warnings:[...local.warnings,...directed.warnings],ai:{status:aiStatus,message:directed.message,requestCount:directed.requestCount,activityIds:directed.activityIds,...(directed.activityIds[0]?{activityId:directed.activityIds[0]}:{}),disclosedSourceIds:directed.disclosedSourceIds}};
+ // Deterministic extraction is only preparation here. Its failure to recognize
+ // a pattern says nothing about the later AI mission or its review outcome.
+ const reviews=gameCreationReview(directed.notebook.gameDesign),reviewNotes=reviews.slice(0,3).map(review=>`Mission review — ${review.title}: ${review.reason}`);
+ const unavailable=(directed.notebook.gameDesign?.unavailableSources??[]).map(item=>`${directed.notebook.sources.find(source=>source.id===item.sourceId)?.title??'Source'}: ${item.reason}`);
+ const warnings=[...new Set([...directed.warnings.filter(warning=>!/^\d+ source sections remain source-study activities because they did not justify a supported game model\.$/.test(warning)),...unavailable,...reviewNotes,...(reviews.length>3?[`${reviews.length-3} further mission review decisions are preserved in the saved creation record.`]:[])])];
+ const message=directed.status==='needs-source'&&reviews.length?`No generated mission passed the final checks. ${reviewNotes.join(' ')} Your sources, generated drafts and usage records are kept. Review this feedback and the source material.`:directed.message;
+ return{...result,creationStatus:directed.status,launch:ready?result.launch:{kind:'materials'},...(ready&&directed.notebook.gameDesign?.visualDirection?{suggestedTheme:directed.notebook.gameDesign.visualDirection.scene}:{}),warnings,ai:{status:aiStatus,message,requestCount:directed.requestCount,activityIds:directed.activityIds,...(directed.activityIds[0]?{activityId:directed.activityIds[0]}:{}),disclosedSourceIds:directed.disclosedSourceIds}};
 }
