@@ -79,8 +79,8 @@ describe('legacy relationship filtering preserves saved work and provenance',()=
  it('round-trips rejected drafts and original uploaded bytes without rewriting or silently deleting them',()=>{
   const line='Parse → Chunk → Embed',source=sourceFor(line),bytes=new TextEncoder().encode('\uFEFF'+line+'\r\n');
   source.originalFile={name:'original.md',mime:'text/markdown',size:bytes.length,sha256:bytesDigest(bytes),dataUrl:'data:text/markdown;base64,'+btoa(String.fromCharCode(...bytes))};
-  const activity=legacy(line,'Parse','Chunk','Embed'),notebook=createNotebook({sources:[source],activities:[activity]}),serialized=serializePackage(notebook);
-  expect(hasCurrentActivityEvidence(activity,[source])).toBe(false);expect(serializePackage(notebook)).toBe(serialized);
+  const activity=legacy(line,'Parse','Chunk','Embed'),notebook=createNotebook({sources:[source],activities:[activity]}),original=JSON.stringify(notebook),serialized=serializePackage(notebook);
+  expect(hasCurrentActivityEvidence(activity,[source])).toBe(false);expect(JSON.stringify(notebook)).toBe(original);
   const restored=parsePackage(serialized);expect(restored.sources[0]).toEqual(source);expect(restored.activities).toEqual([activity]);expect(restored.sources[0].originalFile?.dataUrl).toBe(source.originalFile.dataUrl);
  });
 });
