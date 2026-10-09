@@ -44,7 +44,7 @@ test('teaching hands off to a visible quest, mistakes explain the rule, and a so
  await expect(page.getByRole('progressbar',{name:'Missions finished',exact:true})).toHaveAttribute('value','1');
  const saved=await progress(page);expect(saved.xp).toBe(0);expect(saved.practice.xp).toBe(20);expect(saved.structured[notebook.activities![0].id].completed).toBe(false);
  await page.screenshot({path:info.outputPath('visible-mission-reward.png')});
- await page.locator('button.aster-launcher').click();await page.getByRole('button',{name:'What is next?',exact:true}).click();await expect(page.getByRole('region',{name:'Current activity answer',exact:true})).toContainText('choose another mission');await page.getByRole('button',{name:'Close Aster',exact:true}).click();
+ await page.locator('button.aster-launcher').click();await page.getByText('Current activity & tools',{exact:true}).click();await page.getByRole('button',{name:'What is next?',exact:true}).click();await expect(page.getByRole('region',{name:'Current activity answer',exact:true})).toContainText('choose another mission');await page.getByRole('button',{name:'Close Aster',exact:true}).click();
  await page.reload();
  const savedLesson=page.locator(`.campaign-lessons article[data-activity-id="${notebook.activities![0].id}"]`);
  await expect(savedLesson).toContainText('Your quest progress is saved.');

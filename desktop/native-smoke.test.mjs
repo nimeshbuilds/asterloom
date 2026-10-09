@@ -110,7 +110,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.getByLabel('Upload source files',{exact:true}).setInputFiles(studioPdfCopy);
     await page.locator('.source-main').filter({hasText:'studio-source.pdf'}).waitFor();
     const studioAsterCopy=path.join(directory,'studio-aster.pdf');await application.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},studioAsterCopy);
-    await page.locator('.aster-launcher').click();await page.getByRole('textbox',{name:'What would you like to find?',exact:true}).fill('download the PDF');await page.getByRole('button',{name:'Find in my sources',exact:true}).click();
+    await page.locator('.aster-launcher').click();await page.getByRole('textbox',{name:'Message Aster',exact:true}).fill('download the PDF');await page.getByRole('button',{name:'Find in my sources',exact:true}).click();
     await page.getByRole('region',{name:'Source downloads',exact:true}).getByText('Saved studio-aster.pdf.',{exact:true}).waitFor();assert.deepEqual(await fs.readFile(studioAsterCopy),sourcePdfBytes,'Aster must save the exact uploaded PDF from the native studio');
     await page.getByRole('button',{name:'Close Aster',exact:true}).click();
     features.sourceDownloads={studioAster:true};
@@ -138,7 +138,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await application.evaluate(({dialog})=>{dialog.showSaveDialog=async()=>({canceled:true});});await pdfRow.getByRole('button',{name:'Download readable text',exact:true}).click();await materialDialog.getByText('Save canceled. Your material is still here.',{exact:true}).waitFor();
     await materialDialog.getByRole('button',{name:'Close dialog',exact:true}).click();
     const exportedAsterCopy=path.join(directory,'recipient-aster.pdf');await application.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},exportedAsterCopy);
-    await page.locator('.aster-launcher').click();await page.getByRole('textbox',{name:'What would you like to find?',exact:true}).fill('download native-source.pdf');await page.getByRole('button',{name:'Find in my sources',exact:true}).click();
+    await page.locator('.aster-launcher').click();await page.getByRole('textbox',{name:'Message Aster',exact:true}).fill('download native-source.pdf');await page.getByRole('button',{name:'Find in my sources',exact:true}).click();
     await page.getByRole('region',{name:'Source downloads',exact:true}).getByText('Saved recipient-aster.pdf.',{exact:true}).waitFor();assert.deepEqual(await fs.readFile(exportedAsterCopy),sourcePdfBytes,'Aster must save the exact included PDF from the standalone game');
     await page.getByRole('button',{name:'Close Aster',exact:true}).click();
     features.sourceDownloads={...features.sourceDownloads,studioInline:true,studioCancel:true,studioStreamed:true,studioRecordingBytes:largeAsset.asset.size,exportOriginal:true,exportText:true,exportRecording:true,exportCancel:true,exportAster:true};

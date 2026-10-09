@@ -40,3 +40,15 @@
 @media(max-width:1359px){.aster-launcher-shell{width:112px}}
 @media(max-height:700px) and (min-width:1360px){.aster-launcher-shell{width:112px}}
 @media(prefers-reduced-motion:reduce){.aster-transformation-video{display:none}.aster-launcher-shell:has(>.aster-launcher:hover)>.aster-launcher-portrait{transform:none}.aster-automatic .aster-launcher-shell:has(>.aster-launcher:hover)>.aster-launcher-portrait{transform:scale(1.22)}}
+
+/* A conversation owns the panel; tools stay available without pushing the
+   message composer below the fold. No transcript is persisted to disk. */
+.aster-panel{width:470px;height:min(710px,calc(100dvh - 250px));max-height:calc(100dvh - 250px)}
+.aster-header{padding:10px 13px;gap:10px}.aster-header .aster-portrait{width:48px;height:62px}.aster-header h2{font-size:20px;margin:3px 0}.aster-header p{font-size:11px}.aster-header .aster-eyebrow{font-size:8px}
+.aster-panel-body{flex:1;min-height:0;max-height:none;padding:12px 16px 8px;overflow:auto;scrollbar-gutter:stable}
+.aster-chat-tools{margin:8px 0 14px;border-bottom:1px solid #d6e1da;padding-bottom:10px;font-size:12px;color:#39574e}.aster-chat-tools>summary{cursor:pointer;font-weight:700;padding:5px 0}.aster-chat-tools[open]>.aster-context{margin:12px 0}.aster-chat-tools .aster-context-actions{margin-bottom:10px}.aster-chat-tools .aster-download-launcher,.aster-chat-tools .aster-mission-help{margin-bottom:10px}
+.aster-chat-composer{flex:none;padding:12px 16px 10px;border-top:1px solid #cddbd5;background:#fffdf7;box-shadow:0 -6px 15px #213a3206}.aster-chat-composer>label{font-size:12px;margin-bottom:6px}.aster-chat-composer>div:first-of-type{min-height:46px}.aster-chat-composer input{font-size:14px;line-height:1.5}.aster-chat-composer .aster-composer-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;background:none;border:0;padding:7px 0 0;color:#4f655c}.aster-composer-meta small{font-size:10px;overflow-wrap:anywhere}.aster-chat-composer .aster-composer-meta button{display:block;width:auto;min-height:28px;padding:4px 0 4px 8px;background:transparent;color:#34584b;font-size:10px;text-decoration:underline;text-underline-offset:3px}
+.aster-chat-composer>div>button{min-width:38px;min-height:38px}.aster-chat-composer button:focus-visible{outline:3px solid #694dba;outline-offset:2px}
+@media(max-width:1359px){.aster-panel{height:min(740px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);width:min(100%,470px)}.aster-panel-body{max-height:none}}
+@media(max-width:480px){.aster-panel{width:100%}.aster-panel-body{padding:10px 12px 8px}.aster-chat-composer{padding:10px 12px}.aster-chat-composer input{font-size:16px}.aster-header p{font-size:11px}}
+@media(max-height:700px) and (min-width:1360px){.aster-panel{height:calc(100dvh - 212px);max-height:calc(100dvh - 212px)}}

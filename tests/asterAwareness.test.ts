@@ -12,6 +12,25 @@ function creation():AsterAwarenessContext {
 }
 const event=(kind:GameCreationEvent['kind'],at:string,message:string):GameCreationEvent=>({id:`${kind}-${at}`,at,phase:'write',kind,message,...(kind==='failed'?{category:'timeout' as const}:{})});
 describe('Aster local awareness',()=>{
+ it('converses about identity without requiring a notebook or inventing personal knowledge',()=>{
+  for(const question of ['What is your name?','Who are you?','What should I call you?','Aster, introduce yourself.']){
+   const answer=answerAsterContext(question,{mode:'library'})!;
+   expect(answer.intent,question).toBe('identity');expect(answer.lines.join(' ')).toContain('I’m Aster');expect(answer.lines.join(' ')).not.toContain('Open a notebook to');
+  }
+  expect(answerAsterContext('Hello there',{mode:'library'})?.intent).toBe('greeting');
+  expect(answerAsterContext('Thank you, Aster',{mode:'library'})?.lines.join(' ')).toContain('You’re welcome');
+  for(const question of ['What is an aster?','What is your name in Python used for?','What does thank you mean in Japanese?'])expect(asterContextIntent(question),question).toBeUndefined();
+ });
+ it('guides an empty library using available controls and reports the actual personal game list',()=>{
+  const context:AsterAwarenessContext={mode:'library',library:{games:[],totalGames:0,canImportRecording:false}};
+  expect(buildAsterAwareness(context).summary).toContain('not created or imported');expect(answerAsterContext('what is next',context)!.lines.join(' ')).toContain('Create a game');
+  expect(buildAsterRuntimeFacts(context).controls).toEqual(['Create a game','Browse examples','Import a notebook']);
+  context.library={games:[{title:'Networks',ready:true},{title:'Draft expedition',ready:false}],totalGames:2,canImportRecording:true};
+  const answer=answerAsterContext('What games do I have?',context)!;expect(answer.lines.join(' ')).toContain('Your games: 2');expect(answer.lines.join(' ')).toContain('Networks · open to learn');expect(answer.lines.join(' ')).toContain('Draft expedition · creation unfinished');
+  expect(buildAsterRuntimeFacts(context).controls).toContain('Import recording archive');
+  context.library={games:Array.from({length:20},(_,i)=>({title:`Game ${i}`,ready:true})),totalGames:25,canImportRecording:false};
+  const facts=buildAsterRuntimeFacts(context);expect(facts.details).toHaveLength(10);expect(facts.details.at(-1)).toContain('Additional games: 17');
+ });
  it('reports only acknowledged Journey XP with separate practice credit and a factual saved reward log',()=>{
   const c=creation();c.mode='play';c.progress={...emptyProgress(c.notebook!.id),xp:42,practice:{xp:20,awards:{['a'.repeat(64)]:{kind:'activity',objectiveId:'practice-game',xp:20,at:'2026-10-05T13:00:00Z'}}}};
   const answer=answerAsterContext('what is my score',c)!;expect(answer.lines.join(' ')).toContain('Journey XP: 62');expect(answer.lines.join(' ')).toContain('20 practice XP; 42 other game XP');expect(answer.lines.join(' ')).toContain('Independent mastery is tracked separately');

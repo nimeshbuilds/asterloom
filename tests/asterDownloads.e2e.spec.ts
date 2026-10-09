@@ -20,9 +20,9 @@ async function openGuide(page:Page,info:TestInfo,native=false){
  const bundled=await build({stdin:{contents:harness,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,format:'esm',target:'es2022',jsx:'automatic',outdir:info.outputPath('unused'),loader:{'.woff2':'dataurl','.woff':'dataurl','.ogg':'dataurl'}});
  const js=bundled.outputFiles!.find(file=>file.path.endsWith('.js'))!.text,css=bundled.outputFiles!.find(file=>file.path.endsWith('.css'))!.text;
  const filename=info.outputPath('aster-downloads.html');await writeFile(filename,`<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aster source downloads</title><style>${css}</style></head><body><div id="root"></div><script type="module">${js.replace(/<\/script/gi,'<\\/script')}</script></body></html>`);
- await page.goto(pathToFileURL(filename).href);await page.getByRole('button',{name:'Ask Aster',exact:true}).click();
+ await page.goto(pathToFileURL(filename).href);await page.getByRole('button',{name:'Ask Aster',exact:true}).click();await page.getByText('Current activity & tools',{exact:true}).click();
 }
-async function ask(page:Page,question:string){await page.getByRole('textbox',{name:'What would you like to find?',exact:true}).fill(question);await page.getByRole('button',{name:'Find in my sources',exact:true}).click();}
+async function ask(page:Page,question:string){await page.getByRole('textbox',{name:'Message Aster',exact:true}).fill(question);await page.getByRole('button',{name:'Find in my sources',exact:true}).click();}
 
 test('explicit PDF and title commands download exact bundled bytes offline without AI or source search',async({page,context},info)=>{
  await context.setOffline(true);const external:string[]=[],errors:string[]=[];page.on('request',request=>{if(/^https?:/.test(request.url()))external.push(request.url());});page.on('pageerror',error=>errors.push(error.message));await openGuide(page,info);
