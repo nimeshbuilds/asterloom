@@ -1,9 +1,20 @@
 import {describe,expect,it} from 'vitest';
-import {ACTIVITY_EXAMPLES,evaluateActivityForAuthoring,type ClassificationActivity,type DependencyActivity} from '../src/lib/structuredEngine';
+import {ACTIVITY_EXAMPLES,evaluateActivityForAuthoring,type ClassificationActivity,type DependencyActivity,type SequenceActivity} from '../src/lib/structuredEngine';
 
 const classification=ACTIVITY_EXAMPLES.find(activity=>activity.kind==='classification') as ClassificationActivity;
 const dependency=ACTIVITY_EXAMPLES.find(activity=>activity.kind==='dependency') as DependencyActivity;
 describe('feedback names the source objects a learner can actually change',()=>{
+ it('quotes complete sequence steps without broken sentence joins or changing their conditions and scores',()=>{
+  const base=ACTIVITY_EXAMPLES.find(activity=>activity.kind==='sequence') as SequenceActivity;
+  const activity:SequenceActivity={...base,items:[{id:'read',label:'  Read the label on the parcel.  '},{id:'compare',label:'Compare the label\nwith the delivery record.'},{id:'record',label:'Record “received” only if the label matches the U.S. record.'}],constraints:[{before:'read',after:'compare'},{before:'compare',after:'record'}]};
+  const original=structuredClone(activity),messages=['Place “Read the label on the parcel.” before “Compare the label with the delivery record.”','Place “Compare the label with the delivery record.” before “Record “received” only if the label matches the U.S. record.”'];
+  const retry=evaluateActivityForAuthoring(activity,{order:['compare','read','record']});
+  expect(retry).toMatchObject({valid:true,correct:false,outcome:'retry',score:1,maxScore:2});
+  expect(retry.details).toEqual([{id:'dependency-0',correct:false,message:messages[0]},{id:'dependency-1',correct:true,message:messages[1]}]);
+  const correct=evaluateActivityForAuthoring(activity,{order:['read','compare','record']});expect(correct).toMatchObject({valid:true,correct:true,outcome:'correct',score:2,maxScore:2});expect(correct.details.map(detail=>detail.message)).toEqual(messages);
+  expect(evaluateActivityForAuthoring(activity,{order:['read','compare','compare']})).toMatchObject({valid:false,correct:null,score:0,maxScore:0,details:[]});
+  expect(activity).toEqual(original);
+ });
  it('identifies each misplaced item and distinguishes the prepared groups from the learner’s groups',()=>{
   const result=evaluateActivityForAuthoring(classification,{assignments:{display:['interpretation'],battery:[]}});
   expect(result).toMatchObject({valid:true,correct:false,score:0,maxScore:2});

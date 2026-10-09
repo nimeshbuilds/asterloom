@@ -341,7 +341,10 @@ export function evaluateActivityForAuthoring(activity: StructuredActivity, respo
     case 'sequence': {
       if (!Array.isArray(response.order) || !response.order.every(item => typeof item === 'string') || !sameSet(response.order, activity.items.map(item => item.id))) return invalid('Use every step exactly once.');
       const order = response.order as string[];
-      activity.constraints.forEach((rule, i) => { const correct = order.indexOf(rule.before) < order.indexOf(rule.after); details.push({ id: `dependency-${i}`, correct, message: `${activity.items.find(item => item.id === rule.before)?.label} must precede ${activity.items.find(item => item.id === rule.after)?.label}.` }); });
+      // Quote the complete step rather than joining two sentences into a new one.
+      // Normalize layout whitespace only: punctuation and conditions retain meaning.
+      const stepLabel = (id: string) => `“${activity.items.find(item => item.id === id)!.label.replace(/\s+/g, ' ').trim()}”`;
+      activity.constraints.forEach((rule, i) => { const correct = order.indexOf(rule.before) < order.indexOf(rule.after); details.push({ id: `dependency-${i}`, correct, message: `Place ${stepLabel(rule.before)} before ${stepLabel(rule.after)}` }); });
       break;
     }
     case 'classification': {
