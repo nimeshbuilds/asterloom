@@ -106,3 +106,36 @@ test('a pending or failed result keeps its mission open until the same save succ
  await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','still');
  await expect(page.locator('[data-hud="total-xp"]')).toContainText('20 XP');
 });
+
+test('a large source opens its grounded lesson promptly and preserves the completed quest after reopening',async({page},info)=>{
+ const source=notebook.sources[0],evidence=notebook.activities![0].sourceRefs[0].evidence;
+ // Synthetic paginated material exercises clipped source units and citation
+ // locators without putting any learner's uploaded document in a test fixture.
+ const pages=Array.from({length:180},(_,index)=>`[Page ${index+1}]\n# Training section ${index+1}\n\nTerm ${index+1}: a source-defined label used only in this training section.\n\n${index===152?evidence:'The model records its stated conditions before any comparison. '.repeat(18)}\n\n`);
+ const large={...notebook,id:'large-source-play-regression',title:'Large source expedition',sources:[{...source,text:pages.join('')}],aiLearningPlan:undefined};
+ expect(large.sources[0].text.length).toBeGreaterThan(200000);
+ await page.addInitScript(n=>{(window as any).__ASTERLOOM_NOTEBOOK__=n;localStorage.setItem('asterloom:guide-preferences:v1',JSON.stringify({mode:'quiet',dismissed:[]}));},large);
+ await page.goto('/');
+ const play=page.getByRole('button',{name:'Play game',exact:true});
+ await expect(play).toBeVisible();
+ const started=Date.now();
+ await play.click({timeout:10000});
+ const briefing=page.getByRole('region',{name:'Learning briefing',exact:true});
+ await expect(briefing).toBeVisible({timeout:10000});
+ const elapsed=Date.now()-started;
+ expect(elapsed).toBeLessThan(10000);
+ await info.attach('large-source-play-timing',{body:JSON.stringify({sourceCharacters:large.sources[0].text.length,playToLessonMs:elapsed}),contentType:'application/json'});
+ await briefing.locator('.lesson-mission-source summary').click();
+ await expect(briefing.locator('.lesson-mission-source blockquote')).toContainText('Read the task description.');
+ await expect(briefing.locator('.lesson-mission-source')).toContainText('Page 153');
+ await learnBeforeQuest(page);await solve(page);
+ await page.getByRole('button',{name:'Check my work',exact:true}).click();
+ await expect(page.locator('.structured-feedback')).toContainText('Mission rules satisfied');
+ await expect(page.locator('[data-hud="total-xp"]')).toContainText('20 XP');
+ await expect(page.locator('.save-state')).toContainText('Saved on this device');
+ await page.reload();await page.getByRole('button',{name:'Play game',exact:true}).click({timeout:10000});
+ await expect(page.getByRole('button',{name:'Challenge complete',exact:true})).toBeDisabled();
+ await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','still');
+ await expect(page.locator('[data-hud="total-xp"]')).toContainText('20 XP');
+ await expect(page.getByRole('region',{name:'Learning briefing',exact:true})).toHaveCount(0);
+});

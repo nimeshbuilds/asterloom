@@ -4,7 +4,7 @@ import {validateActivity} from './structuredEngine';
 import {validateAILearningPlan,type AILearningMission} from './aiLearningPlan';
 import {validateAIUsageReceipts,type AIUsageReceipt} from './aiUsage';
 import {validateGameAudioDirection,type GameAudioDirection} from './gameArtDirection';
-import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit} from './gameDirectorSources';
+import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit,type DirectorSourceInventory} from './gameDirectorSources';
 import {GAME_FAMILY_RECIPES,type GameDraftKind} from './gameDraftAdapters';
 import {scaffoldById} from '../data/scaffolds';
 import {fitsSpecificContract} from './scaffoldRuntime';
@@ -83,9 +83,11 @@ export function validateGameBatchChecks(value:unknown,batch:GameDesignBatch):Gam
  unique(checks.map(c=>c.missionId),'checked mission');if(checks.length!==(batch.drafts?.length??0)||batch.drafts?.some(d=>!checks.some(c=>c.missionId===d.missionId)))throw new Error('Every generated mission requires its own check disposition.');return checks;
 }
 export function emptyGameDesign(notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,provider:GameDesign['provider'],receipts:AIUsageReceipt[]=[],generatedModels:GameDesign['generatedModels']=[]):GameDesign {
- const inventory=buildDirectorSourceInventory(notebook);
+ return emptyGameDesignFromInventory(notebook,provider,receipts,generatedModels,buildDirectorSourceInventory(notebook));
+}
+function emptyGameDesignFromInventory(notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,provider:GameDesign['provider'],receipts:AIUsageReceipt[],generatedModels:GameDesign['generatedModels'],inventory:DirectorSourceInventory):GameDesign {
  if(inventory.units.length>2000)throw new Error('This collection has more than 2,000 learning sections. Split it into smaller games before requesting AI creation.');
- return{version:1,inputRevision:directorInputRevision(notebook,{provider:provider.id,model:provider.model,endpointFingerprint:provider.endpointFingerprint}),status:'preparing',provider,units:inventory.units.map(({excerpt:_excerpt,...unit})=>unit),batches:inventory.batches.map(batch=>({...batch,status:'pending'})),unavailableSources:inventory.unavailableSources,receipts:validateAIUsageReceipts(receipts),generatedModels};
+ return{version:1,inputRevision:directorInputRevision(notebook,{provider:provider.id,model:provider.model,endpointFingerprint:provider.endpointFingerprint}),status:'preparing',provider,units:inventory.units.map(({excerpt:_excerpt,...unit})=>({...unit,headingPath:[...unit.headingPath]})),batches:inventory.batches.map(batch=>({...batch,unitIds:[...batch.unitIds],status:'pending'})),unavailableSources:inventory.unavailableSources.map(source=>({...source})),receipts:validateAIUsageReceipts(receipts),generatedModels};
 }
 /** Completed logical work, never a prediction of elapsed time or provider tokens. */
 export function gameDesignProgress(design:GameDesign){
@@ -123,12 +125,42 @@ export function validateGameMissionProse(unit:DirectorSourceUnit,notebook:Pick<N
 
 /** Source/model caches are disposable; historical provider measurements survive their invalidation. */
 export function validateGameDesign(value:unknown,notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>):GameDesign {
+ return validateGameDesignValue(value,notebook);
+}
+interface GameDesignValidationContext {
+ inventory:DirectorSourceInventory;
+ batches:Map<string,{input:string;output:GameDesignBatch}>;
+}
+function checkpointBatchKey(value:unknown):string|undefined {
+ let portable=true;
+ const key=JSON.stringify(value,(_key,item)=>{
+  // JSON omission/coercion must never hide a new invalid nested field from
+  // validation. Such values take the ordinary strict path without caching.
+  if(item===undefined||typeof item==='function'||typeof item==='symbol'||typeof item==='number'&&!Number.isFinite(item)||item&&typeof item==='object'&&!Array.isArray(item)&&!plain(item))portable=false;
+  return item;
+ });
+ return portable?key:undefined;
+}
+/** A creation run checkpoints after every request and milestone. Revalidate the
+ * changed batch rather than every already-checked lesson each time. The exact
+ * source inputs and batch contents are compared on every call: identity alone
+ * never makes mutated or imported data trusted. Cached outputs are not exposed. */
+export function createGameDesignValidator(notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>):(value:unknown)=>GameDesign {
+ let input:string|undefined,context:GameDesignValidationContext|undefined;
+ return value=>{
+  const current=JSON.stringify({sources:notebook.sources,ageGroup:notebook.ageGroup,goal:notebook.goal});
+  if(current!==input){context={inventory:buildDirectorSourceInventory(notebook),batches:new Map()};input=current;}
+  return validateGameDesignValue(value,notebook,context);
+ };
+}
+function validateGameDesignValue(value:unknown,notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,context?:GameDesignValidationContext):GameDesign {
  const v=obj(value,'game design');fields(v,['version','inputRevision','status','provider','units','batches','unavailableSources','receipts','events','generatedModels','audioDirection','visualDirection'],'Game design');
  if(v.version!==1||!['preparing','ready'].includes(String(v.status)))throw new Error('Invalid game design version or state.');
  const p=obj(v.provider,'selected provider');fields(p,['id','model','endpointFingerprint'],'Selected provider');if(!providers.includes(String(p.id))||p.endpointFingerprint!==null&&(typeof p.endpointFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(p.endpointFingerprint)))throw new Error('Invalid selected provider.');
  const provider={id:p.id as string,model:str(p.model,'selected model'),endpointFingerprint:p.endpointFingerprint as string|null},receipts=validateAIUsageReceipts(v.receipts);
  const generatedModels=list(v.generatedModels??[],'generated model provenance',300).map(raw=>{const item=obj(raw,'generated model provenance');fields(item,['id','fingerprint'],'Generated model provenance');const key=id(item.id,'generated model');if(!/^director-[a-f0-9]{40}$/.test(key)||typeof item.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(item.fingerprint))throw new Error('Invalid generated model provenance.');return{id:key,fingerprint:item.fingerprint};});unique(generatedModels.map(m=>m.id),'generated models');
- const fresh=emptyGameDesign(notebook,provider,receipts,generatedModels);
+ const inventory=context?.inventory??buildDirectorSourceInventory(notebook);
+ const fresh=emptyGameDesignFromInventory(notebook,provider,receipts,generatedModels,inventory);
  if(typeof v.inputRevision!=='string'||!/^[a-f0-9]{64}$/.test(v.inputRevision))throw new Error('Invalid game input revision.');
  if(v.inputRevision!==fresh.inputRevision)return fresh;
  // Earlier versions excluded an entire mixed prose/code unit. Its source identity,
@@ -136,11 +168,14 @@ export function validateGameDesign(value:unknown,notebook:Pick<Notebook,'sources
  // of eligibility fields, never clear ready work or recount provider receipts.
  const legacyUnits=fresh.units.map(unit=>unit.limitation===MIXED_CODE_PROSE_LIMITATION?{...unit,missionEligible:false,limitation:LEGACY_CODE_STUDY_LIMITATION}:unit);
  if((!exact(v.units,fresh.units)&&!exact(v.units,legacyUnits))||!exact(v.unavailableSources,fresh.unavailableSources))throw new Error('The game’s source coverage does not match the current material.');
- const units=buildDirectorSourceInventory(notebook).units,batches=list(v.batches,'game batches',2000).map((raw,index):GameDesignBatch=>{
+ const units=inventory.units,batches=list(v.batches,'game batches',2000).map((raw,index):GameDesignBatch=>{
   const b=obj(raw,'game batch');fields(b,['id','unitIds','status','missions','study','drafts','checks'],'Game batch');const expected=fresh.batches[index];
   if(!expected||b.id!==expected.id||!exact(b.unitIds,expected.unitIds)||!['pending','planned','written','checked'].includes(String(b.status)))throw new Error('Invalid game batch coverage.');
+  const input=context?checkpointBatchKey(raw):undefined,cached=context?.batches.get(expected.id);
+  if(input!==undefined&&cached&&cached.input===input)return structuredClone(cached.output);
+  const remember=(batch:GameDesignBatch)=>{if(context&&input!==undefined)context.batches.set(expected.id,{input,output:structuredClone(batch)});return batch;};
   const batch:GameDesignBatch={...expected,status:b.status as GameDesignBatch['status']};
-  if(batch.status==='pending'){if(['missions','study','drafts','checks'].some(k=>b[k]!==undefined))throw new Error('An unplanned batch cannot contain generated models.');return batch;}
+  if(batch.status==='pending'){if(['missions','study','drafts','checks'].some(k=>b[k]!==undefined))throw new Error('An unplanned batch cannot contain generated models.');return remember(batch);}
   Object.assign(batch,validateGameBatchPlan({missions:b.missions,study:b.study},batch,units,notebook));
   if(batch.status==='planned'&&b.checks!==undefined)throw new Error('An unwritten batch cannot contain checked models.');
   batch.drafts=list(b.drafts??(batch.status==='planned'?[]:undefined),'cached mission drafts',3).map(raw=>{
@@ -153,7 +188,7 @@ export function validateGameDesign(value:unknown,notebook:Pick<Notebook,'sources
    return{missionId:plan.id,activity:checked.value,teaching,audioDirection:d.audioDirection as GameAudioDirection};
   });
   unique(batch.drafts.map(d=>d.missionId),'cached mission IDs');if(batch.status!=='planned'&&batch.drafts.length!==batch.missions!.length)throw new Error('Every planned mission needs a cached model.');
-  if(batch.status==='checked')batch.checks=validateGameBatchChecks({checks:b.checks},batch);else if(b.checks!==undefined)throw new Error('An unchecked batch cannot claim a review result.');return batch;
+  if(batch.status==='checked')batch.checks=validateGameBatchChecks({checks:b.checks},batch);else if(b.checks!==undefined)throw new Error('An unchecked batch cannot claim a review result.');return remember(batch);
  });
  if(batches.length!==fresh.batches.length)throw new Error('Game batches omitted a source unit.');
  const ready=batches.every(b=>b.status==='checked');if(v.status==='ready'&&!ready)throw new Error('A game cannot be ready with unfinished source batches.');

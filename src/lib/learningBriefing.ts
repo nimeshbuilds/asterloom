@@ -43,12 +43,19 @@ const bounded=(value:unknown,max:number):value is string=>typeof value==='string
 const ids=(value:unknown,max:number):value is string[]=>Array.isArray(value)&&value.length<=max&&value.every(id=>bounded(id,100)&&/^[a-zA-Z0-9_-]+$/.test(id))&&new Set(value).size===value.length;
 const exact=(value:Record<string,unknown>,keys:string[])=>Object.keys(value).every(k=>keys.includes(k));
 function canonical(value:unknown):string { if(value===undefined)return'null';if(Array.isArray(value))return`[${value.map(canonical).join(',')}]`;if(plain(value))return`{${Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')}}`;return JSON.stringify(value); }
-function reference(source:Source,start:number,end:number):EvidenceReference {
+type ReferenceLookup=(source:Source,start:number,end:number)=>EvidenceReference;
+function lessonReferenceLookup():ReferenceLookup {
+ const parsed=new Map<Source,ReturnType<typeof evidenceBlocks>>();
+ return (source,start,end)=>{
   // Reuse the source parser's actual page/slide/time marker; only line extents change for a smaller exact quote.
-  const block=evidenceBlocks(source,1200).find(b=>b.start<=start&&b.end>=start);
+  // One immutable build uses the same source repeatedly for clipped spans,
+  // merged tails and sentence references. Parse its locators once per lesson.
+  let blocks=parsed.get(source);if(!blocks){blocks=evidenceBlocks(source,1200);parsed.set(source,blocks);}
+  const block=blocks.find(b=>b.start<=start&&b.end>=start);
   const lineStart=source.text.slice(0,start).split('\n').length,lineEnd=lineStart+(source.text.slice(start,end).match(/\n/g)?.length??0);
   const prefix=block?.locator.kind!=='text'?block?.locator.label.split(' · lines ')[0]:undefined;
   return{sourceId:source.id,sourceRevision:sourceRevision(source),start,end,quote:source.text.slice(start,end),locator:{kind:block?.locator.kind??'text',label:prefix?`${prefix} · lines ${lineStart}–${lineEnd}`:`Lines ${lineStart}–${lineEnd}`,lineStart,lineEnd}};
+ };
 }
 function instructionalReferenceSpans(source:Source,start:number,end:number):{start:number;end:number}[] {
  const spans:{start:number;end:number}[]=[];
@@ -62,7 +69,7 @@ function instructionalReferenceSpans(source:Source,start:number,end:number):{sta
  return spans;
 }
 type TeachingBlock=ReturnType<typeof evidenceBlocks>[number]&{unitId:string};
-function teachingBlocks(source:Source):TeachingBlock[] {
+function teachingBlocks(source:Source,reference:ReferenceLookup):TeachingBlock[] {
   const output:TeachingBlock[]=[],blocks=evidenceBlocks(source,1000);
   // Unit boundaries preserve authored sections, page/cue boundaries and bounded long-section units.
   // Never merge a short tail with the first paragraph of another teaching unit.
@@ -84,7 +91,7 @@ function teachingBlocks(source:Source):TeachingBlock[] {
   }
   return output;
 }
-function fragments(passage:LessonPassage,sources:Source[]):EvidenceReference[] {
+function fragments(passage:LessonPassage,sources:Source[],reference:ReferenceLookup):EvidenceReference[] {
   const source=sources.find(s=>s.id===passage.reference.sourceId)!;
   const quote=passage.reference.quote;
   const chunks=[...quote.matchAll(/[^\n.!?]+(?:[.!?](?=\s|$)|$)|[^\n]+$/gm)];
@@ -107,6 +114,7 @@ function modelFingerprint(cards:LearningCard[],activity?:StructuredActivity):unk
 // https://ies.ed.gov/ncee/wwc/PracticeGuide/1. A completed note is engagement, not a comprehension score.
 /** Deterministic lessons quote source spans; AI teaching remains separately labeled and reviewable. */
 export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{notebook:Notebook;scaffold:Scaffold;cardIds?:string[];activity?:StructuredActivity}):LearningPlan {
+  const reference=lessonReferenceLookup();
   const wanted=new Set(cardIds??notebook.cards.map(c=>c.id));
   const cards=activity?[]:notebook.cards.filter(c=>wanted.has(c.id));
   const raw=activity?activity.sourceRefs.map(r=>({...r,targetId:activity.id})):cards.map(c=>({sourceId:c.sourceId,evidence:c.evidence,targetId:c.id}));
@@ -119,7 +127,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   for(const ref of raw){
     const source=notebook.sources.find(s=>s.id===ref.sourceId),start=source?.text.indexOf(ref.evidence??'')??-1;
     if(!source||source.status!=='ready'||!sourceBindingCurrent(source,notebook.sources)||!ref.evidence?.trim()||start<0){warnings.push('Some mission evidence is missing, changed or not ready. Return to the author workspace to repair it.');continue;}
-    let blocks=blockCache.get(source.id);if(!blocks){blocks=teachingBlocks(source);blockCache.set(source.id,blocks);}
+    let blocks=blockCache.get(source.id);if(!blocks){blocks=teachingBlocks(source,reference);blockCache.set(source.id,blocks);}
     const refs:EvidenceReference[]=[];
     for(const span of instructionalReferenceSpans(source,start,start+ref.evidence.length)){
       const matching=blocks.map((b,i)=>({b,i})).filter(({b})=>b.end>span.start&&b.start<span.end);
@@ -179,20 +187,20 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
   }
   if(!steps.length){
     const example=[...passages.filter(p=>p.role==='focus'),...passages.filter(p=>p.role==='context')].find(p=>/\b(?:worked example|for example|example\s*:)/i.test(p.reference.quote));
-    if(example){const units=fragments(example,notebook.sources);const reason=units.find(u=>/\b(?:because|therefore|so that|as a result|this means|consequently)\b/i.test(u.quote));
+    if(example){const units=fragments(example,notebook.sources,reference);const reason=units.find(u=>/\b(?:because|therefore|so that|as a result|this means|consequently)\b/i.test(u.quote));
       if(reason){kind='source-example';title='Study a source-provided example';limitation='The example and explanation below are quoted. This does not establish that they generalize beyond the source conditions.';steps=units.slice(0,4).map((unit,i)=>({id:`step-${i}`,title:i===0?'Read the example in context':unit===reason?'Inspect the stated reasoning':'Track the next statement',instruction:unit===reason?'The source supplies a reasoning statement. Identify the conditions it depends on.':'Keep this statement connected to the surrounding example; do not supply unstated steps.',reference:unit,...(i===0?{reason}: {})}));}
     }
   }
-  if(!steps.length&&passages.length){const first=passages.find(p=>p.role==='focus')??passages[0];const units=fragments(first,notebook.sources);const firstUnitIds=new Set((blockCache.get(first.reference.sourceId)??[]).filter(b=>b.end>first.reference.start&&b.start<first.reference.end).map(b=>b.unitId));const other=passages.find(p=>p.id!==first.id&&p.reference.sourceId===first.reference.sourceId&&(blockCache.get(p.reference.sourceId)??[]).some(b=>firstUnitIds.has(b.unitId)&&b.start<=p.reference.start&&b.end>=p.reference.end));
+  if(!steps.length&&passages.length){const first=passages.find(p=>p.role==='focus')??passages[0];const units=fragments(first,notebook.sources,reference);const firstUnitIds=new Set((blockCache.get(first.reference.sourceId)??[]).filter(b=>b.end>first.reference.start&&b.start<first.reference.end).map(b=>b.unitId));const other=passages.find(p=>p.id!==first.id&&p.reference.sourceId===first.reference.sourceId&&(blockCache.get(p.reference.sourceId)??[]).some(b=>firstUnitIds.has(b.unitId)&&b.start<=p.reference.start&&b.end>=p.reference.end));
     steps=[{id:'step-0',title:'Locate the subject and its scope',instruction:'Read the statement as a whole. Notice what it is describing and any words that restrict when it applies.',reference:units[0]},
       {id:'step-1',title:'Inspect the relationship',instruction:'Look for the source’s own definition, comparison, order or reason. If it does not state a reason, keep that question open.',reference:units[1]??units[0]},
       {id:'step-2',title:'Connect the surrounding context',instruction:other?'Compare this neighboring passage with the focus statement. Decide what connection the text supports and what would need more evidence.':'This is the extent of the supplied context. Identify a question the author would need to answer before you could apply it more broadly.',reference:other?.reference??first.reference}];}
   steps=steps.filter((step,i,all)=>all.findIndex(other=>other.reference.sourceId===step.reference.sourceId&&other.reference.start===step.reference.start&&other.reference.end===step.reference.end)===i);
-  const rehearsal=buildRehearsal(passages,notebook.sources,kind,steps);
+  const rehearsal=buildRehearsal(passages,notebook.sources,kind,steps,reference);
   if(teaching?.workedExample){kind='source-example';title=teaching.workedExample.title;limitation='AI-prepared walkthrough of an example supplied by the source. Check each explanation against its cited evidence; exact citations alone do not validate the reasoning.';steps=teaching.workedExample.steps.map((step,i)=>({id:`step-${i}`,title:step.title,instruction:step.text,reference:step.citations[0]}));}
   const subjectLabels=rehearsal?.kind==='reference-kit'?rehearsal.tiles.map(tile=>tile.label):Array.from(new Set(passages.filter(p=>p.role==='focus').map(p=>p.title)));
   const assignment=activity?.instruction??`${story.mission} Your material: ${subjectLabels.join(' · ')}.`;
-  const focusOptions=passages.flatMap(p=>fragments(p,notebook.sources).slice(0,2).map((ref,i)=>({id:`focus-${textDigest(p.id).slice(0,12)}-${i}`,passageId:p.id,reference:ref}))).slice(0,12);
+  const focusOptions=passages.flatMap(p=>fragments(p,notebook.sources,reference).slice(0,2).map((ref,i)=>({id:`focus-${textDigest(p.id).slice(0,12)}-${i}`,passageId:p.id,reference:ref}))).slice(0,12);
   const mediaIds=new Set(raw.map(ref=>ref.sourceId));
   if(activity?.kind==='media')mediaIds.add(activity.mediaSourceId);
   notebook.sources.filter(s=>mediaIds.has(s.id)).forEach(s=>{if(s.transcript)mediaIds.add(s.transcript.mediaSourceId);if(s.visualEvidence)mediaIds.add(s.visualEvidence.parentSourceId);});
@@ -205,7 +213,7 @@ export function buildLearningBriefing({notebook,scaffold,cardIds,activity}:{note
 }
 
 /** Build only relationships explicitly represented in the material. No invented distractor facts. */
-function buildRehearsal(passages:LessonPassage[],sources:Source[],kind:LearningPlan['walkthrough']['kind'],steps:LessonStep[]):LessonRehearsal|undefined {
+function buildRehearsal(passages:LessonPassage[],sources:Source[],kind:LearningPlan['walkthrough']['kind'],steps:LessonStep[],reference:ReferenceLookup):LessonRehearsal|undefined {
   if(kind==='source-procedure'&&steps.length>=2){
     return{kind:'route-kit',title:'Build your route kit',purpose:'Use the source’s order to prepare the next move. The route records order, not an unstated cause.',instruction:'Choose a source step, then place it in the route. Inspect the source when you need a clue.',tiles:steps.map(step=>({id:step.id,label:step.reference.quote,reference:step.reference})),slots:steps.map((step,i)=>({id:`place-${i}`,label:`Step ${i+1}`,acceptedTileIds:[step.id],reference:step.reference}))};
   }

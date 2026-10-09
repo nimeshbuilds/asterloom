@@ -10,7 +10,7 @@ import {AI_TEACHING_DRAFT_SCHEMA,aiLearningActivityFingerprint,reconcileAILearni
 import {audioDirectionCatalog,validateGameAudioDirection,type GameAudioDirection} from './gameArtDirection';
 import {unavailableAIUsage,validateAITokenUsage,validateAIUsageReceipts,type AIUsageReceipt} from './aiUsage';
 import {buildDirectorSourceInventory,type DirectorSourceUnit} from './gameDirectorSources';
-import {availableSourceVisuals,emptyGameDesign,gameDesignProgress,validateGameMissionProse,validateGameBatchChecks,validateGameBatchPlan,validateGameDesign,type GameDesign,type GameDesignBatch,type GameMissionDraft,type GameCreationEvent,type GameCreationPhase,type GameCreationErrorCategory} from './gameDesign';
+import {availableSourceVisuals,emptyGameDesign,gameDesignProgress,validateGameMissionProse,validateGameBatchChecks,validateGameBatchPlan,createGameDesignValidator,type GameDesign,type GameDesignBatch,type GameMissionDraft,type GameCreationEvent,type GameCreationPhase,type GameCreationErrorCategory} from './gameDesign';
 
 export interface GameDirectorOptions {
  ai?:{config:ProviderConfig;consent:'create-game'};signal?:AbortSignal;timeoutMs?:number;maxRequests?:number;
@@ -55,6 +55,7 @@ function answerModelFingerprint(activity:StructuredActivity):string{
 }
 /** Resumable three-stage authoring. The exported player never calls this module. */
 export async function runGameDirector(notebook:Notebook,options:GameDirectorOptions):Promise<GameDirectorResult>{
+ const validateDesign=createGameDesignValidator(notebook);
  let current=notebook,design:GameDesign|undefined,requestCount=0;const disclosed=new Set<string>(),warnings:string[]=[];
  const finished=(status:GameDirectorResult['status'],message:string,activityIds:string[]=[]):GameDirectorResult=>({notebook:current,status,requestCount,activityIds,disclosedSourceIds:[...disclosed],message,warnings});
  const previous=notebook.gameDesign;
@@ -64,7 +65,7 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
  try{
   const historical=previous?validateAIUsageReceipts(previous.receipts):[];
   const fresh=emptyGameDesign(notebook,provider,historical,previous?.generatedModels??[]);
-  design=previous&&previous.inputRevision===fresh.inputRevision?validateGameDesign(previous,notebook):fresh;
+  design=previous&&previous.inputRevision===fresh.inputRevision?validateDesign(previous):fresh;
   current={...notebook,gameDesign:design};
  }catch(error){return finished('failed',(error as Error).message);}
  if(!design.units.length)return finished('needs-source','Add readable material or prepare the source transcript before creating this game.');
@@ -72,7 +73,7 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
  let durableDesign=structuredClone(design);
  const report=(stage:'selecting'|'drafting'|'validating'|'ready'|'blocked',message:string)=>{const p=gameDesignProgress(durableDesign);try{options.onProgress?.({stage,message,completedUnits:p.coveredUnits,totalUnits:p.totalUnits,completedSteps:p.completedSteps,totalSteps:p.totalSteps,percent:p.percent,currentBatch:p.currentBatch,totalBatches:p.totalBatches,currentPhase:p.currentPhase,completedMissions:p.completedMissions,plannedMissions:p.plannedMissions});}catch{/* Presentation observers do not change saved authoring. */}};
  const checkpoint=async()=>{
-  design=validateGameDesign(design,notebook);current={...current,gameDesign:design};
+  design=validateDesign(design);current={...current,gameDesign:design};
   if(options.onCheckpoint){try{if(await options.onCheckpoint(structuredClone(design))===false)throw new SaveFailed('Creation paused because its progress could not be saved. Retry after restoring storage.');}catch(error){throw error instanceof SaveFailed?error:new SaveFailed('Creation paused because its progress could not be saved. Retry after restoring storage.');}}
   durableDesign=structuredClone(design);
  };
@@ -145,6 +146,14 @@ export async function runGameDirector(notebook:Notebook,options:GameDirectorOpti
   for(let index=0;index<design.batches.length;index++){
    let batch=design.batches[index];if(batch.status==='checked')continue;
    if(options.signal?.aborted)throw new DOMException('Creation canceled.','AbortError');
+   if(batch.status==='pending'&&batch.unitIds.every(id=>units.some(unit=>unit.id===id&&!unit.missionEligible))){
+    // The source inventory has already ruled out standalone missions here.
+    // Preserve these exact sections for study without buying an AI plan that
+    // cannot legitimately choose anything else. Existing stages are untouched.
+    design.batches[index]={...batch,status:'checked',missions:[],study:batch.unitIds.map(id=>({unitId:id,reason:units.find(unit=>unit.id===id)!.limitation??'This source section does not supply a complete standalone game model.'})),drafts:[],checks:[]};
+    event('plan','source-study','These sections remain available for source study; no AI request was needed.',{batchId:batch.id});
+    await checkpoint();report('selecting','Source-study sections saved. Continuing with the source-supported missions…');continue;
+   }
    if(batch.status==='pending'){
     report('selecting',`Designing source section group ${index+1} of ${design.batches.length}…`);
     const plan=await checkedReply('plan',batch,undefined,gamePlanningPrompt(notebook,batch,units),2400,reply=>validateGameBatchPlan(reply,batch,units,notebook));

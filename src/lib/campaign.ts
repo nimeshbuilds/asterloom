@@ -18,16 +18,32 @@ export function buildCampaign(notebook: Notebook): LearningCampaign {
   const cards = notebook.cards.filter(card => canScoreRecallCard(card, sources));
   const chapters: CampaignChapter[] = sources.flatMap(source => sourceLearningUnits(source).map(unit => ({id:unit.id,title:unit.title,sourceTitle:source.title,unit,cardIds:[],activityIds:[]})));
   const boundCards = new Set<string>(), boundActivities = new Set<string>();
+  const sourceById = new Map(sources.map(source => [source.id, source]));
+  const chaptersBySource = new Map<string, CampaignChapter[]>();
+  for (const chapter of chapters) {const group=chaptersBySource.get(chapter.unit.sourceId)??[];group.push(chapter);chaptersBySource.set(chapter.unit.sourceId,group);}
+  // Search each exact quotation once per campaign build. Previously every
+  // candidate chapter rescanned the entire document (and every repeated quote
+  // occurrence), making long guides stall on the UI thread. Source units are
+  // ordered, non-overlapping ranges: scan occurrences and units forward only
+  // until the first overlap. Even a very short repeated quote needs no large
+  // occurrence array. Keep this index local so edits cannot reuse stale ranges.
+  const firstMatches = new Map<string, Map<string, CampaignChapter|undefined>>();
   const overlaps = (chapter: CampaignChapter, sourceId: string, quote: string) => {
     if (chapter.unit.sourceId !== sourceId || !quote.trim()) return false;
-    const source = notebook.sources.find(s => s.id === sourceId);
+    const source = sourceById.get(sourceId);
     if (!source) return false;
-    let at = source.text.indexOf(quote);
-    while (at >= 0) {
-      if (at < chapter.unit.end && at + quote.length > chapter.unit.start) return true;
-      at = source.text.indexOf(quote,at + Math.max(1,quote.length));
+    let sourceMatches = firstMatches.get(sourceId);
+    if (!sourceMatches) {sourceMatches = new Map();firstMatches.set(sourceId,sourceMatches);}
+    if (!sourceMatches.has(quote)) {
+      const group=chaptersBySource.get(sourceId)??[];let index=0,match:CampaignChapter|undefined;
+      for (let at=source.text.indexOf(quote);at>=0;at=source.text.indexOf(quote,at+quote.length)) {
+        while(index<group.length&&group[index].unit.end<=at)index++;
+        if(index===group.length)break;
+        if(group[index].unit.start<at+quote.length){match=group[index];break;}
+      }
+      sourceMatches.set(quote,match);
     }
-    return false;
+    return sourceMatches.get(quote)===chapter;
   };
   for (const card of cards) {
     const chapter = chapters.find(c => overlaps(c,card.sourceId,card.evidence));

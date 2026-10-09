@@ -1,4 +1,4 @@
-import {describe,expect,it} from 'vitest';
+import {describe,expect,it,vi} from 'vitest';
 import {buildCampaign,expeditionInvitation,chapterProgress,nextCampaignActivity,restoreSourceStudy,saveSourceStudy,selectExpeditionCards} from '../src/lib/campaign';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {ACTIVITY_EXAMPLES,EXAMPLE_ACTIVITY_SOURCE} from '../src/lib/structuredEngine';
@@ -23,6 +23,34 @@ describe('source-shaped learning campaign',()=>{
   expect(expeditionInvitation(stale,revised,p)?.kind).toBe('study');
  });
  it('keeps explanations with the right heading and maps challenges to their actual evidence',()=>{const plan=buildCampaign(notebook());expect(plan.chapters).toHaveLength(2);expect(plan.chapters.map(c=>c.title)).toEqual(['Names','Paths']);expect(plan.chapters[0].unit.quote).toContain('memorable name');expect(plan.chapters[0].unit.quote).not.toContain('next hop');expect(plan.chapters.map(c=>c.cardIds)).toEqual([['dns'],['router']]);});
+ it('binds a late chapter without rescanning the whole document for every earlier chapter',()=>{
+  const paragraphs=Array.from({length:500},(_,index)=>`# Chapter ${index+1}\n\nThe source explains observation ${index+1} and its documented conditions. A learner compares that evidence before making a claim.`);
+  const text=paragraphs.join('\n\n'),evidence='The source explains observation 500 and its documented conditions.';
+  const n=createNotebook({sources:[{...source,text}],cards:[{...card('late','DNS',evidence),questionType:'manual',reviewStatus:'reviewed'}]});
+  const original=String.prototype.indexOf;let sourceScans=0;
+  const spy=vi.spyOn(String.prototype,'indexOf').mockImplementation(function(this:string,search:string,from?:number){if(String(this)===text&&search===evidence)sourceScans++;return original.call(this,search,from);});
+  try{const campaign=buildCampaign(n);expect(campaign.chapters).toHaveLength(500);expect(campaign.chapters.at(-1)?.cardIds).toEqual(['late']);expect(campaign.chapters.slice(0,-1).every(chapter=>chapter.cardIds.length===0)).toBe(true);expect(sourceScans).toBeLessThan(10);}finally{spy.mockRestore();}
+ });
+ it('keeps repeated quotation binding at the first matching chapter and invalidates positions after edits',()=>{
+  const repeated='A source statement can appear more than once without changing its meaning.';
+  const n=createNotebook({sources:[{...source,text:`# First\n\n${repeated}\n\n# Second\n\n${repeated}`}],cards:[{...card('repeat','DNS',repeated),questionType:'manual',reviewStatus:'reviewed'}]});
+  expect(buildCampaign(n).chapters.map(chapter=>chapter.cardIds)).toEqual([['repeat'],[]]);
+  n.sources=[{...n.sources[0],text:`# First\n\nThis chapter now contains a different documented observation.\n\n# Second\n\n${repeated}`}];
+  expect(buildCampaign(n).chapters.map(chapter=>chapter.cardIds)).toEqual([[],['repeat']]);
+ });
+ it('stops scanning a frequently repeated quote once its first chapter is found',()=>{
+  const evidence='the source condition',text='# First\n\n'+('Check the source condition before using this example. '.repeat(2000));
+  const n=createNotebook({sources:[{...source,text}],cards:[{...card('frequent','DNS',evidence),questionType:'manual',reviewStatus:'reviewed'}]});
+  const original=String.prototype.indexOf;let sourceScans=0;
+  const spy=vi.spyOn(String.prototype,'indexOf').mockImplementation(function(this:string,search:string,from?:number){if(String(this)===text&&search===evidence)sourceScans++;return original.call(this,search,from);});
+  try{const campaign=buildCampaign(n);expect(campaign.chapters[0].cardIds).toEqual(['frequent']);expect(sourceScans).toBeLessThan(10);}finally{spy.mockRestore();}
+ });
+ it('keeps source identity and boundary-overlapping quotations when indexing chapter evidence',()=>{
+  const first='# Alpha\n\nA documented condition begins here.\n\n# Beta\n\nThe observation continues under the next heading.',second={...source,id:'other',text:first};
+  const spanning='A documented condition begins here.\n\n# Beta\n\nThe observation continues';
+  const n=createNotebook({sources:[{...source,text:first},second],cards:[{...card('cross','DNS',spanning),sourceId:'other',questionType:'manual',reviewStatus:'reviewed'}]});
+  const campaign=buildCampaign(n);expect(campaign.chapters.map(chapter=>chapter.cardIds)).toEqual([[],[],['cross'],[]]);
+ });
  it('keeps unsupported prose discoverable without claiming it has a scored model',()=>{const plan=buildCampaign(createNotebook({sources:[{...source,text:'# Observations\nThe river changed after the rain. The observer recorded several possibilities and left the cause unresolved.'}],cards:[]}));expect(plan.chapters).toHaveLength(1);expect(plan.chapters[0].cardIds).toEqual([]);expect(plan.chapters[0].unit.quote).toContain('unresolved');});
  it('preserves unsupported authored work in the notebook without proposing it as a mission',()=>{const n=notebook();n.activities=[{version:1,id:'authored-task',kind:'rubric',mode:'self-assessment',title:'Explain a boundary',instruction:'Review your explanation.',sample:'An authored sample',criteria:[{id:'scope',label:'Scope',levels:['Needs context','Has context']}],sourceRefs:[],reviewStatus:'reviewed',hint:'Keep scope clear.',explanation:'Review the explicit criterion.'}];const plan=buildCampaign(n);expect(plan.unboundActivityIds).toEqual([]);expect(nextCampaignActivity(plan,emptyProgress(n.id))).toBeUndefined();expect(n.activities[0].id).toBe('authored-task');});
  it('records a grounded field note without XP, completion credit, or altered review schedules',()=>{const n=notebook(),chapter=buildCampaign(n).chapters[0],before=emptyProgress(n.id),fresh=restoreSourceStudy(chapter);const next=saveSourceStudy(before,chapter,{...fresh,quote:chapter.unit.passages[0].quote,note:'DNS helps resolve the destination while keeping names memorable.',completed:true});expect(next.studies?.[chapter.id].completed).toBe(true);expect(next.xp).toBe(0);expect(next.completedCardIds).toEqual([]);expect(next.cards).toEqual({});expect(chapterProgress(chapter,next).explored).toBe(true);expect(chapterProgress(chapter,next).independent).toBe(0);});

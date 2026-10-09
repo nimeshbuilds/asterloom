@@ -3,7 +3,8 @@ import {ruleSwitchSources,ruleSwitchFixture} from '../src/data/ruleSwitchFixture
 import {directorFixtureResponse as response} from './gameDirector.fixture';
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {prepareGameExperience} from '../src/lib/prepareGameExperience';
-import {gameDesignProgress,validateGameDesign,type GameDesign} from '../src/lib/gameDesign';
+import {createGameDesignValidator,gameDesignProgress,validateGameDesign,type GameDesign} from '../src/lib/gameDesign';
+import * as learningPlans from '../src/lib/aiLearningPlan';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {parsePackage,serializePackage} from '../src/lib/package';
 import {evaluateActivity} from '../src/lib/structuredEngine';
@@ -22,6 +23,61 @@ function mock(transform?:(stage:string,data:any,value:any)=>any){const requests:
 afterEach(()=>vi.unstubAllGlobals());
 
 describe('resumable AI game director',()=>{
+ it('reuses exact unchanged batch checks without exposing mutable cached results or skipping new evidence checks',async()=>{
+  mock();const result=await prepareGameExperience(n(4),{},options),notebook=result.notebook,original=structuredClone(notebook.gameDesign!);
+  const validate=createGameDesignValidator(notebook),spy=vi.spyOn(learningPlans,'validateAILearningPlan');
+  try{
+   expect(validate(original)).toEqual(validateGameDesign(original,notebook));
+   const calls=spy.mock.calls.length,second=validate(structuredClone(original));
+   expect(spy).toHaveBeenCalledTimes(calls);
+   second.batches[0].drafts![0].activity.instruction='Mutated returned instruction';
+   second.batches[0].unitIds.splice(0,1);
+   second.units[0].headingPath.push('Forged source heading');
+   second.unavailableSources.push({sourceId:'made-up',reason:'Forged limitation'});
+   expect(validate(original)).toEqual(validateGameDesign(original,notebook));
+   const forged=structuredClone(original);forged.batches[0].drafts![0].activity.sourceRefs[0].evidence='A claim that the supplied source does not contain.';
+   expect(()=>validate(forged)).toThrow();
+   const hiddenField=structuredClone(original);(hiddenField.batches[0].missions![0] as any).unsupported=undefined;
+   expect(()=>validate(hiddenField)).toThrow(/unsupported/);
+   expect(validate(original)).toEqual(validateGameDesign(original,notebook));
+  }finally{spy.mockRestore();}
+ });
+ it('invalidates checkpoint checks for in-place source changes and still validates receipts, coverage and readiness',async()=>{
+  mock();const result=await prepareGameExperience(n(2),{},options),notebook=result.notebook,original=structuredClone(notebook.gameDesign!),validate=createGameDesignValidator(notebook);
+  validate(original);
+  const badReceipt=structuredClone(original);badReceipt.receipts[0].status='fabricated' as any;
+  expect(()=>validate(badReceipt)).toThrow();
+  const badCoverage=structuredClone(original);badCoverage.units[0].start++;
+  expect(()=>validate(badCoverage)).toThrow(/coverage/);
+  const unfinished=structuredClone(original);unfinished.batches[0]={id:unfinished.batches[0].id,unitIds:unfinished.batches[0].unitIds,status:'pending'};
+  expect(()=>validate(unfinished)).toThrow(/unfinished/);
+  notebook.sources[0].text+='\n\n# Additional source condition\nThe maintenance procedure also requires the panel to be disconnected from power.';
+  const reset=validate(original);
+  expect(reset).toEqual(validateGameDesign(original,notebook));
+  expect(reset.inputRevision).not.toBe(original.inputRevision);
+  expect(reset.status).toBe('preparing');expect(reset.batches.every(batch=>batch.status==='pending')).toBe(true);
+  expect(reset.receipts).toEqual(original.receipts);
+ });
+ it('keeps wholly ineligible batches as exact source study without any planning request',async()=>{
+  const provider=mock(),short=createSource('# First detail\nBrief note.\n\n# Second detail\nAnother short note.\n\n# Third detail\nA final note.','Short fragments');
+  const input=createNotebook({sources:[short]}),result=await prepareGameExperience(input,{},options);
+  expect(result.creationStatus).toBe('needs-source');expect(provider.fetch).not.toHaveBeenCalled();
+  expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.gameDesign!.receipts).toEqual([]);
+  const design=result.notebook.gameDesign!;expect(design.units.length).toBeGreaterThan(0);
+  expect(design.batches.every(batch=>batch.status==='checked'&&batch.missions!.length===0&&batch.study!.length===batch.unitIds.length)).toBe(true);
+  expect(validateGameDesign(design,input)).toEqual(design);
+ });
+ it('locally skips only pending study batches while still creating supported missions and preserving them on resume',async()=>{
+  const provider=mock(),short=createSource('# First detail\nBrief note.\n\n# Second detail\nAnother short note.\n\n# Third detail\nA final note.','Short fragments');short.id='a-short';
+  const procedure=n().sources[0];procedure.id='z-procedure';const input=createNotebook({sources:[short,procedure]});
+  const first=await prepareGameExperience(input,{},options);expect(first.creationStatus,first.ai.message).toBe('ready');
+  expect(provider.requests.map(request=>request.stage)).toEqual(['plan','write','check']);
+  expect(first.notebook.gameDesign!.batches[0].study).toHaveLength(3);
+  const second=await prepareGameExperience(first.notebook,{}, {aiPolicy:'required'});
+  expect(second.creationStatus).toBe('ready');expect(second.ai.requestCount).toBe(0);
+  expect(second.notebook.gameDesign!.receipts).toEqual(first.notebook.gameDesign!.receipts);
+  expect(second.notebook.gameDesign!.batches).toEqual(first.notebook.gameDesign!.batches);
+ });
  it('covers every chapter beyond six using bounded planning, writing and checking, with source-bound teaching and chosen audio',async()=>{
   const provider=mock(),checkpoints:GameDesign[]=[],result=await prepareGameExperience(n(8),{}, {...options,onCheckpoint:async d=>{checkpoints.push(d);return true;}});
   expect(result.creationStatus,result.ai.message).toBe('ready');expect(provider.requests.map(r=>r.stage)).toEqual(['plan','write','write','write','check','plan','write','write','write','check','plan','write','write','check']);

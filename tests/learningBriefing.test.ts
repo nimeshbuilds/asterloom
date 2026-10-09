@@ -1,4 +1,5 @@
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
+import * as evidenceTools from '../src/lib/evidence';
 import fc from 'fast-check';
 import {SCAFFOLDS} from '../src/data/scaffolds';
 import {LESSON_STORY_FRAMES} from '../src/lib/lessonStory';
@@ -165,5 +166,43 @@ describe('bounded durable lesson progression and later independent retrieval',()
   fc.assert(fc.property(fc.array(fc.constantFrom('mission','context','walkthrough','focus','explain','connect','compare','complete','revisit'),{maxLength:50}),actions=>{
    let s=initialLessonState(p);for(const a of actions){switch(a){case'mission':s={...s,missionAccepted:true,stage:'context'};break;case'context':s={...s,viewedPassageIds:p.passages.map(x=>x.id),stage:'walkthrough'};break;case'walkthrough':s={...s,walkthroughStep:p.walkthrough.steps.length,stage:'practice'};break;case'focus':s={...s,practice:{...s.practice,focusId:p.practice.focusOptions[0].id}};break;case'explain':s={...s,practice:{...s.practice,explanation:'I can explain the source relationship.'}};break;case'connect':s={...s,practice:{...s.practice,connection:'A question for later.'}};break;case'compare':s={...s,practice:{...s.practice,compared:true}};break;case'complete':s=completeLesson(p,s,at);break;case'revisit':s=initialLessonState(p);break;}s=initialLessonState(p,JSON.parse(JSON.stringify(s)));if(!lessonQuestSupport(p,s,at+2*LESSON_SUPPORT_WINDOW_MS).assisted){expect(s.missionAccepted).toBe(true);expect(s.viewedPassageIds).toHaveLength(p.passages.length);expect(s.walkthroughStep).toBe(p.walkthrough.steps.length);expect(lessonPracticeReady(p,s)).toBe(true);expect(s.completedAt).toBeDefined();}expect(lessonQuestSupport(p,s,at).assisted).toBe(true);}
   }),{numRuns:100});
+ });
+});
+
+
+describe('bounded large-source lesson preparation',()=>{
+ it('parses citation locators once per source per build and never reuses them after edits',()=>{
+  const chapters=Array.from({length:180},(_,index)=>`[Page ${index+1}]
+# Training section ${index+1}
+
+Term ${index+1}: a source-defined label used only in this training section.
+
+${'The model records its stated conditions before any comparison. '.repeat(18)}
+
+`);
+  const n=fixture(chapters.join(''));n.cards[0].evidence='Term 153: a source-defined label used only in this training section.';
+  const spy=vi.spyOn(evidenceTools,'evidenceBlocks');
+  try{
+   const p=plan(n),firstCalls=spy.mock.calls.filter(([,limit])=>limit===1200);
+   expect(n.sources[0].text.length).toBeGreaterThan(150000);
+   expect(firstCalls).toHaveLength(1);
+   expect(p.coverage.uncoveredTargetIds).toEqual([]);
+   const references=[...p.passages.map(passage=>passage.reference),...p.practice.focusOptions.map(option=>option.reference),...p.walkthrough.steps.map(step=>step.reference)];
+   expect(references.length).toBeGreaterThan(3);
+   for(const reference of references){expect(isCurrentEvidence(reference,n.sources)).toBe(true);expect(reference.locator.kind).toBe('page');expect(reference.locator.label).toMatch(/^Page 153 · lines /);}
+   expect(plan(n)).toEqual(p);expect(spy.mock.calls.filter(([,limit])=>limit===1200)).toHaveLength(2);
+   // Mutating even the same source object must not retain a prior-build locator cache.
+   n.sources[0].text=`[Page 999]
+# Extra context
+
+An inserted source paragraph shifts every later line.
+
+`+n.sources[0].text;
+   const changed=plan(n);expect(changed.id).not.toBe(p.id);
+   expect(changed.practice.focusOptions[0].reference.start).toBeGreaterThan(p.practice.focusOptions[0].reference.start);
+   expect(changed.practice.focusOptions[0].reference.locator.lineStart).toBeGreaterThan(p.practice.focusOptions[0].reference.locator.lineStart);
+   for(const reference of changed.practice.focusOptions.map(option=>option.reference))expect(isCurrentEvidence(reference,n.sources)).toBe(true);
+   expect(spy.mock.calls.filter(([,limit])=>limit===1200)).toHaveLength(3);
+  }finally{spy.mockRestore();}
  });
 });
