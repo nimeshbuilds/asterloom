@@ -43,15 +43,22 @@ describe('optional source-grounded Aster AI',()=>{
   {...answer,actions:[{type:'open-source',passageId:'passage-1',url:'https://hostile.example'}]},
   {...answer,actions:[{type:'open-current-help'}]},
   {...answer,score:9000},
-  {...answer,insufficientEvidence:true},
- ])('rejects malformed citations and out-of-scope actions while retaining measured usage',async value=>{
-  mock(value);try{await askAsterAI({notebook:notebook(),question:'packet',config});throw Error('Expected validation failure');}catch(error){expect(error).toBeInstanceOf(AsterAIError);expect((error as AsterAIError).receipt).toMatchObject({status:'failed',usage});}
+  {...answer,paragraphs:[]},
+ ].flatMap(value=>[false,true].map(insufficientEvidence=>({...value,insufficientEvidence}))))('rejects malformed citations and out-of-scope actions for full and partial answers while retaining measured usage',async value=>{
+  const fetch=mock(value);try{await askAsterAI({notebook:notebook(),question:'packet',config});throw Error('Expected validation failure');}catch(error){expect(error).toBeInstanceOf(AsterAIError);expect((error as AsterAIError).receipt).toMatchObject({status:'failed',usage});}expect(fetch).toHaveBeenCalledTimes(1);
+ });
+ it('accepts a cited explanation of missing information without inventing an answer or retrying',async()=>{
+  const source=createSource('Condensation can form droplets on the outside of a cold container. This note does not specify what material the container is made of.','Water cycle note'),n=createNotebook({sources:[source]}),before=JSON.stringify(n);
+  const partial={insufficientEvidence:true,paragraphs:[{kind:'source',text:'The note does not specify the container material. It describes droplets forming on the outside of a cold container.',passageIds:['passage-1'],contextIds:[]}],actions:[{type:'open-source',passageId:'passage-1'}]},fetch=mock(partial);
+  const result=await askAsterAI({notebook:n,question:'What material is the container made of?',config});
+  expect(result).toMatchObject({status:'answered',answer:partial.paragraphs[0].text,usage,receipt:{status:'completed',usage}});expect(result.citations).toHaveLength(1);expect(result.citations.every(ref=>isCurrentEvidence(ref,n.sources))).toBe(true);expect(result.citations[0].quote).toContain('does not specify');expect(result.actions).toEqual([{type:'open-source',label:'Open source',reference:result.citations[0]}]);expect(JSON.stringify(n)).toBe(before);expect(fetch).toHaveBeenCalledTimes(1);
+  const body=JSON.parse((fetch.mock.calls[0] as unknown as [string,RequestInit])[1].body as string);expect(body.prompt).toContain('insufficientEvidence:true with that explanation and its citations');expect(body.prompt).toContain('all paragraph and action rules still apply');
  });
  it('returns a clear no-answer result when the model cannot support the question, without retrying',async()=>{
   const fetch=mock({insufficientEvidence:true,paragraphs:[],actions:[]});const result=await askAsterAI({notebook:notebook(),question:'packet',config});expect(result.status).toBe('not-supported');expect(result.citations).toEqual([]);expect(result.actions).toEqual([]);expect(result.receipt).toMatchObject({status:'completed',usage});expect(fetch).toHaveBeenCalledTimes(1);
  });
- it('rejects evidence that changes while the response is outstanding',async()=>{
-  const n=notebook();vi.stubGlobal('fetch',vi.fn(async()=>{n.sources[0].text='Replaced source text.';return respond();}));await expect(askAsterAI({notebook:n,question:'packet',config})).rejects.toThrow('source changed');
+ it.each([false,true])('rejects evidence that changes while a full or partial response is outstanding (insufficientEvidence=%s)',async insufficientEvidence=>{
+  const n=notebook();vi.stubGlobal('fetch',vi.fn(async()=>{n.sources[0].text='Replaced source text.';return respond({...answer,insufficientEvidence});}));await expect(askAsterAI({notebook:n,question:'packet',config})).rejects.toThrow('source changed');
  });
  it('never exposes raw provider diagnostics, keeps failed measurements, and distinguishes unknown from zero',async()=>{
   vi.stubGlobal('fetch',vi.fn(async()=>respond(answer,{status:502,extra:{error:'synthetic-private-key https://secret.example',code:'PROVIDER_UNAVAILABLE'}})));try{await askAsterAI({notebook:notebook(),question:'packet',config});throw Error('Expected error');}catch(error){expect((error as Error).message).not.toMatch(/private-key|secret.example/);expect((error as AsterAIError).receipt?.usage).toEqual(usage);}
