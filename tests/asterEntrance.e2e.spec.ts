@@ -86,7 +86,7 @@ for(const suppression of ['quiet','off','running'])test(`${suppression} suppress
 });
 
 test('manual source hints use compatible preferred portraits and never keep automatic enlargement',async({page})=>{
- const unexpected=await openEntrance(page,{mode:'play',preference:'quiet',stale:'true'}),guide=page.locator('.aster-guide');await page.getByRole('button',{name:'Ask Aster',exact:true}).click();await page.getByRole('button',{name:'Help with this mission',exact:true}).click();await page.mouse.move(0,0);
+ const unexpected=await openEntrance(page,{mode:'play',preference:'quiet',stale:'true'}),guide=page.locator('.aster-guide');await page.getByRole('button',{name:'Ask Aster',exact:true}).click();await page.getByText('Current activity & tools',{exact:true}).click();await page.getByRole('button',{name:'Help with this mission',exact:true}).click();await page.mouse.move(0,0);
  await expect(guide).toHaveAttribute('data-guidance','manual');await expect(guide).toHaveAttribute('data-moment','hint');await expect(guide).not.toHaveAttribute('data-expression','bright-celebration');await expect(page.locator('.aster-mission-help')).toContainText('Read the type beside each port.');await decodedExpression(page);expect((await portraitScale(page)).x).toBeCloseTo(1,2);
  await page.evaluate(()=>(window as any).entranceQA.preferSourceHint());await expect(guide).toHaveAttribute('data-expression','source-check');await decodedExpression(page);expect(await page.evaluate(()=>(window as any).entranceQA.assistance)).toBe(1);expect(unexpected).toEqual([]);
 });
