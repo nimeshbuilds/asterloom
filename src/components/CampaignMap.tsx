@@ -8,6 +8,9 @@ import {chapterProgress,expeditionInvitation,type CampaignChapter,type LearningC
 import {ACTIVITY_KIND_LABELS} from './StructuredBoard';
 import {currentAILearningMission} from '../lib/aiLearningPlan';
 import {activityExplored} from '../lib/campaign';
+import WorldPreview from './WorldPreview';
+import {designedMission} from '../lib/gameDesign';
+import {defaultWorldIdForKind} from '../data/worlds';
 import './campaign.css';
 
 interface Props {notebook:Notebook;progress:Progress;campaign:LearningCampaign;onStudy:(chapter:CampaignChapter)=>void;onRecall:(chapter?:CampaignChapter)=>void;onActivity:(id:string,fresh?:boolean)=>void;onScaffold:(scaffold:Scaffold)=>void}
@@ -33,10 +36,11 @@ export default function CampaignMap({notebook,progress,campaign,onStudy,onRecall
     {notebook.sources.length>1&&<label className="campaign-filter">Explore a source<select value={filter} onChange={e=>{setFilter(e.target.value);setVisible(8);}}><option value="">All your materials</option>{notebook.sources.filter(s=>campaign.chapters.some(c=>c.unit.sourceId===s.id)).map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select></label>}
     {lessonView?<><div className="campaign-chapters campaign-lessons">{shownLessons.slice(0,visible).map(({activity,teaching,chapter},index)=>{const finished=progress.structured?.[activity.id]?.completed||activityExplored(progress,activity.id),started=!!progress.structured?.[activity.id]?.response;return <article key={activity.id} className={`campaign-chapter campaign-lesson ${finished?'explored':''}`} data-activity-id={activity.id}>
       <div className="campaign-chapter-line"><span className="campaign-chapter-number">{finished?<Check size={18}/>:String(index+1).padStart(2,'0')}</span><span className="eyebrow">LESSON {index+1}</span><span className="campaign-kind">{ACTIVITY_KIND_LABELS[activity.kind]}</span></div>
-      <h3>{teaching.title}</h3><p className="campaign-lesson-objective">{teaching.objective}</p><p className="campaign-preview">{teaching.conceptExplanation.text}</p>
+      <div className="campaign-lesson-art" aria-hidden="true"><WorldPreview scaffoldId={activity.scaffoldIds?.[0]??defaultWorldIdForKind(activity.kind)} theme={designedMission(notebook.gameDesign,activity.id)?.visualDirection.scene??notebook.theme} ageGroup={notebook.ageGroup}/></div>
+      <h3>{teaching.title}</h3><p className="campaign-lesson-objective">{teaching.objective}</p>
       <button className="campaign-explore" onClick={()=>onActivity(activity.id)}><BookOpen size={17}/>{finished?'Revisit this mission':started?'Continue this mission':'Learn & play this mission'}<ArrowRight size={17}/></button>
-      {chapter&&<button className="text-button campaign-source-link" onClick={()=>onStudy(chapter)}>Open original passages &amp; notes</button>}
-      <p className="campaign-reading-note">{finished?'Your quest progress is saved. Revisit the explanation or practise again.':'Learn the ideas → guided practice → your quest'}</p>
+      <details className="campaign-lesson-context"><summary>Preview the idea &amp; source</summary><p className="campaign-preview">{teaching.conceptExplanation.text}</p>{chapter&&<button className="text-button campaign-source-link" onClick={()=>onStudy(chapter)}>Open original passages &amp; notes</button>}</details>
+      <p className="campaign-reading-note">{finished?'Your quest progress is saved.':'Learn the idea → play the mission → see your progress'}</p>
     </article>;})}</div>{shownLessons.length>visible&&<button className="button secondary full" onClick={()=>setVisible(v=>v+8)}>Show the next {Math.min(8,shownLessons.length-visible)} lessons <ArrowRight size={16}/></button>}</>:<><div className="campaign-chapters">{chapters.slice(0,visible).map((chapter,index)=>{const status=chapterProgress(chapter,progress);return <article key={chapter.id} className={`campaign-chapter ${status.explored?'explored':''}`}>
       <div className="campaign-chapter-line"><span className="campaign-chapter-number">{status.explored?<Check size={18}/>:String(index+1).padStart(2,'0')}</span><span className="eyebrow">{chapter.sourceTitle}</span><span className="campaign-kind">{chapter.unit.kind==='concept'?'Connect ideas':chapter.unit.kind==='procedure'?'Trace a process':chapter.unit.kind==='reference'?'Inspect a model':'Explore & explain'}</span></div>
       <h3>{chapter.teaching?.title??chapter.title}</h3><p className="campaign-preview">{chapter.teaching?.introduction??`${chapter.unit.quote.replace(/\s+/g,' ').slice(0,200)}${chapter.unit.quote.length>200?'…':''}`}</p>

@@ -3,7 +3,7 @@ import {build} from 'esbuild';
 import {readFile} from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 async function openWorld(page:Page,info:TestInfo,{age='adult',missing=false,lowGpu=false}:{age?:string;missing?:boolean;lowGpu?:boolean}={}){
- const artwork=age==='3-5'||age==='6-8'?'junior-discovery':age==='9-11'?'junior-expedition':'trail';
+ const artwork=age==='3-5'||age==='6-8'?'junior-discovery':age==='9-11'?'junior-expedition':'process-waterworks';
  const image=await readFile(`public/assets/world-art/${artwork}.png`);
  if(lowGpu)await page.addInitScript(()=>Object.defineProperty(navigator,'deviceMemory',{get:()=>2}));
  const harness=`import React,{useState} from'react';import{createRoot}from'react-dom/client';import WorldPreview from'./src/components/WorldPreview';import LearningScene from'./src/components/LearningScene';import'./src/styles.css';

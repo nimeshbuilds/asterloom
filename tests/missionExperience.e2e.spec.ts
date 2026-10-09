@@ -5,15 +5,21 @@ import {learnBeforeQuest} from './teachingDriver.mjs';
 const notebook=campaignTeachingFixture();
 async function progress(page:Page){return page.evaluate(id=>new Promise<any>((resolve,reject)=>{const req=indexedDB.open('asterloom-local-v1',1);req.onsuccess=()=>{const db=req.result,q=db.transaction('records','readonly').objectStore('records').get('progress:'+id);q.onsuccess=()=>{db.close();resolve(q.result)};q.onerror=()=>reject(q.error)};req.onerror=()=>reject(req.error)}),notebook.id);}
 async function enter(page:Page){await page.addInitScript(n=>{(window as any).__ASTERLOOM_NOTEBOOK__=n;localStorage.setItem('asterloom:guide-preferences:v1',JSON.stringify({mode:'quiet',dismissed:[]}));},notebook);await page.goto('/');await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();await learnBeforeQuest(page);}
-async function solve(page:Page){const labels=['Read the task description.','Compare the stated tool limits.','Record the decision and its conditions.'];for(let target=0;target<labels.length;target++){let position=(await page.locator('.route-step strong').allTextContents()).indexOf(labels[target]);while(position>target){await page.getByRole('button',{name:`Move ${labels[target]} up`,exact:true}).click();position--;}}}
+async function solve(page:Page){const details=page.locator('.arena-detailed-workspace');if(await details.count()&&await details.getAttribute('open')===null){await details.locator('summary').click();}const labels=['Read the task description.','Compare the stated tool limits.','Record the decision and its conditions.'];for(let target=0;target<labels.length;target++){let position=(await page.locator('.route-step strong').allTextContents()).indexOf(labels[target]);while(position>target){await page.getByRole('button',{name:`Move ${labels[target]} up`,exact:true}).click();position--;}}}
 async function visibleBelowHud(page:Page,selector:string){await expect.poll(()=>page.locator(selector).evaluate(element=>{const box=element.getBoundingClientRect(),hud=document.querySelector('.gameplay-hud')!.getBoundingClientRect();return box.top>=hud.bottom&&box.top<window.innerHeight*.55;})).toBe(true);}
+async function checkActionReachable(page:Page){
+ const check=page.getByRole('button',{name:'Check my work',exact:true});await expect(check).toHaveCount(1);await expect(check).toBeInViewport({ratio:1});
+ expect(await check.evaluate(button=>{const box=button.getBoundingClientRect(),hit=document.elementFromPoint(box.x+box.width/2,box.y+box.height/2);return hit===button||button.contains(hit);}),'The single check action must not be covered by Aster or the scene.').toBe(true);
+}
 
 test('teaching hands off to a visible quest, mistakes explain the rule, and a solved model earns a visible saved reward',async({page},info)=>{
  await page.setViewportSize({width:1440,height:960});await enter(page);
  await visibleBelowHud(page,'.structured-heading h2');
- await expect(page.locator('.quest-world-map')).not.toHaveAttribute('open');
- await expect(page.locator('.learning-scene')).toHaveCount(0);
+ await expect(page.locator('.mission-arena')).toBeVisible();
+ await expect(page.locator('.arena-stage')).toBeVisible();
+ await checkActionReachable(page);await page.screenshot({path:info.outputPath('reachable-arena-check-desktop.png')});
  const before=await progress(page);
+ await page.locator('.arena-detailed-workspace>summary').click();
  await page.getByRole('button',{name:'Play route',exact:true}).click();
  await expect(page.locator('.route-flightline [data-current=true]')).toContainText('1');
  await expect(page.locator('.route-flightline [data-current=true]')).toContainText('2',{timeout:4000});
@@ -43,8 +49,12 @@ test('teaching hands off to a visible quest, mistakes explain the rule, and a so
  await expect(page.locator('[data-hud="total-xp"]')).toContainText('20 XP');
 });
 
-test('the playable workspace and saved feedback remain readable at narrow width with reduced motion',async({page})=>{
- await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await enter(page);await solve(page);await page.getByRole('button',{name:'Check my work',exact:true}).click();
+test('the playable workspace and saved feedback remain readable at narrow width with reduced motion',async({page},info)=>{
+ await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await enter(page);await checkActionReachable(page);
+ await page.locator('.arena-piece').first().click();const move=page.getByRole('button',{name:'Move later',exact:true});await move.scrollIntoViewIfNeeded();await expect(move).toBeInViewport({ratio:1});
+ expect(await move.evaluate(button=>{const box=button.getBoundingClientRect(),hit=document.elementFromPoint(box.x+box.width/2,box.y+box.height/2);return hit===button||button.contains(hit);}),'The sticky check action must not cover the move control.').toBe(true);
+ await checkActionReachable(page);await page.screenshot({path:info.outputPath('reachable-arena-check-mobile.png')});
+ await solve(page);await page.getByRole('button',{name:'Check my work',exact:true}).click();
  await visibleBelowHud(page,'.structured-feedback');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)).toBe(false);
  const serious=(await new AxeBuilder({page}).analyze()).violations.filter(v=>v.impact==='critical'||v.impact==='serious');expect(serious).toEqual([]);

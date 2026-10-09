@@ -1,5 +1,11 @@
 import {expect} from '@playwright/test';
 
+/** Use the visible disclosure only when a test exercises the detailed board. */
+export async function openDetailedWorkspace(page) {
+ const details=page.locator('.arena-detailed-workspace');
+ if(await details.count()&&await details.getAttribute('open')===null)await details.locator(':scope > summary').click();
+}
+
 /** Follow the visible teaching flow; never mark a lesson complete behind the UI. */
 export async function learnBeforeQuest(page) {
  const briefing=page.getByRole('region',{name:'Learning briefing',exact:true});
@@ -54,6 +60,8 @@ export async function learnBeforeQuest(page) {
   else {await briefing.getByRole('button',{name:/^(?:Build my field note|Build my mission kit)$/,exact:true}).click();await expect(briefing.locator('.lesson-practice')).toBeVisible();break;}
  }
  if(await kit.count()){await completeVisibleKit();return;}
+ const guidedStart=briefing.getByRole('button',{name:'Start guided quest',exact:true});
+ if(await guidedStart.count()){await guidedStart.click();await expect(briefing).toHaveCount(0);return;}
  if(await briefing.locator('.lesson-practice').count()){
   await briefing.locator('.lesson-focus-options input').first().check();
   // Explicit procedures use the source's displayed order, not a hidden answer key.
@@ -76,4 +84,3 @@ export async function learnBeforeQuest(page) {
  if(await start.count())await start.click();
  await expect(briefing).toHaveCount(0);
 }
-

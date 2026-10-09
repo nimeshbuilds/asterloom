@@ -1,3 +1,4 @@
+import {scaffoldStorySummary} from './scaffoldStoryContext';
 import type {Source} from '../types';
 import {SCAFFOLDS} from '../data/scaffolds';
 import {SCAFFOLD_RUNTIME,scaffoldRequiredCapabilities,type ScaffoldCapability} from './scaffoldRuntime';
@@ -29,7 +30,7 @@ export function gameRecipeMetadata(scaffoldId:string){
   limitations:scaffold.contentContract.limitations.filter(value=>!['Author-reviewed source evidence is required before publishing.','This contract validates shape; it does not establish factual correctness.'].includes(value))};
 }
 export function gameRecipeChoices(ageGroup:string){
- return(Object.keys(GAME_FAMILY_RECIPES) as GameDraftKind[]).flatMap(kind=>GAME_FAMILY_RECIPES[kind].flatMap(scaffoldId=>{const scaffold=SCAFFOLDS.find(item=>item.id===scaffoldId)!;return scaffold.ages.includes(ageGroup)?[{kind,scaffoldId,name:scaffold.name,scene:scaffold.visual.scene,...gameRecipeMetadata(scaffoldId)}]:[];}));
+ return(Object.keys(GAME_FAMILY_RECIPES) as GameDraftKind[]).flatMap(kind=>GAME_FAMILY_RECIPES[kind].flatMap(scaffoldId=>{const scaffold=SCAFFOLDS.find(item=>item.id===scaffoldId)!;return scaffold.ages.includes(ageGroup)?[{kind,scaffoldId,name:scaffold.name,scene:scaffold.visual.scene,story:scaffoldStorySummary(scaffoldId,ageGroup),...gameRecipeMetadata(scaffoldId)}]:[];}));
 }
 /** Creation support audit is deliberately separate from source suitability or game quality. */
 export function gameRecipeCoverage(){

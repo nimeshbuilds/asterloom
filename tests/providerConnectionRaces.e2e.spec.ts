@@ -111,3 +111,37 @@ test('Claude sign-in expiration clears the code field and offers a fresh sign-in
   const logins=fixture.calls.filter((call:any)=>call.args[1]==='login');expect(logins).toHaveLength(1);expect(logins[0].input()).toBe('');expect(logins[0].child.signalCode).toBeTruthy();expect(await page.locator('body').textContent()).not.toContain('synthetic-unsent-code');
  }finally{await fixture.close();}
 });
+
+test('Claude code entry is prominent and usable before the CLI prints any browser link',async({page})=>{
+ const fixture=await claudeBrowserFixture({distDir:folder,emitLoginUrl:false});
+ try{
+  await page.setViewportSize({width:390,height:844});await page.goto(fixture.address);await page.getByRole('combobox',{name:'Claude sign-in method',exact:true}).selectOption('sso');await page.getByRole('button',{name:'Continue with Claude',exact:true}).click();
+  const form=page.getByRole('form',{name:'Complete Claude browser sign-in'}),input=form.getByLabel('Claude browser sign-in code',{exact:true}),card=page.locator('.subscription-grid article').filter({hasText:'Claude Code · your account'});
+  await expect(form).toBeVisible();await expect(card.getByRole('form')).toBeVisible();await expect(input).toBeFocused();await expect(input).toBeInViewport();await expect(card.locator('.provider-badge')).toHaveText('Enter browser code');await expect(form).toContainText('Paste Claude’s browser code to finish');await expect(form).toContainText('you can approve there and paste its code now');
+  await expect(page.getByRole('button',{name:'Waiting for your sign-in…',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'Reopen the provider’s sign-in page'})).toHaveCount(0);expect(await page.evaluate(()=>(window as any).connectionTest.opened)).toEqual([]);
+  expect((await fixture.claude.status()).authUrl).toBeUndefined();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);expect((await new AxeBuilder({page}).include('.provider-connection').analyze()).violations).toEqual([]);
+  await mkdir('.qa/provider-connections',{recursive:true});await page.screenshot({path:'.qa/provider-connections/claude-no-url.png',fullPage:true,animations:'disabled'});
+  await input.fill(fixture.code);await form.getByRole('button',{name:'Complete Claude sign-in',exact:true}).click();await expect(page.getByRole('button',{name:'Use Claude Code',exact:true})).toBeVisible();await expect(form).toHaveCount(0);expect(fixture.calls.find((call:any)=>call.args[1]==='login').input()).toBe(fixture.code+'\n');
+ }finally{await fixture.close();}
+});
+
+test('a delayed Claude browser link appears once without clearing or hiding the active code entry',async({page})=>{
+ const fixture=await claudeBrowserFixture({distDir:folder,emitLoginUrl:false});
+ try{
+  await page.goto(fixture.address);await page.getByRole('button',{name:'Continue with Claude',exact:true}).click();const input=page.getByLabel('Claude browser sign-in code',{exact:true});await expect(input).toBeVisible();await input.fill(fixture.code);
+  const sessionId=(await fixture.claude.status()).loginContinuation.sessionId;fixture.publishLoginUrl();
+  await expect(page.getByRole('link',{name:'Reopen the provider’s sign-in page'})).toHaveAttribute('href','https://claude.com/cai/oauth/authorize?state=synthetic-state');await expect(input).toHaveValue(fixture.code);await expect(input).toBeFocused();expect((await fixture.claude.status()).loginContinuation.sessionId).toBe(sessionId);
+  await check(page).click();await check(page).click();await expect(input).toHaveValue(fixture.code);expect(await page.evaluate(()=>(window as any).connectionTest.opened)).toEqual(['https://claude.com/cai/oauth/authorize?state=synthetic-state']);
+  await page.getByRole('button',{name:'Complete Claude sign-in',exact:true}).click();await expect(page.getByRole('button',{name:'Use Claude Code',exact:true})).toBeVisible();expect(fixture.calls.filter((call:any)=>call.args[1]==='login')).toHaveLength(1);
+ }finally{await fixture.close();}
+});
+
+test('reopened Claude sessions restore code entry without a URL and keep the user’s later provider choice',async({page})=>{
+ const fixture=await claudeBrowserFixture({distDir:folder,emitLoginUrl:false});
+ try{
+  const started=await fixture.claude.start({method:'sso'});expect(started.authUrl).toBeUndefined();await page.goto(fixture.address);const input=page.getByLabel('Claude browser sign-in code',{exact:true});await expect(input).toBeVisible();await input.fill('synthetic-unsent-before-remount');
+  await page.getByRole('button',{name:'Toggle account panel'}).click();await page.getByRole('button',{name:'Toggle account panel'}).click();await expect(input).toBeVisible();await expect(input).toHaveValue('');expect((await fixture.claude.status()).loginContinuation.sessionId).toBe(started.loginContinuation.sessionId);
+  await page.getByRole('combobox',{name:'AI provider',exact:true}).selectOption('anthropic');await page.getByLabel('API key · this session only',{exact:true}).fill('synthetic-later-api-key');await input.fill(fixture.code);await page.getByRole('button',{name:'Complete Claude sign-in',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Use Claude Code',exact:true})).toBeVisible();await expect(input).toHaveCount(0);await expect(page.getByRole('combobox',{name:'AI provider',exact:true})).toHaveValue('anthropic');await expect(page.getByLabel('API key · this session only',{exact:true})).toHaveValue('synthetic-later-api-key');expect(await page.evaluate(()=>(window as any).connectionTest.opened)).toEqual([]);expect(fixture.calls.filter((call:any)=>call.args[1]==='login')).toHaveLength(1);
+ }finally{await fixture.close();}
+});

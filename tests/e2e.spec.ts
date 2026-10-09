@@ -1,3 +1,4 @@
+import {openDetailedWorkspace} from './teachingDriver.mjs';
 import { SHAPE_PICTURE_BUILD } from '../src/lib/pictureBuildExamples';
 import { test, expect, type Page, type Download } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -846,12 +847,12 @@ test('all seven structured systems evaluate, preserve unfinished work, and trave
   await openLibrary(page);
   await openExampleGame(page,'Inside the connected world');
   await expect((await campaignActivities(page))).toHaveCount(8);
-  await page.getByRole('button', { name: /^(?:Play game|Continue game)$/, exact: false }).click(); await learnBeforeQuest(page);
+  await page.getByRole('button', { name: /^(?:Play game|Continue game)$/, exact: false }).click(); await learnBeforeQuest(page);await openDetailedWorkspace(page);
   for (let step = 0; step < 3; step++) await page.getByRole('button', { name: 'Move Define the question up', exact: true }).click();
   await page.getByRole('button', { name: 'Save & return', exact: false }).click();
   await page.reload();
   await openExampleGame(page,'Inside the connected world');
-  await page.getByRole('button', { name: /^(?:Play game|Continue game)$/, exact: false }).click(); await learnBeforeQuest(page);
+  await page.getByRole('button', { name: /^(?:Play game|Continue game)$/, exact: false }).click(); await learnBeforeQuest(page);await openDetailedWorkspace(page);
   await expect(page.locator('.structured-sequence li').first()).toContainText('Define the question');
   for (let step = 0; step < 2; step++) await page.getByRole('button', { name: 'Move Collect observations up', exact: true }).click();
   await page.getByRole('button', { name: 'Move Analyze observations up', exact: true }).click();
@@ -859,7 +860,7 @@ test('all seven structured systems evaluate, preserve unfinished work, and trave
     await page.getByRole('button', { name: 'Check my work', exact: true }).click();
     await expect(page.locator('.structured-feedback.correct')).toContainText('Your work holds together.');
   };
-  const choose = async (title: string) => { await chooseMission(page,title); await learnBeforeQuest(page); };
+  const choose = async (title: string) => { await chooseMission(page,title); await learnBeforeQuest(page);await openDetailedWorkspace(page); };
   await check();
   await choose('Observation or interpretation?');
   await page.locator('.sort-source-item').filter({ hasText: 'The display reads 12.' }).click();

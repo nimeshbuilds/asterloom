@@ -145,6 +145,18 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.waitForFunction(()=>document.querySelector('.aster-launcher-portrait img')?.naturalWidth>0);
     const bundledAster=await page.evaluate(async()=>{const response=await fetch('/assets/aster/emotions/provenance.json');const manifest=await response.json();return {count:manifest.assets.length,pending:manifest.pending.length};});
     assert.equal(bundledAster.count,50);assert.equal(bundledAster.pending,0);features.asterArtwork={portraits:50,loadedOffline:true};
+    await page.locator('.aster-launcher').click();
+    assert.equal(await page.locator('.aster-guide').getAttribute('data-connection'),'local','An exported game starts with regular offline Aster.');
+    await page.getByRole('button',{name:'Connect Aster to AI',exact:true}).click();
+    const asterConnection=page.getByRole('dialog',{name:'Connect Aster to AI',exact:true});await asterConnection.waitFor();
+    assert.match(await asterConnection.innerText(),/Nothing is sent automatically/);
+    assert.equal(await asterConnection.getByRole('button',{name:'Enable AI for Aster',exact:true}).isDisabled(),true,'An export must not inherit the creator’s provider selection or account.');
+    await asterConnection.getByRole('button',{name:'Use regular Aster',exact:true}).click();
+    assert.equal(await page.locator('.aster-guide').getAttribute('data-connection'),'local');
+    const auraBytes=await fs.readFile(path.join(process.cwd(),'public/assets/aster/agentic-aura.png'));
+    const auraDigest=await page.evaluate(async()=>{const response=await fetch('/assets/aster/agentic-aura.png');if(!response.ok)throw Error('Bundled connected Aster artwork missing');const bytes=await response.arrayBuffer();return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(byte=>byte.toString(16).padStart(2,'0')).join('');});
+    assert.equal(auraDigest,createHash('sha256').update(auraBytes).digest('hex'));
+    features.asterAI={exportedConfigurationAvailable:true,offlineByDefault:true,connectedArtworkBundled:true,liveProviderTested:false};
     const bundledSpeech=await page.evaluate(async id=>{const response=await fetch('/api/media/assets/'+id);const bytes=await response.arrayBuffer();return {status:response.status,size:bytes.byteLength,hash:[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(byte=>byte.toString(16).padStart(2,'0')).join('')};},speechAsset.id);assert.equal(bundledSpeech.status,200);assert.equal(bundledSpeech.size,mediaBytes.length);assert.equal(bundledSpeech.hash,speechAsset.sha256);
     const exportedHealth=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(exportedHealth.ok,true);
     const exportedPdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'exported-native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
@@ -202,13 +214,23 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(unreviewedRecord.completed,false,'Unreviewed completion must remain blocked after restart');
     assert.equal(unreviewedRecord.score,0);assert.equal(unreviewedRecord.review?.independentSuccesses??0,0);
     await page.locator('[data-activity-id]').filter({hasText:'Investigate the native observations'}).click(); await learnBeforeQuest(page);
-    await page.locator('.quest-world-map > summary').click();
-    await page.waitForFunction(()=>{const scene=document.querySelector('.learning-scene');return scene&&['pixi-webgl','svg-dom'].includes(scene.getAttribute('data-renderer'));},{},{timeout:30000});
-    const sceneRenderer=await page.locator('.learning-scene').first().getAttribute('data-renderer');
-    if(process.env.ASTERLOOM_REQUIRE_PIXI==='1')assert.equal(sceneRenderer,'pixi-webgl','The native learning scene must initialize Pixi under its production CSP');
-    if(sceneRenderer==='pixi-webgl')assert.equal(await page.locator('.learning-scene canvas').first().evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
-    features.sceneRenderer=sceneRenderer;
-    console.log(`Native learning scene renderer: ${sceneRenderer}`);
+    // The current data workspace uses the compact DOM/SVG arena, with a local
+    // environment image. This verifies the shipped surface, not unused Pixi code.
+    assert.notEqual(process.env.ASTERLOOM_REQUIRE_PIXI,'1','This workflow exercises the current DOM/SVG mission arena; it does not certify Pixi.');
+    const arena=page.locator('.mission-arena.arena-backdrop-only');
+    await arena.waitFor();await page.waitForFunction(()=>document.querySelector('.mission-arena')?.getAttribute('data-art-status')==='ready');
+    assert.equal(await arena.locator('.arena-environment').evaluate(image=>image.complete&&image.naturalWidth>=800&&image.naturalHeight>=360),true,'The exported game must decode its local environment artwork');
+    assert.equal(await arena.locator('.arena-piece:visible').count(),0,'A specialized data editor must not present duplicate inactive scene controls');
+    const artwork=[];
+    for(const id of ['process-waterworks','sorting-foundry','systems-observatory']){
+      const file='assets/world-art/'+id+'.png',expected=await fs.readFile(path.join(ROOT,'public',file));
+      const fetched=await page.evaluate(async file=>{const response=await fetch('/'+file),bytes=await response.arrayBuffer();return{status:response.status,mime:response.headers.get('content-type'),bytes:bytes.byteLength,sha256:[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(value=>value.toString(16).padStart(2,'0')).join('')};},file);
+      assert.equal(fetched.status,200);assert.match(fetched.mime,/^image\/png(?:;|$)/);assert.equal(fetched.bytes,expected.length);assert.equal(fetched.sha256,createHash('sha256').update(expected).digest('hex'));
+      assert.deepEqual(await fs.readFile(path.join(exportedResources(exported.path),'app','dist',file)),expected,'A standalone export must preserve every new environment image exactly');
+      artwork.push({file,bytes:fetched.bytes,sha256:fetched.sha256});
+    }
+    features.sceneRenderer='dom-svg-artwork';features.missionArena={mode:'backdrop',artworkDecoded:true,newEnvironmentAssets:artwork};
+    console.log('Native mission arena: DOM/SVG, local environment decoded, all three new environment assets verified in the standalone export.');
     await page.getByLabel('Your numerical result',{exact:true}).fill('12');
     await pinDataRecord(page,'Site A');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();

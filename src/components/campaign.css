@@ -10,3 +10,17 @@
 .campaign-source-link{display:block;margin:10px 0 0;font-size:12px;text-align:left}.source-study-lesson{display:flex;align-items:center;gap:24px;border:1px solid #b6cbbb;border-radius:18px;padding:22px 26px;background:linear-gradient(120deg,#e9f2e6,#f9fbf6);margin:0 0 24px}.source-study-lesson>div{flex:1;min-width:0}.source-study-lesson h2{font-size:22px;margin:9px 0}.source-study-lesson p{line-height:1.6;margin:0;color:#435c4c}.source-study-lesson .button{flex-shrink:0}@media(max-width:650px){.source-study-lesson{flex-direction:column;align-items:stretch;padding:20px}}
 
 .campaign-view-switch{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 24px}.campaign-view-switch button{display:flex;align-items:center;gap:9px;border:1px solid #b4c4b2;border-radius:10px;background:#fff;color:#254c3c;padding:11px 17px;font:inherit;font-weight:650;min-height:44px;cursor:pointer}.campaign-view-switch button[aria-pressed="true"]{background:#244b3b;color:#fff;border-color:#244b3b}.campaign-view-switch button:focus-visible{outline:3px solid #ad6c36;outline-offset:3px}.campaign-view-switch span{font-size:.75rem;opacity:.8}.campaign-library-note{max-width:70ch;font-size:.92rem;line-height:1.65;color:#526457;margin:0 0 24px}.campaign-lesson-objective{font-weight:650;line-height:1.65;color:#294936;max-width:65ch}.campaign-lesson .campaign-preview{display:block;-webkit-line-clamp:unset;max-width:65ch;overflow:visible;line-height:1.75}.campaign-lesson .campaign-reading-note{margin-top:18px}.study-passage[data-kind="paragraph"] blockquote{white-space:normal}.study-passage[data-kind="code"] blockquote{font-family:ui-monospace,monospace;overflow-x:auto;overflow-wrap:normal;white-space:pre}.campaign-lesson .campaign-source-link{min-height:44px}
+
+/* A mission shelf: one objective and one clear action; the lesson opens on demand. */
+.campaign-lesson{display:flex;flex-direction:column;gap:0;overflow:hidden}
+.campaign-lesson-art{height:128px;margin:18px -23px 0;overflow:hidden;background:#152d37}
+.campaign-lesson-art .world-preview{width:100%;height:100%;border-radius:0}
+.campaign-lesson-art img,.campaign-lesson-art svg{height:100%;width:100%;object-fit:cover}
+.campaign-lesson h3{margin-top:20px;font-size:21px}
+.campaign-lesson .campaign-lesson-objective{font-size:14px;font-weight:400;color:#425b50;line-height:1.65;margin:0 0 20px}
+.campaign-lesson .campaign-explore{margin-top:auto;min-height:48px}
+.campaign-lesson-context{margin-top:15px;font-size:12px}
+.campaign-lesson-context summary{cursor:pointer;min-height:36px;align-content:center;color:#385b49}
+.campaign-lesson-context .campaign-preview{font-size:14px;margin-bottom:8px}
+.campaign-lesson .campaign-reading-note{font-size:11px;margin-bottom:0}
+@media(max-width:500px){.campaign-lesson-art{margin-left:-18px;margin-right:-18px;height:110px}}

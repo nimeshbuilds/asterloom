@@ -1,3 +1,5 @@
+import {worldForScaffold} from '../data/worlds';
+import {ARTWORK_SETTINGS,worldArtworkFor} from './worldArtwork';
 import type { Scaffold } from '../data/scaffolds';
 
 export interface LessonStory {
@@ -112,8 +114,8 @@ const TRANSFER:Record<Scaffold['family'],readonly [string,string]>={
 export function buildLessonStory(scaffold: Scaffold, ageGroup: string): LessonStory {
   const frame=LESSON_STORY_FRAMES[scaffold.id];
   if(!frame) throw new Error(`No teaching story is authored for scaffold ${scaffold.id}.`);
-  const young=ageGroup==='3-5', early=ageGroup==='6-8';
-  return {title:scaffold.name,role:frame[0],setting:frame[1],mission:frame[2],payoff:frame[3],fictional:true,transfer:TRANSFER[scaffold.family][0],recovery:TRANSFER[scaffold.family][1],
+  const young=ageGroup==='3-5', early=ageGroup==='6-8',art=worldArtworkFor(worldForScaffold(scaffold.id),ageGroup);
+  return {title:scaffold.name,role:frame[0],setting:`${art.name}: ${ARTWORK_SETTINGS[art.id]}`,mission:frame[2],payoff:frame[3],fictional:true,transfer:TRANSFER[scaffold.family][0],recovery:TRANSFER[scaffold.family][1],
     boundary:'The setting and role are fictional. Subject facts come from the cited material; the game does not create missing evidence.',domain:scaffold.domain,
     guidance:young?'A grown-up reads the source aloud. Look, point, play and talk together, one step at a time.':early?'Read or listen together if helpful. Take one step, then explain what you noticed.':LENSES[scaffold.family][0],
     reflection:young?'Show or tell your grown-up something you noticed. Ask them to help you point to where it appears in the source.':LENSES[scaffold.family][1]};
@@ -121,13 +123,13 @@ export function buildLessonStory(scaffold: Scaffold, ageGroup: string): LessonSt
 
 /** Instructions describe the implemented interaction, not a solution or an invented source fact. */
 export interface LessonActionGuide {id:string;prepare:string;act:string;inspect:string}
-type GuideActivity={kind:import('./structuredEngine').StructuredActivity['kind'];partner?:unknown;codeReview?:unknown;pattern?:unknown;mode?:string;scenarioPresentation?:{prediction?:unknown;campaign?:unknown;dialogue?:unknown;promptComparison?:unknown}};
+type GuideActivity={kind:import('./structuredEngine').StructuredActivity['kind'];items?:readonly unknown[];partner?:unknown;codeReview?:unknown;pattern?:unknown;mode?:string;scenarioPresentation?:{prediction?:unknown;campaign?:unknown;dialogue?:unknown;promptComparison?:unknown}};
 const ACTION_GUIDES:Record<GuideActivity['kind']|'recall',readonly [string,string,string]>={
  recall:['Build a distinction from the cited material.','Close the guide and choose the idea that fits.','Use feedback to repair the connection; revisit it later.'],
- sequence:['Find the order or prerequisites actually stated.','Arrange the steps into a route and trace your arrangement.','Check the source constraints, then revise the route.'],
- classification:['Inspect each category’s source-defined boundary.','Move the supplied objects into defensible groups.','Check memberships and revisit the boundaries that need work.'],
+ sequence:['Find the order or prerequisites actually stated.','Choose a step, then move it into the order the source supports.','Check the source constraints, then revise the route.'],
+ classification:['Inspect each category’s source-defined boundary.','Choose an item, then place it in every group the source supports.','Check memberships and revisit the boundaries that need work.'],
  decision:['Read the case observations and supplied policy.','Commit to an action for this case.','Compare the policy’s explanation with your decision.'],
- dependency:['Find the relationships the source explicitly supports.','Connect nodes with the correct direction and relationship.','Inspect the network for missing or conflicting links.'],
+ dependency:['Find the relationships the source explicitly supports.','Choose a starting concept, its relationship, and a target; then connect them.','Inspect the network for missing or conflicting links.'],
  budget:['Identify required capacity and the supplied costs.','Allocate quantities while watching costs and capacity.','Test all constraints; revise a feasible allocation.'],
  rubric:['Read the supplied criteria and sample.','Inspect the work and choose a level for each criterion.','Compare against the reviewed rubric; reflection has no automatic correctness grade.'],
  diagram:['Study the actual source figure or its text equivalent.','Place each label at a supplied target.','Check the mapping and revisit misplaced labels.'],
@@ -157,5 +159,10 @@ export function buildLessonActionGuide(activity?:GuideActivity):LessonActionGuid
  if(activity?.kind==='completion'&&activity.pattern)id='pattern';
  if(activity?.kind==='scenario'){const p=activity.scenarioPresentation;id=p?.dialogue?'dialogue':p?.promptComparison?'prompt-comparison':p?.prediction?'prediction':p?.campaign?'campaign':id;}
  const steps=SPECIAL_ACTION_GUIDES[id]??ACTION_GUIDES[id as keyof typeof ACTION_GUIDES];
- return{id,prepare:steps[0],act:steps[1],inspect:steps[2]};
+ let act=steps[1];
+ // The scene is the primary sequence control for bounded inventories; larger
+ // saved sequences retain the existing placement workspace. Kind-only planning
+ // remains valid before the actual inventory has been written.
+ if(activity?.kind==='sequence'&&activity.items)act=activity.items.length<=24?'Choose a step card, then use Move earlier or Move later to put it in order.':'Choose a step, then choose Place here at its destination.';
+ return{id,prepare:steps[0],act,inspect:steps[2]};
 }

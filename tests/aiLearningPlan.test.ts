@@ -2,7 +2,9 @@ import {describe,it,expect} from 'vitest';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {isCurrentEvidence} from '../src/lib/evidence';
 import {validateAILearningMissionDraft,validateAILearningPlan,reconcileAILearningPlan,currentAILearningMission,AI_TEACHING_VERIFICATION_NOTE,type AILearningMission} from '../src/lib/aiLearningPlan';
-import {buildLearningBriefing,initialLessonState,completeLesson,lessonReady,lessonContextReady,lessonTeachingChunkIds,beginLessonRehearsal,beginLessonPractice,lessonRequiresWalkthrough} from '../src/lib/learningBriefing';
+import {buildLearningBriefing,initialLessonState,completeLesson,completeGuidedLesson,restartLesson,validateLessonState,lessonAllowsGuidedStart,lessonQuestSupport,lessonReady,lessonContextReady,lessonTeachingChunkIds,beginLessonRehearsal,beginLessonPractice,lessonRequiresWalkthrough} from '../src/lib/learningBriefing';
+import {emptyProgress} from '../src/lib/storage';
+import {parseProgress,serializeProgress} from '../src/lib/package';
 import {SCAFFOLDS} from '../src/data/scaffolds';
 import type {StructuredActivity} from '../src/lib/structuredEngine';
 
@@ -70,7 +72,47 @@ describe('source-cited digestible AI teaching',()=>{
 });
 describe('AI teaching runtime with existing lesson gates',()=>{
  function plan(){const f=generated();return{...f,plan:buildLearningBriefing({notebook:f.notebook,activity:f.activity,scaffold:SCAFFOLDS.find(s=>s.id==='process-reconstruction')!})};}
+ function guidedPlan(){
+  const f=fixture(),source={...f.source,text:overview+'\n\nRead the supplied observation. Compare the observation with the rule. Record the decision and its evidence.'},activity={...f.activity,sourceRefs:[{sourceId:f.source.id,evidence:overview}]};
+  const draft={...f.draft,workedExample:undefined},mission=validateAILearningMissionDraft(draft,{...f.context,sources:[source],activity,sourceWindow:{sourceId:source.id,start:0,end:source.text.length}});
+  const notebook={...f.notebook,sources:[source],activities:[activity],aiLearningPlan:{version:1 as const,missions:[mission]}},p=buildLearningBriefing({notebook,activity,scaffold:SCAFFOLDS.find(s=>s.id==='process-reconstruction')!});
+  const initial=initialLessonState(p),practice=beginLessonPractice(p,{...initial,missionAccepted:true,stage:'context',viewedPassageIds:lessonTeachingChunkIds(p)});
+  return{notebook,p,practice};
+ }
+ it('saves a guided handoff with no mandatory writing and preserves its bounded state through a portable progress backup',()=>{
+  const {notebook,p,practice}=guidedPlan(),now=Date.parse('2026-10-09T12:00:00.000Z');
+  expect(lessonAllowsGuidedStart(p)).toBe(true);expect(practice.practice.explanation).toBe('');expect(lessonReady(p,practice)).toBe(false);
+  const ready=completeGuidedLesson(p,practice,now);
+  expect(ready.practice).toMatchObject({guidedStart:true,explanation:'',compared:false});expect(lessonReady(p,ready)).toBe(true);expect(lessonQuestSupport(p,ready,now).assisted).toBe(true);
+  expect(completeGuidedLesson(p,ready,now+5000)).toEqual(ready);
+  const progress={...emptyProgress(notebook.id),lessons:{[p.id]:ready}},restored=parseProgress(serializeProgress(progress));
+  expect(restored.lessons![p.id]).toEqual(ready);expect(restored.xp).toBe(0);expect(restored.mastery).toBe(0);expect(initialLessonState(p,restored.lessons![p.id])).toEqual(ready);
+ });
+ it('cannot use a handoff flag to bypass source identity, explored teaching, real walkthroughs, kits or ordered practice',()=>{
+  const {p,practice}=guidedPlan(),ready=completeGuidedLesson(p,practice);
+  expect(lessonReady(p,{...ready,viewedPassageIds:[]})).toBe(false);
+  expect(completeGuidedLesson(p,{...practice,viewedPassageIds:[]}).practice.guidedStart).toBeUndefined();
+  expect(lessonReady({...p,id:'lesson-'+'a'.repeat(64)},ready)).toBe(false);
+  const noTeaching={...p,teaching:undefined};expect(lessonAllowsGuidedStart(noTeaching)).toBe(false);expect(lessonReady(noTeaching,ready)).toBe(false);
+  const real=plan().plan;expect(lessonAllowsGuidedStart(real)).toBe(false);expect(completeGuidedLesson(real,initialLessonState(real)).completedAt).toBeUndefined();
+  const ordered={...p,practice:{...p.practice,orderIds:['step-0','step-1']}};expect(lessonAllowsGuidedStart(ordered)).toBe(false);expect(lessonReady(ordered,ready)).toBe(false);
+  const example={...p,teaching:{...p.teaching!,workedExample:plan().mission.workedExample}};
+  expect(completeGuidedLesson(example,practice).completedAt).toBeUndefined();
+  expect(validateLessonState({...ready,practice:{...ready.practice,guidedStart:'yes'}})).toBeUndefined();
+ });
+ it('retains existing notes when starting guided play, changing the lesson, and revisiting its teaching',()=>{
+  const {p,practice}=guidedPlan(),origin='lesson-'+'b'.repeat(64),notes={explanation:'My preserved source explanation.',connection:'A question I want to return to.',notesFromPlanKey:origin};
+  const ready=completeGuidedLesson(p,{...practice,practice:{...practice.practice,...notes,focusId:''}});
+  expect(ready.practice).toMatchObject(notes);expect(ready.practice.focusId).toBe('');
+  const restarted=restartLesson(p,ready);expect(restarted.practice).toMatchObject(notes);expect(restarted.practice.guidedStart).toBeUndefined();expect(restarted.completedAt).toBeUndefined();expect(restarted.viewedPassageIds).toEqual([]);expect(lessonReady(p,restarted)).toBe(false);
+  const changed={...p,id:'lesson-'+'c'.repeat(64)},migrated=initialLessonState(changed,ready);expect(migrated.practice).toMatchObject(notes);expect(migrated.practice.guidedStart).toBeUndefined();expect(migrated.practice.focusId).toBe('');expect(lessonReady(changed,migrated)).toBe(false);
+ });
  it('uses the generated teaching and fictional frame while retaining source evidence and an honest draft assessment',()=>{const f=plan();expect(f.plan.teaching).toEqual(f.mission);expect(f.plan.title).toBe(f.draft.title);expect(f.plan.story.setting).toBe(f.draft.storyFrame.setting);expect(f.plan.walkthrough.steps[0].instruction).toBe(f.draft.workedExample.steps[0].text);expect(f.plan.mission.assignment).toBe(f.activity.instruction);expect(f.plan.reviewed).toBe(false);});
+ it('keeps the lesson in the retained mission world instead of changing to the notebook-wide theme',()=>{
+  const f=plan(),notebook={...f.notebook,theme:'ocean',gameDesign:{version:1 as const,inputRevision:'fixture',status:'ready' as const,provider:{id:'compatible',model:'fixture',endpointFingerprint:null},units:[],unavailableSources:[],receipts:[],generatedModels:[],batches:[{id:'batch',unitIds:[],status:'checked' as const,missions:[{id:'planned',unitId:'unit',kind:'sequence' as const,scaffoldId:'process-reconstruction',title:f.activity.title,objective:f.draft.objective,visualDirection:{scene:'workshop' as const,sourceAssetIds:[]}}],drafts:[{missionId:'planned',activity:f.activity,teaching:f.mission,audioDirection:{version:1 as const,playTrackId:'fixture-play',studyTrackId:'fixture-study',effectProfileId:'fixture-effect',effects:'off' as const}}],checks:[{missionId:'planned',decision:'retain' as const,reason:'Fixture retained mission.'}]}]}};
+  const selected=SCAFFOLDS.find(s=>s.id==='process-reconstruction')!,p=buildLearningBriefing({notebook,activity:f.activity,scaffold:selected});expect(p.theme).toBe('workshop');expect(p.id).toBe(f.plan.id);
+  const pending={...notebook,gameDesign:{...notebook.gameDesign,batches:notebook.gameDesign.batches.map(batch=>({...batch,status:'written' as const}))}};expect(buildLearningBriefing({notebook:pending,activity:f.activity,scaffold:selected}).theme).toBe('ocean');
+ });
  it('keeps an AI explanation paired with all citations instead of choosing a document heading for reflection',()=>{
   const f=plan(),options=f.plan.practice.focusOptions;
   expect(options[0].explanation).toBe(f.mission.conceptExplanation.text);

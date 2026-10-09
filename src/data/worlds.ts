@@ -32,8 +32,8 @@ export function worldPalette(theme='islands',age='adult') {
 }
 // Authored setting objects are decorative. Source-derived objects and relationships are supplied separately by the runtime.
 const designs:[string,string,string,SceneLayout,SceneGlyph,SceneGlyph,SceneGlyph][]=[
- ['concept-map-repair','The connection conservatory','concepts','network','branch','bridge','leaf'],
- ['classification-workshop','The sorting greenhouse','categories','workbench','basket','leaf','cube'],
+ ['concept-map-repair','The systems observatory','concepts','network','branch','bridge','leaf'],
+ ['classification-workshop','The sorting foundry','categories','workbench','basket','leaf','cube'],
  ['comparison-puzzle','The twin observatories','comparison','workbench','scales','lens','globe'],
  ['analogy-construction','The bridge atelier','relationships','network','bridge','globe','key'],
  ['definition-building','The word forge','language','archive','book','pencil','cube'],

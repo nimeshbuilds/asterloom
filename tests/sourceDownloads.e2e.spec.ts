@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import {campaignTeachingFixture} from './campaignTeaching.fixture';
 import type {Notebook,Source} from '../src/types';
-import {learnBeforeQuest} from './teachingDriver.mjs';
+import {learnBeforeQuest,openDetailedWorkspace} from './teachingDriver.mjs';
 
 const original=Buffer.from('%PDF-1.4\r\n% preserved fixture bytes\r\n%%EOF\r\n');
 const snapshot=Buffer.from('Original captured page wording.\n');
@@ -83,7 +83,7 @@ test('reading sources after an independent result preserves its credit and suppo
  await page.clock.setFixedTime(new Date('2026-10-08T12:00:00.000Z'));
  await open(page,n);
  await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();
- await learnBeforeQuest(page);
+ await learnBeforeQuest(page);await openDetailedWorkspace(page);
  // A real completed lesson becomes independent retrieval on a later day.
  await page.clock.setFixedTime(new Date('2026-10-10T12:00:00.000Z'));
  const readProgress=()=>page.evaluate(id=>new Promise<any>((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onsuccess=()=>{const db=request.result,read=db.transaction('records').objectStore('records').get('progress:'+id);read.onsuccess=()=>{db.close();resolve(read.result);};read.onerror=()=>reject(read.error);};request.onerror=()=>reject(request.error);}),n.id);
@@ -104,7 +104,7 @@ test('reading sources after an independent result preserves its credit and suppo
  await expect(hud.locator('[data-hud=score]')).toContainText('Mission score');
  const afterDownload=await readProgress();expect(afterDownload.structured[activityId].response._draft).toMatchObject({checked:true,hintUsed:false,postResultAssistance:true});
  expect(afterDownload.xp).toBe(earned.xp);expect(afterDownload.mastery).toBe(earned.mastery);expect(afterDownload.independentActivityAwards).toEqual(earned.independentActivityAwards);expect(afterDownload.structured[activityId].review).toEqual(earned.structured[activityId].review);
- await page.reload();await page.locator(`.campaign-lessons article[data-activity-id="${activityId}"]`).getByRole('button',{name:'Revisit this mission',exact:true}).click();
+ await page.reload();await page.locator(`.campaign-lessons article[data-activity-id="${activityId}"]`).getByRole('button',{name:'Revisit this mission',exact:true}).click();await openDetailedWorkspace(page);
  await expect(hud).toHaveAttribute('data-mode','independent');await expect(hud.locator('[data-hud=score]')).toContainText('Mission score');
  await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','still');
  await page.getByRole('button',{name:'Move Read the task description. down',exact:true}).click();

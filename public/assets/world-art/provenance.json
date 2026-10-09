@@ -34,7 +34,7 @@
     {
       "id": "junior-discovery",
       "file": "junior-discovery.png",
-      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A delightful high-quality 3D storybook discovery garden for children ages3–8, rounded wooden treehouses, colorful simple stepping stones, small gentle stream, friendly toy blocks and flowers at edges, safe inviting sunny world, simple readable shapes, no characters. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A delightful high-quality 3D storybook discovery garden for children ages3\u20138, rounded wooden treehouses, colorful simple stepping stones, small gentle stream, friendly toy blocks and flowers at edges, safe inviting sunny world, simple readable shapes, no characters. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
     },
     {
       "id": "console",
@@ -44,7 +44,28 @@
     {
       "id": "junior-expedition",
       "file": "junior-expedition.png",
-      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A richly crafted 3D illustrated adventure island for children ages9–11, treehouse laboratory, rope bridge, little explorer harbor and hillside discovery trails, playful but sophisticated detail, warm sunlight, calm central path, no characters. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+      "prompt": "Use case: stylized-concept. Asset type: wide premium game-world establishing artwork for Asterloom, a learning adventure game. A richly crafted 3D illustrated adventure island for children ages9\u201311, treehouse laboratory, rope bridge, little explorer harbor and hillside discovery trails, playful but sophisticated detail, warm sunlight, calm central path, no characters. Render in original polished 3D environment concept art, excellent materials, atmospheric depth, refined detail and cinematic lighting. Landscape 1536x1024 composition, important setting inside middle horizontal band so it crops gracefully to a 20:9 game banner. Clear visual hierarchy, immersive beauty, no user interface, no text, no letters, no logos, no people, no characters, no diagram, no educational factual claims. Decorative fictional environment only. This is reusable shipped game artwork, high production quality, not a flat icon or cheap cartoon."
+    },
+    {
+      "id": "process-waterworks",
+      "file": "process-waterworks.png",
+      "prompt": "Premium game environment concept art, wide landscape 16:9. A sophisticated architectural waterworks control landscape for a learning game about sequencing processes: five striking stone and bronze canal platforms at different heights, visible turquoise flowing channels, elegant mechanical sluices, a distant circular observatory above mist. Isometric three-quarter cinematic view. Warm late afternoon light, deep navy shadows, teal water, copper accents, intricate polished game art, mature strategy adventure aesthetic. Compose detailed world mostly along edges and upper third; broad calm dark slate foreground area for separately rendered interactive cards. No text, no labels, no numbers, no logos, no people, no floating UI. This is a fictional decorative game setting, not an educational diagram. High visual craft, legible silhouettes, restrained bloom.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-09"
+    },
+    {
+      "id": "sorting-foundry",
+      "file": "sorting-foundry.png",
+      "prompt": "Premium game environment concept art, wide landscape16:9. A sophisticated sorting foundry for an adult learning strategy game: an architectural hall with branching brass conveyor tracks, open sculptural collection bays, carefully designed glass and copper mechanisms, luminous abstract crystal materials. Three-quarter view overlooking a dark slate workfloor. Rich teal, amber copper and deep indigo, warm practical lamps, volumetric distant light. Highly polished illustrated 3D game environment with elegant mechanical detail, no childish toys. Keep central/lower workfloor relatively calm and uncluttered for separate interactive source cards. No text, no labels, no numbers, no people, no logos, no UI. Fictional decorative world, not a factual diagram.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-09"
+    },
+    {
+      "id": "systems-observatory",
+      "file": "systems-observatory.png",
+      "prompt": "Premium game environment concept art, wide landscape16:9. A breathtaking systems observatory for an adult learning adventure: floating circular stone-and-glass platforms linked by thin illuminated bridges within a vast open astronomical atrium, elegant central brass astrolabe, modular architectural consoles, distant stars through curved windows. Sophisticated strategy game art, cinematic indigo and teal with restrained gold glows, crisp geometry, tangible polished materials, mature visual style. Broad calm dark central and lower area for separate interactive relationship nodes. Interesting detail framed around edges and top. No text, no labels, no numbers, no logos, no people, no UI. Fictional decorative setting, never a factual technical diagram.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-09"
     }
   ],
   "pending": []
