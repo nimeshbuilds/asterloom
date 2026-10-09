@@ -4,6 +4,7 @@ import type {Notebook,Progress} from '../src/types';
 import {directorReply} from './gameDirector.fixture';
 import {childPlaySources,puppetStoryFixture} from '../src/data/childPlayFixtures';
 import {learnBeforeQuest} from './learningJourney.helpers';
+import {isCurrentEvidence} from '../src/lib/evidence';
 
 const material='# Maintenance procedure\n1. Open the settings panel.\n2. Choose the reset command.\n3. Confirm the selected reset.';
 async function records(page:Page):Promise<Notebook[]>{return page.evaluate(()=>new Promise<any[]>((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onsuccess=()=>{const db=request.result,read=db.transaction('records','readonly').objectStore('records').getAll();read.onsuccess=()=>{resolve(read.result.filter(value=>Array.isArray(value?.sources)));db.close();};read.onerror=()=>reject(read.error);};request.onerror=()=>reject(request.error);}));}
@@ -76,6 +77,7 @@ test('a provider timeout shows its saved reason and resumes without repeating th
  await expect(page.getByRole('region',{name:'Game creation status'})).toContainText('Creation needs attention');
  await expect(page.getByRole('button',{name:'Play game',exact:true})).toHaveCount(0);
  expect(stages).toEqual(['plan','write']);
+ const firstReceipts=structuredClone((await records(page))[0].gameDesign!.receipts);expect(firstReceipts.map(receipt=>receipt.status)).toEqual(['completed','failed']);
  await page.reload();await page.getByRole('button',{name:'Open A resumable timed-out request',exact:true}).click();
  await expect(bar).toHaveAttribute('value',savedPercent!);
  await page.locator('button.aster-launcher').click();
@@ -85,7 +87,13 @@ test('a provider timeout shows its saved reason and resumes without repeating th
  await page.getByRole('button',{name:'Close Aster',exact:true}).click();
  failWrite=false;await connect(page);await page.getByRole('button',{name:'Continue creation',exact:true}).click();
  await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();
- expect(stages).toEqual(['plan','write','write','check']);await expect(bar).toHaveAttribute('value','100');
+ expect(stages).toEqual(['plan','write','write','check','overview']);await expect(bar).toHaveAttribute('value','100');
+ const finished=(await records(page))[0],receipts=finished.gameDesign!.receipts;
+ expect(receipts.slice(0,2)).toEqual(firstReceipts);expect(receipts.map(receipt=>receipt.stage)).toEqual(stages);expect(receipts.map(receipt=>receipt.status)).toEqual(['completed','failed','completed','completed','completed']);
+ expect(receipts[1].usage).toMatchObject({status:'unavailable',inputTokens:null,outputTokens:null});
+ expect(receipts.filter(receipt=>receipt.status==='completed').reduce((sum,receipt)=>sum+receipt.usage.inputTokens!,0)).toBe(400);
+ expect(receipts.filter(receipt=>receipt.status==='completed').reduce((sum,receipt)=>sum+receipt.usage.outputTokens!,0)).toBe(240);
+ expect(finished.gameDesign!.overview!.nodes.at(-1)!.status).toBe('ready');
 });
 
 test('fresh creation keeps sources and preferences when connecting is dismissed, without making an AI request',async({page})=>{
@@ -96,12 +104,26 @@ test('fresh creation keeps sources and preferences when connecting is dismissed,
 });
 
 for(const method of ['paste','upload'] as const)test(`a beginner can ${method}, create through measured planning, writing and checking and start a source-based lesson without template selection`,async({page},testInfo)=>{
- const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));let calls=0;await page.route('**/api/generate',async route=>{calls++;const body=route.request().postDataJSON();const data=JSON.parse(body.prompt.split('REFERENCE DATA (JSON):\n')[1]);expect(body.maxOutputTokens).toBeLessThanOrEqual(8000);if(data.units){expect(data.units.length).toBeGreaterThan(0);expect(data.units.every((u:{excerpt:string})=>material.includes(u.excerpt))).toBe(true);}await route.fulfill({json:reply(body)});});
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));let calls=0;const stages:string[]=[];let planUnits:any[]=[],overviewData:any;
+ await page.route('**/api/generate',async route=>{
+  calls++;const body=route.request().postDataJSON(),stage=body.prompt.match(/STAGE: (\w+)/)?.[1],data=JSON.parse(body.prompt.split('REFERENCE DATA (JSON):\n')[1]);stages.push(stage);expect(body.maxOutputTokens).toBeLessThanOrEqual(8000);
+  if(stage==='plan'){expect(data.units).toHaveLength(1);for(const unit of data.units){expect(typeof unit.excerpt).toBe('string');expect(unit.excerpt.length).toBeGreaterThan(0);expect(material.includes(unit.excerpt)).toBe(true);}planUnits=structuredClone(data.units);}
+  if(stage==='write'){expect(data.missions).toHaveLength(1);const mission=data.missions[0],primary=planUnits.find(unit=>unit.unitId===mission.plan.unitId);expect(mission.unit).toEqual(primary);expect(mission.teachingContextWindow.sourceId).toBe(primary.sourceId);expect(mission.teachingContextWindow.excerpt).toBe(material.slice(mission.teachingContextWindow.start,mission.teachingContextWindow.end));}
+  if(stage==='overview'){
+   expect(data.units).toHaveLength(planUnits.length);const current=(await records(page))[0];
+   for(const unit of data.units){const primary=planUnits.find(item=>item.unitId===unit.unitId);expect(primary).toBeDefined();expect(unit.sourceId).toBe(primary.sourceId);expect(unit.excerpt).toBeUndefined();expect(unit.savedSummary.citations.length).toBeGreaterThan(0);
+    const savedNote=current.gameDesign!.batches.flatMap(batch=>batch.overviewNotes??[]).find(note=>note.unitId===unit.unitId);expect(unit.savedSummary).toEqual(savedNote!.summary);
+    for(const citation of unit.savedSummary.citations){expect(citation.sourceId).toBe(unit.sourceId);expect(isCurrentEvidence(citation,current.sources)).toBe(true);expect(citation.quote).toBe(material.slice(citation.start,citation.end));expect(primary.excerpt.includes(citation.quote)).toBe(true);}
+   }overviewData=structuredClone(data);
+  }
+  await route.fulfill({json:reply(body)});
+ });
  await begin(page,`My ${method} adventure`);if(method==='paste')await paste(page);else{await page.getByLabel('Upload source files',{exact:true}).setInputFiles({name:'maintenance.md',mimeType:'text/markdown',buffer:Buffer.from(material)});await expect(page.locator('.source-main')).toContainText('maintenance.md');}
- await connect(page);expect(calls).toBe(0);await expect(page.getByRole('tab')).toHaveCount(0);await page.getByRole('button',{name:'Create game with AI',exact:true}).click();await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();expect(calls).toBe(4);
+ await connect(page);expect(calls).toBe(0);await expect(page.getByRole('tab')).toHaveCount(0);await page.getByRole('button',{name:'Create game with AI',exact:true}).click();await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();expect(calls).toBe(4);expect(stages).toEqual(['plan','write','check','overview']);
  const usage=page.getByRole('region',{name:'AI creation usage',exact:true});await usage.locator('summary').click();await expect(usage).toContainText('4 requests');await expect(usage.locator('dl > div').filter({has:page.getByText('Input tokens',{exact:true})}).locator('dd')).toHaveText('400');await expect(usage.locator('dl > div').filter({has:page.getByText('Output tokens',{exact:true})}).locator('dd')).toHaveText('240');await expect(usage.locator('dl > div').filter({has:page.getByText('Cached input',{exact:true})}).locator('dd')).toHaveText('120');
  if(method==='upload')await page.screenshot({path:testInfo.outputPath('director-creator-with-usage.png'),fullPage:true});
  const saved=(await records(page))[0];expect(saved.gameDesign?.receipts).toHaveLength(4);expect(saved.aiLearningPlan?.missions).toHaveLength(1);expect(saved.sources[0].text).toBe(material);expect(saved.activities!.find(a=>a.id.startsWith('director-'))).toMatchObject({kind:'sequence',reviewStatus:'needs-review'});expect(JSON.stringify(saved)).not.toContain('session-only-test-key');expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toContain('session-only-test-key');
+ expect(saved.gameDesign!.receipts.map(receipt=>receipt.stage)).toEqual(stages);expect(saved.gameDesign!.overview!.nodes.at(-1)!.status).toBe('ready');expect(saved.gameDesign!.overview!.nodes.at(-1)!.content!.introduction).toEqual(overviewData.units[0].savedSummary);
  await page.getByRole('button',{name:'Play game',exact:true}).click();await expect(page.getByRole('region',{name:'Learning briefing',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Check my work',exact:true})).toHaveCount(0);if(method==='upload'){await page.getByRole('button',{name:'Learn the ideas',exact:true}).click();await expect(page.locator('.lesson-teaching-card')).toBeVisible();await page.screenshot({path:testInfo.outputPath('director-source-teaching.png'),fullPage:true});}await learnBeforeQuest(page);await openDetailedWorkspace(page);await expect(page.locator('.structured-sequence')).toBeVisible();await page.locator('button.aster-launcher').click();const companion=page.getByRole('dialog',{name:'Ask Aster',exact:true});await companion.getByRole('button',{name:'Help with this mission',exact:true}).click();await expect(companion).toContainText('AI-PREPARED PRACTICE GUIDANCE');await expect(companion).toContainText('The reset procedure has three documented actions in order.');await expect(companion.locator('.aster-citation-links')).toContainText(method==='paste'?'Maintenance notes':'maintenance.md');if(method==='upload')await page.screenshot({path:testInfo.outputPath('director-gameplay-with-aster-help.png'),fullPage:true});await page.getByRole('button',{name:'Close Aster',exact:true}).click();expect(calls).toBe(4);
  // Force a known source-order violation; a random starting route can occasionally be correct.
  const moveFirstDown=page.getByRole('button',{name:'Move Open the settings panel. down',exact:true});
@@ -113,7 +135,7 @@ for(const method of ['paste','upload'] as const)test(`a beginner can ${method}, 
  const readProgress=()=>progressFor(page,saved.id);
  await expect.poll(async()=>((await readProgress()).structured![mission.id].response as any)._draft.checked).toBe(true);
  const progress=await readProgress();expect(progress.xp).toBe(0);expect(progress.practice?.xp??0).toBe(0);expect(progress.mastery).toBe(0);expect(progress.completedCardIds).toEqual([]);expect(progress.structured![mission.id]).toMatchObject({completed:false,score:0,maxScore:0,attempts:0});expect(progress.structured![mission.id].review).toBeUndefined();expect(progress.structured![mission.id].response._draft.hintUsed).toBe(true);
- await page.reload();await page.getByRole('button',{name:`Open My ${method} adventure`,exact:true}).click();await expect(page.getByRole('region',{name:'AI creation usage',exact:true})).toContainText('400 in · 240 out');expect((await records(page))[0].gameDesign?.receipts).toHaveLength(4);await page.locator(`.campaign-lessons article[data-activity-id="${mission.id}"]`).getByRole('button',{name:'Revisit this mission',exact:true}).click();await expect(hud).toContainText('Model practice score');await expect(hud.locator('[data-hud="score"] strong')).toHaveText(practiceScore!);await expect(hud.locator('[data-hud="total-xp"] strong')).toHaveText('0 XP');expect((await readProgress()).practice?.xp??0).toBe(0);expect((await readProgress()).structured![mission.id].completed).toBe(false);expect(calls).toBe(4);expect(errors).toEqual([]);
+ await page.reload();await page.getByRole('button',{name:`Open My ${method} adventure`,exact:true}).click();await expect(page.getByRole('region',{name:'AI creation usage',exact:true})).toContainText('400 in · 240 out');expect((await records(page))[0].gameDesign?.receipts).toEqual(saved.gameDesign!.receipts);expect((await records(page))[0].gameDesign?.overview).toEqual(saved.gameDesign!.overview);await page.locator(`.campaign-lessons article[data-activity-id="${mission.id}"]`).getByRole('button',{name:'Revisit this mission',exact:true}).click();await expect(hud).toContainText('Model practice score');await expect(hud.locator('[data-hud="score"] strong')).toHaveText(practiceScore!);await expect(hud.locator('[data-hud="total-xp"] strong')).toHaveText('0 XP');expect((await readProgress()).practice?.xp??0).toBe(0);expect((await readProgress()).structured![mission.id].completed).toBe(false);expect(calls).toBe(4);expect(errors).toEqual([]);
 });
 
 test('canceling creation keeps the source draft and rejects a late answer instead of announcing a finished game',async({page})=>{

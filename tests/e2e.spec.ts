@@ -505,9 +505,11 @@ test('editing source material blocks stale saved answers from earning credit', a
   await page.getByRole('textbox', { name: 'Readable source text', exact: true }).fill('Comet: an icy object that travels through the solar system.');
   await page.getByRole('button', { name: 'Done', exact: false }).click();
   await page.getByRole('button', { name: 'Play game', exact: false }).click();
-  await expect(page.getByRole('heading', { name: 'Investigate the source', exact: true })).toBeVisible();
-  await expect(page.locator('.source-study-material')).toContainText('Comet: an icy object');
+  await expect(page.getByRole('heading', { name: 'Comet', exact: true })).toBeVisible();
+  await expect(page.getByRole('region',{name:'Chapter material',exact:true}).locator('blockquote')).toHaveText('Comet: an icy object that travels through the solar system.');
   await expect(page.getByRole('button', { name: 'Check my answer', exact: false })).toHaveCount(0);
+  await expect(page.locator('.answer-option')).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'Game progress',exact:true}).locator('[data-hud="total-xp"] strong')).toHaveText('0 XP');
   await page.getByRole('button',{name:'Save & return',exact:true}).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /^Your games/ }).click();
   await openExampleGame(page,'A small guide to the cosmos');

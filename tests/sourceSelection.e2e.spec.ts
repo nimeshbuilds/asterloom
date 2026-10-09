@@ -81,9 +81,11 @@ test('replaced source evidence cannot launch stale missions or expose them in th
  expect(retained).toHaveLength(2);expect(retained.every(activity=>activity.reviewStatus==='needs-review')).toBe(true);
  expect(retained.find(activity=>activity.id===first.id)?.sourceRefs).toEqual(first.sourceRefs);
  await page.getByRole('button',{name:'Play game',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Investigate the source',exact:true})).toBeVisible();
- await expect(page.getByRole('region',{name:'Chapter material',exact:true})).toContainText('The survey recorded the river level');
+ await expect(page.getByRole('heading',{name:'Revised field notes',exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Chapter material',exact:true}).locator('blockquote')).toHaveText(revised.slice(revised.indexOf('\n')+1));
  await expect(page.locator('.structured-game')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Check my work',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('region',{name:'Game progress',exact:true}).locator('[data-hud="total-xp"] strong')).toHaveText('0 XP');
  await page.getByRole('button',{name:'Save & return',exact:true}).click();
  await expect(page.locator('[data-activity-id]')).toHaveCount(0);
  await page.getByRole('button',{name:'Edit materials',exact:true}).click();await customizeLearning(page);
