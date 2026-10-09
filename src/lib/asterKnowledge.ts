@@ -3,7 +3,7 @@ import {EvidenceIndex,hybridRanks} from './retrieval';
 import {evidenceReference,isCurrentEvidence,sourceRevision,textDigest} from './evidence';
 import {hasCurrentActivityEvidence,isReadyLearningSource} from './scaffoldRuntime';
 import type {SemanticEvidenceIndex} from './semanticRetrieval';
-import {asterContextBlocks,asterOverview,asterQuery,asterQuestionNeedsExercise,asterTopicQuestion,diverseAsterHits,rankAsterLexical} from './asterRetrieval';
+import {asterContextBlocks,asterOverview,asterQuery,asterQuestionNeedsExercise,asterTopicQuestion,contextualizeAsterHits,diverseAsterHits,rankAsterLexical} from './asterRetrieval';
 
 export interface AsterKnowledgePassage {reference:EvidenceReference;sourceTitle:string}
 export interface AsterKnowledgeResult {
@@ -45,7 +45,7 @@ export async function askAster(notebook:Notebook,question:unknown,options:AskAst
   const relevant=activity?new Set(activity.sourceRefs.map(ref=>ref.sourceId)):undefined;
   const sources=notebook.sources.filter(source=>isReadyLearningSource(source,notebook.sources));
   if(!sources.length)return result('unavailable','No readable, current source material is available for this question.');
-  const includeExercises=asterQuestionNeedsExercise(topicQuestion),index=new EvidenceIndex(source=>asterContextBlocks(source,{includeExercises}));index.update(sources);
+  const includeExercises=asterQuestionNeedsExercise(topicQuestion),index=new EvidenceIndex(source=>asterContextBlocks(source,{includeExercises,overview}));index.update(sources);
   const limit=Number.isFinite(options.limit)?Math.max(1,Math.min(6,Math.trunc(options.limit!))):3;
   const exact=overview?asterOverview(index.blocks,limit):rankAsterLexical(index.search(terms.join(' '),100).map(hit=>relevant?.has(hit.block.sourceId)?{...hit,score:hit.score*1.08}:hit),terms);let hits=exact,method:AsterKnowledgeResult['method']='lexical',semanticIndexed=0;
   const useSemantic=options.semantic!==false&&typeof document!=='undefined'&&typeof location!=='undefined'&&location.protocol!=='file:';
@@ -66,7 +66,7 @@ export async function askAster(notebook:Notebook,question:unknown,options:AskAst
     finally{if(timer)clearTimeout(timer);}
   }
   if(options.signal?.aborted)return result('unavailable','Question search stopped. Your source material is still available.');
-  hits=diverseAsterHits(hits.filter(hit=>isCurrentEvidence(hit.block,notebook.sources)),limit);
+  hits=diverseAsterHits(contextualizeAsterHits(hits.filter(hit=>isCurrentEvidence(hit.block,notebook.sources)),index.blocks,sources),limit);
   if(!hits.length)return result('not-found','I could not find a matching passage in the available material. Try a term used in the source, or ask the author for more context.');
   return{...result('found',overview?'Here are selected explanations from across your material. This selection does not cover every section.':'These passages from your material may help answer your question.',hits.map(hit=>({reference:evidenceReference(hit.block),sourceTitle:hit.block.sourceTitle})),method),topicQuestion,coverage:{sources:sources.length,passages:index.blocks.length,semanticIndexed,overview}};
 }

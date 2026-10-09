@@ -1,5 +1,5 @@
 import {describe,expect,it,vi,afterEach} from 'vitest';
-import {asterContextBlocks,asterQuery,isUsefulAsterPassage,sourceReaderContentRanges} from '../src/lib/asterRetrieval';
+import {asterContextBlocks,asterQuery,contextualizeAsterHits,isUsefulAsterPassage,sourceReaderContentRanges} from '../src/lib/asterRetrieval';
 import {askAster} from '../src/lib/asterKnowledge';
 import {askAsterAI} from '../src/lib/asterAI';
 import {createNotebook,createSource} from '../src/lib/utils';
@@ -20,6 +20,36 @@ const document=()=>createSource([
 afterEach(()=>vi.unstubAllGlobals());
 
 describe('Aster meaningful exact context',()=>{
+ it('keeps disjoint explanations focused for semantic matching instead of embedding a mixed topic window',()=>{
+  const paragraphs=['Evaporation: The process in which liquid water changes into vapor in the air.','Condensation: The process in which water vapor changes into liquid droplets.','TLS encrypts communication between a client and a server.'];
+  const source=createSource(paragraphs.join('\n\n'),'Mixed field notes'),blocks=asterContextBlocks(source);
+  expect(blocks.map(block=>block.quote)).toEqual(paragraphs);
+  const hit={block:blocks[0],score:0.402,lexicalScore:0,semanticScore:0.402,method:'semantic' as const};
+  expect(contextualizeAsterHits([hit],blocks,[source])).toEqual([hit]);
+  expect(blocks.every(block=>isCurrentEvidence(block,[source]))).toBe(true);
+ });
+ it('attaches referents and limiting conditions after selecting a relevant paragraph without expanding its search target',async()=>{
+  const source=createSource('[Page 4]\nAuthorization restricts document retrieval to the current user.\n\nIt uses verified identity.\n\nIf the identity is missing, retrieval must stop.\n\nEvaporation changes liquid water into vapor.','Conditions'),blocks=asterContextBlocks(source);
+  expect(blocks).toHaveLength(4);expect(blocks[1].quote).toBe('It uses verified identity.');
+  const answer=await askAster(createNotebook({sources:[source]}),'Explain verified identity',{semantic:false});
+  expect(answer.passages[0].reference.quote).toBe(source.text.slice(blocks[0].start,blocks[2].end));
+  expect(answer.passages[0].reference.quote).not.toContain('Evaporation');expect(answer.passages[0].reference.locator.label).toBe('Page 4 · lines 2–6');expect(isCurrentEvidence(answer.passages[0].reference,[source])).toBe(true);
+  expect(blocks[1].quote).toBe('It uses verified identity.');
+ });
+ it('combines adjacent independently relevant explanations only after scoring, leaving an unmatched topic out',()=>{
+  const source=createSource('Evaporation changes liquid water into vapor.\n\nCondensation changes water vapor into liquid droplets.\n\nTLS encrypts communication between devices.','Mixed source'),blocks=asterContextBlocks(source);
+  const hits=blocks.slice(0,2).map(block=>({block,score:0.4,lexicalScore:0,semanticScore:0.4,method:'semantic' as const})),context=contextualizeAsterHits(hits,blocks,[source]);
+  expect(blocks).toHaveLength(3);expect(context[0].block.quote).toBe(source.text.slice(blocks[0].start,blocks[1].end));expect(context.every(hit=>!hit.block.quote.includes('TLS'))).toBe(true);expect(context[0].semanticScore).toBe(0.4);expect(context.every(hit=>isCurrentEvidence(hit.block,[source]))).toBe(true);
+ });
+ it('does not attach context across excluded furniture, pages or unrelated source paragraphs',()=>{
+  const source=createSource('[Page 1]\nAuthorization restricts document retrieval.\n\nField What to understand\n\nIt uses verified identity.\n\n[Page 2]\nThis separate page describes its own rule.','Separated'),blocks=asterContextBlocks(source);
+  const hits=blocks.map(block=>({block,score:1,lexicalScore:1,method:'lexical' as const}));expect(contextualizeAsterHits(hits,blocks,[source])).toEqual(hits);
+ });
+ it('keeps dependent context bounded and retains whole current source spans',()=>{
+  const first='Authorization requires a verified identity. '+ 'The conditions apply to each permitted request. '.repeat(12),next='It also requires an allowed document. '+ 'This condition must remain attached to the request. '.repeat(12);
+  const source=createSource(first+'\n\n'+next,'Long conditions'),blocks=asterContextBlocks(source),hits=blocks.map(block=>({block,score:1,lexicalScore:1,method:'lexical' as const})),context=contextualizeAsterHits(hits,blocks,[source]);
+  expect(context.every(hit=>hit.block.quote.length<=1200&&isCurrentEvidence(hit.block,[source]))).toBe(true);expect(context.map(hit=>hit.block.quote)).toEqual(blocks.map(block=>block.quote));
+ });
  it('omits PDF cover, spaced contents leaders, running headers and isolated table labels from source answers',async()=>{
   const source=document(),before=JSON.stringify(source),blocks=asterContextBlocks(source);
   expect(blocks.length).toBeGreaterThan(4);expect(blocks.every(block=>isCurrentEvidence(block,[source]))).toBe(true);

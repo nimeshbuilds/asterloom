@@ -16,7 +16,7 @@ async function openAwareness(page:Page,info:TestInfo,mode:'creation'|'play'|'lib
  if(mode==='creation'){
   const inventory=buildDirectorSourceInventory(base),scaffold=scaffoldById('process-reconstruction'),batch=design.batches[0];
   if(inventory.units.length!==1||design.batches.length!==1)throw Error('Awareness fixture requires one complete source unit.');
-  const planned=validateGameBatchPlan(directorFixtureResponse('plan',{choices:[{kind:'sequence',scaffoldId:scaffold.id,scene:scaffold.visual.scene}],units:inventory.units.map(unit=>({unitId:unit.id,title:unit.title,missionEligible:unit.missionEligible,limitation:unit.limitation}))}),batch,inventory.units,base);
+  const planned=validateGameBatchPlan(directorFixtureResponse('plan',{choices:[{kind:'sequence',scaffoldId:scaffold.id,scene:scaffold.visual.scene}],units:inventory.units.map(unit=>({unitId:unit.id,title:unit.title,excerpt:unit.excerpt,missionEligible:unit.missionEligible,limitation:unit.limitation}))}),batch,inventory.units,base);
   const plan=planned.missions[0],unit=inventory.units[0];if(planned.missions.length!==1)throw Error('Awareness checkpoints require a real mission.');
   plannedDesign=validateGameDesign({...design,batches:[{...batch,...planned,status:'planned'}]},base);
   const audioChoices=audioDirectionCatalog({ageGroup:base.ageGroup,scaffoldId:plan.scaffoldId,activityKind:plan.kind,theme:plan.visualDirection.scene});

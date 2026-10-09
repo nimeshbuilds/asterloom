@@ -85,27 +85,52 @@ export function sourceReaderContentRanges(source:Source):{start:number;end:numbe
  });
  return segments.map(({start,end})=>({start,end}));
 }
-/** Aster's index is derived, disposable and separate from saved mission inventories.
- * Every context window remains one exact contiguous span of the original source. */
-export function asterContextBlocks(source:Source,options:{includeExercises?:boolean}={}):EvidenceBlock[]{
+/** Search focused explanations before attaching their surrounding context. Mixing
+ * unrelated adjacent paragraphs dilutes both semantic and lexical relevance.
+ * These disposable spans never change saved mission inventories or source text. */
+export function asterContextBlocks(source:Source,options:{includeExercises?:boolean;overview?:boolean}={}):EvidenceBlock[]{
  if(source.status!=='ready'||!source.text.trim())return[];
  const text=source.text,isCaption=captions(text),pages:PageRange[]=isCaption?[{start:0,end:text.length,kind:'text'}]:pageRanges(text),revision=sourceRevision(source);
  const segments=isCaption?segmentSource(text,1200):sourceReaderContentRanges(source).map(({start,end})=>({start,end,quote:text.slice(start,end),sectionKey:`page-${pages.find(page=>start>=page.start&&start<page.end)?.start??0}`}));
- const ranges:{start:number;end:number;sectionKey:string}[]=[];
- let pending:{start:number;end:number;sectionKey:string}|undefined;
- const flush=()=>{if(pending&&isUsefulAsterPassage(text.slice(pending.start,pending.end),options.includeExercises))ranges.push(pending);pending=undefined;};
+ const ranges:typeof segments=[];
  for(const segment of segments){
-  const useful=isUsefulAsterPassage(segment.quote,options.includeExercises);
-  if(!useful){flush();continue;}
-  // Two adjacent explanations usually provide enough referents and conditions.
-  // Do not merge separated topics, omitted furniture, pages or subtitle cues.
-  if(pending&&pending.sectionKey===segment.sectionKey&&segment.end-pending.start<=1200&&!text.slice(pending.end,segment.start).replace(/\[\d+\]/g,'').trim())pending.end=segment.end;
-  else{flush();pending={start:segment.start,end:segment.end,sectionKey:segment.sectionKey};}
- }flush();
+  if(!isUsefulAsterPassage(segment.quote,options.includeExercises))continue;
+  const previous=ranges.at(-1);
+  // An explicit overview samples broad context, rather than scoring a query
+  // against these combined topics. Preserve that document-wide coverage.
+  if(options.overview&&previous&&previous.sectionKey===segment.sectionKey&&segment.end-previous.start<=1200&&!text.slice(previous.end,segment.start).trim())ranges[ranges.length-1]={...previous,end:segment.end,quote:text.slice(previous.start,segment.end)};
+  else ranges.push(segment);
+ }
  const lineStarts=[0,...[...text.matchAll(/\n/g)].map(match=>match.index!+1)],cues=[...text.matchAll(/^((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})\s*-->/gm)];let cueIndex=-1;
  const lineAt=(position:number)=>{let low=0,high=lineStarts.length;while(low<high){const mid=(low+high)>>>1;if(lineStarts[mid]<=position)low=mid+1;else high=mid;}return low;};
  return ranges.map(({start,end})=>{const page=pages.find(item=>start>=item.start&&start<item.end)!;const lineStart=lineAt(start),lineEnd=lineAt(end-1);while(cueIndex+1<cues.length&&cues[cueIndex+1].index!<=start)cueIndex++;const timestamp=cues[cueIndex]?.[1];
   return{id:`aster-${textDigest(source.id).slice(0,16)}-${revision.slice(0,20)}-${start}-${end}`,sourceId:source.id,sourceTitle:source.title,sourceRevision:revision,start,end,quote:text.slice(start,end),locator:page.kind!=='text'?{kind:page.kind,label:`${page.label} · lines ${lineStart}–${lineEnd}`,lineStart,lineEnd}:timestamp?{kind:'timestamp',label:`${timestamp} · lines ${lineStart}–${lineEnd}`,lineStart,lineEnd}:{kind:'text',label:`Lines ${lineStart}–${lineEnd}`,lineStart,lineEnd}};
+ });
+}
+/** A relevant paragraph can depend on a preceding referent, following condition,
+ * list or exercise choices. Add only those connected neighbors AFTER ranking;
+ * never use the larger quote as a semantic search target or cross omitted text. */
+export function contextualizeAsterHits(hits:RetrievalHit[],blocks:EvidenceBlock[],sources:readonly Source[]):RetrievalHit[]{
+ const bySource=new Map<string,EvidenceBlock[]>(),sourceById=new Map(sources.map(source=>[source.id,source])),relevant=new Set(hits.map(hit=>hit.block.id));
+ for(const block of blocks){const list=bySource.get(block.sourceId)??[];list.push(block);bySource.set(block.sourceId,list);}
+ const positions=new Map<string,number>();for(const list of bySource.values())list.forEach((block,index)=>positions.set(block.id,index));
+ const sharedTopic=(a:string,b:string)=>{const terms=new Set(asterQuery(a).terms);return asterQuery(b).terms.some(term=>terms.has(term));};
+ const connected=(before:EvidenceBlock,after:EvidenceBlock,text:string)=>before.sourceRevision===after.sourceRevision&&before.locator.kind!=='timestamp'&&after.locator.kind!=='timestamp'&&after.start>=before.end&&!text.slice(before.end,after.start).trim()&&(
+  /:\s*$/.test(before.quote)||/^(?:it|its|they|their|this|that|these|those|such|otherwise)\b/i.test(after.quote)
+  ||/^(?:when|if|unless|except|only|however|instead|for example|for instance|in contrast|by contrast)\b/i.test(after.quote)&&sharedTopic(before.quote,after.quote)
+  ||/\?\s*$/.test(before.quote)&&hasAnswerChoices(after.quote)
+  // Two adjacent paragraphs that independently matched the question may form
+  // one answer context. This cannot rescue a below-threshold semantic match.
+  ||relevant.has(before.id)&&relevant.has(after.id)&&sharedTopic(before.quote,after.quote)
+ );
+ return hits.map(hit=>{
+  const source=sourceById.get(hit.block.sourceId),list=bySource.get(hit.block.sourceId),position=positions.get(hit.block.id);if(!source||!list||position===undefined)return hit;
+  let first=position,last=position;
+  while(first>0&&list[last].end-list[first-1].start<=1200&&connected(list[first-1],list[first],source.text))first--;
+  while(last+1<list.length&&list[last+1].end-list[first].start<=1200&&connected(list[last],list[last+1],source.text))last++;
+  if(first===last)return hit;
+  const start=list[first].start,end=list[last].end,lineStart=list[first].locator.lineStart!,lineEnd=list[last].locator.lineEnd!,base=list[first];
+  return {...hit,block:{...base,id:`aster-${textDigest(source.id).slice(0,16)}-${base.sourceRevision.slice(0,20)}-${start}-${end}`,start,end,quote:source.text.slice(start,end),locator:{...base.locator,lineStart,lineEnd,label:base.locator.kind==='text'?`Lines ${lineStart}–${lineEnd}`:base.locator.label.replace(/lines \d+–\d+$/,`lines ${lineStart}–${lineEnd}`)}}};
  });
 }
 const NEUTRAL=new Set('what which why who when where how can could would should do does did please tell explain describe about me my you your say said mean means meaning know want give get show help understand learn learning source sources document documents file files material materials notebook book guide uploaded upload provided attached content contains covered cover overview summary summarize summarise main key topics ideas points takeaways this that these those it i we us our teach teaches teaching pdf pdfs epub slides recording recordings text texts all whole overall everything here thanks difference differences between versus vs work works'.split(' '));
