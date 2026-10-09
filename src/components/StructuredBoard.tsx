@@ -1,3 +1,4 @@
+import type {AsterLearningState} from '../lib/asterAwareness';
 import AsterGuide from './AsterGuide';
 import {questDirections} from './questDirections';
 import SourceMaterials from './SourceMaterials';
@@ -15,7 +16,7 @@ import PictureBuildBoard from './PictureBuildBoard';
 import { initialPictureBuildResponse } from '../lib/pictureBuildEngine';
 import ChildPlayBoard from './ChildPlayBoard';
 import { initialChildPlayResponse } from '../lib/childPlayEngine';
-import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ArrowDown, ArrowUp, ArrowRight, BookOpen, Check, CheckCircle2, CircleHelp, GripVertical, Lightbulb, RotateCcw } from 'lucide-react';
 import { evaluateActivity, validateActivity } from '../lib/structuredEngine';
 import type { ActivityResponse, Evaluation, StructuredActivity } from '../lib/structuredEngine';
@@ -107,6 +108,13 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   const missionPresentation=designedMission(notebook?.gameDesign,activity.id);
   const teachingScaffold = scaffoldById(scaffoldId ?? activity.scaffoldIds?.[0] ?? defaultWorldIdForKind(activity.kind)) ?? scaffoldById('recall-escape-mission')!;
   const lessonPlan = useMemo(() => buildLearningBriefing({notebook:teachingNotebook,scaffold:teachingScaffold,activity}), [teachingNotebook,teachingScaffold,activity]);
+  const [briefingAwareness,setBriefingAwareness]=useState<{planId:string;state:AsterLearningState}>();
+  const awarenessPlan=useRef(lessonPlan.id);awarenessPlan.current=lessonPlan.id;
+  const reportBriefingAwareness=useCallback((planId:string,state:AsterLearningState|null)=>setBriefingAwareness(previous=>{
+    if(!state)return previous?.planId===planId?undefined:previous;
+    if(planId!==awarenessPlan.current)return previous;
+    return previous?.planId===planId&&JSON.stringify(previous.state)===JSON.stringify(state)?previous:{planId,state};
+  }),[]);
   const [lesson,setLesson] = useState(() => initialLessonState(lessonPlan,initialDraft.lesson));
   const lessonUnlocked = lessonReady(lessonPlan,lesson);
   const [reactionEvent,setReactionEvent] = useState(0);
@@ -227,9 +235,11 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     try{return await persist(currentResponse.current,{hintUsed:result?hintUsed||asterAssisted.current:true})!==false;}
     catch{return false;}finally{assistanceInFlight.current=false;}
   };
-  const companion=<AsterGuide notebook={teachingNotebook} progress={progress} learningState={{title:activity.title,phase:savingResult?'saving':!lessonUnlocked?'lesson':result?'feedback':'answering',sourceId:activity.sourceRefs[0]?.sourceId,supported:asterAssisted.current||hintUsed||lessonQuestSupport(lessonPlan,lesson).assisted,saveFailed:!!saveError,lessonStage:lesson.stage,lessonStep:lesson.walkthroughStep+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:saveError?onRetrySave?'Keep this page open and choose Retry saving result.':'Keep this page open and choose Check my work to retry saving the result.':!lessonUnlocked?lesson.stage==='mission'?'Read the mission and accept it to begin the lesson.':lesson.stage==='context'?lessonRequiresWalkthrough(lessonPlan)?'Read the source context and continue to the walkthrough.':'Read the ideas, then choose Try it in practice.':lesson.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':lessonAllowsGuidedStart(lessonPlan)?'Choose Start guided quest to save your preparation and try a move in the game.':'Prepare your explanation and compare it with the source before entering the challenge.':result?.correct||practice?.correct||reflected?'Return to the game world and choose another mission.':result?'Read the saved feedback, revise your work, then choose Check my work.':'Try a move in this activity, then choose Check my work.'}} mode={lessonUnlocked?'play':'study'} activityId={activity.id} expressions={missionPresentation?.asterDirection} onAssistance={sourceAssistance} feedback={result&&reactionEvent>0&&!reflected?{outcome:result.correct===true||result.outcome==='self-reviewed'||practice?.correct?'success':'retry',eventKey:`${activity.id}-${reactionEvent}`,committed:true,...((practice?.maxScore??result.maxScore)>0?{score:{value:practice?.score??result.score,max:practice?.maxScore??result.maxScore}}:{})}:undefined}/>;
+  const directions=questDirections(activity,lessonPlan.teaching?.objective);
+  const questControls=savingResult?[]:saveError?[onRetrySave?'Retry saving result':'Check my work']:['Revisit the lesson',...((activity.kind==='sequence'||activity.kind==='classification')&&activity.items.length<=24?sceneActions(activity,response,worldSelection).filter(action=>!action.disabled).map(action=>action.label):activity.kind==='dependency'&&edgeFrom&&edgeTo&&edgeRelation?['Connect concepts']:[]),...(result?.correct||practice?.correct||reflected?[]:[activity.kind==='rubric'&&activity.mode==='self-assessment'?'Save my reflection':'Check my work']),showHint?'Hide hint':'A little help','Start over','Explore the source material'];
+  const companion=<AsterGuide notebook={teachingNotebook} progress={progress} learningState={{title:activity.title,goal:lessonPlan.teaching?.objective??lessonPlan.mission.assignment,controls:lessonUnlocked?questControls:[],phase:savingResult?'saving':!lessonUnlocked?'lesson':result?'feedback':'answering',sourceId:activity.sourceRefs[0]?.sourceId,supported:asterAssisted.current||hintUsed||lessonQuestSupport(lessonPlan,lesson).assisted,saveFailed:!!saveError,lessonStage:lesson.stage,lessonStep:lesson.walkthroughStep+1,lessonSteps:lessonPlan.walkthrough.steps.length,nextAction:saveError?onRetrySave?'Keep this page open and choose Retry saving result.':'Keep this page open and choose Check my work to retry saving the result.':!lessonUnlocked?lesson.stage==='mission'?'Read the mission and accept it to begin the lesson.':lesson.stage==='context'?lessonRequiresWalkthrough(lessonPlan)?'Read the source context and continue to the walkthrough.':'Read the ideas, then choose Try it in practice.':lesson.stage==='walkthrough'?'Follow the next walkthrough step, then continue to practice.':lessonAllowsGuidedStart(lessonPlan)?'Choose Start guided quest to save your preparation and try a move in the game.':'Prepare your explanation and compare it with the source before entering the challenge.':result?.correct||practice?.correct||reflected?'Return to the game world and choose another mission.':result?'Read the saved feedback, revise your work, then choose Check my work.':`${directions.action} ${activity.kind==='rubric'&&activity.mode==='self-assessment'?'Choose Save my reflection when ready.':'Choose Check my work when ready.'}`,...(!lessonUnlocked&&briefingAwareness?.planId===lessonPlan.id?briefingAwareness.state:{})}} mode={lessonUnlocked?'play':'study'} activityId={activity.id} expressions={missionPresentation?.asterDirection} onAssistance={sourceAssistance} feedback={result&&reactionEvent>0&&!reflected?{outcome:result.correct===true||result.outcome==='self-reviewed'||practice?.correct?'success':'retry',eventKey:`${activity.id}-${reactionEvent}`,committed:true,...((practice?.maxScore??result.maxScore)>0?{score:{value:practice?.score??result.score,max:practice?.maxScore??result.maxScore}}:{})}:undefined}/>;
   const materials=<div className="structured-materials-toolbar"><SourceMaterials notebook={teachingNotebook} beforeDownload={sourceAssistance} disabled={savingResult||!!saveError}/></div>;
-  if (!lessonUnlocked) return <>{materials}<LearningBriefing plan={lessonPlan} saved={lesson} onSave={saveLesson} onReady={()=>{}}/>{companion}</>;
+  if (!lessonUnlocked) return <>{materials}<LearningBriefing plan={lessonPlan} onAwareness={reportBriefingAwareness} saved={lesson} onSave={saveLesson} onReady={()=>{}}/>{companion}</>;
   const referencedFigure = sources.find(source => source.kind === 'image' && typeof source.dataUrl === 'string' && /^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source.dataUrl) && activity.sourceRefs.some(reference => reference.sourceId === source.id));
   const hints = practice?.details ?? result?.details ?? [];
   const detailClass = (id: string) => result?.valid ? hints.find(detail => detail.id === id)?.correct === true ? ' is-correct' : hints.find(detail => detail.id === id)?.correct === false ? ' needs-revision' : '' : '';
@@ -237,7 +247,6 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   const scene = activityScene(activity, response);
   const palette = WORLD_PALETTES[theme] ?? WORLD_PALETTES.islands;
   const arenaPrimary=(activity.kind==='sequence'||activity.kind==='classification')&&activity.items.length<=24;
-  const directions=questDirections(activity,lessonPlan.teaching?.objective);
   const workControls=<>
     {activity.kind === 'completion' && 'slotTokens' in response && <CompletionBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'data' && 'evidenceRows' in response && <DataBoard activity={activity} response={response} onChange={change}/>}

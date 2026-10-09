@@ -69,6 +69,42 @@ describe('creation resumes real mission work without a paid retry loop',()=>{
   const result=await prepareGameExperience(notebook(3),{}, {...options,signal:controller.signal,onProgress:p=>progress.push(p),onCheckpoint:async d=>{checkpoints.push(d);if(d.batches[0]?.drafts?.length===1)controller.abort();return true;}});
   expect(result.creationStatus).toBe('canceled');expect(result.ai.requestCount).toBe(2);expect(parsePackage(serializePackage(result.notebook)).gameDesign!.batches[0].drafts).toHaveLength(1);expect(gameDesignProgress(checkpoints.at(-1)!)).toMatchObject({percent:40,canResume:true});const percentages=progress.flatMap(p=>p.percent===undefined?[]:[p.percent]);expect(percentages).toEqual([...percentages].sort((a,b)=>a-b));expect(percentages).not.toContain(100);
  });
+ it('pauses an in-flight write, rejects its late response and resumes only unfinished work with a different provider',async()=>{
+  const controller=new AbortController(),input=notebook(3),requests:any[]=[];let entered!:()=>void,release!:(value:any)=>void,transport:AbortSignal|undefined;
+  const started=new Promise<void>(resolve=>{entered=resolve;});let writes=0;
+  vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);requests.push(r);if(r.stage==='write'&&++writes===2){transport=body.signal;entered();return new Promise(resolve=>{release=resolve;});}return{ok:true,json:async()=>({text:JSON.stringify(directorFixtureResponse(r.stage,r.data)),usage,actualModels:[`${r.model}-actual`]})};}));
+  const pending=prepareGameExperience(input,{}, {...options,signal:controller.signal});await started;controller.abort('pause');const first=await pending;
+  expect(first.creationStatus).toBe('paused');expect(transport!.aborted).toBe(true);expect(first.notebook.gameDesign).toMatchObject({status:'preparing',control:'paused'});expect(first.notebook.gameDesign!.events?.at(-1)?.kind).toBe('paused');
+  const saved=parsePackage(serializePackage(first.notebook)),draft=saved.gameDesign!.batches[0].drafts![0],receipts=structuredClone(saved.gameDesign!.receipts);
+  expect(saved.gameDesign!.batches[0].drafts).toHaveLength(1);expect(receipts).toHaveLength(3);expect(receipts[2]).toMatchObject({provider:'compatible',model:config.model,status:'canceled',usage:{inputTokens:null,outputTokens:null}});expect(receipts[0].actualModels).toEqual([`${config.model}-actual`]);
+  const before=JSON.stringify(saved);release(reply(directorFixtureResponse('write',requests[2].data)));await Promise.resolve();expect(JSON.stringify(saved)).toBe(before);expect(requests).toHaveLength(3);
+  const nextConfig={provider:'anthropic' as const,model:'next-designer',apiKey:'session-only'};
+  const second=await prepareGameExperience(saved,{}, {...options,ai:{config:nextConfig,consent:'create-game'}});
+  expect(second.creationStatus,second.ai.message).toBe('ready');expect(second.notebook.gameDesign!.control).toBeUndefined();expect(second.notebook.sources).toEqual(saved.sources);
+  expect(second.notebook.gameDesign!.batches[0].drafts![0]).toEqual(draft);expect(second.notebook.gameDesign!.receipts.slice(0,3)).toEqual(receipts);expect(requests.slice(3).map(r=>r.stage)).toEqual(['write','write','check','overview']);
+  expect(requests.slice(3).every(r=>r.provider==='anthropic'&&r.model==='next-designer')).toBe(true);expect(second.notebook.gameDesign!.receipts.slice(3).every(r=>r.provider==='anthropic'&&r.actualModels?.[0]==='next-designer-actual')).toBe(true);
+  expect(second.notebook.gameDesign!.batches[0].drafts![0].activity.id).toBe(draft.activity.id);expect(second.notebook.gameDesign!.receipts.reduce((n,r)=>n+(r.usage.inputTokens??0),0)).toBe(600);
+ });
+ it('stops after a completed check checkpoint before building the overview or announcing ready',async()=>{
+  const controller=new AbortController(),stages:string[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);stages.push(r.stage);return reply(directorFixtureResponse(r.stage,r.data));}));
+  const first=await prepareGameExperience(notebook(),{}, {...options,signal:controller.signal,onCheckpoint:async d=>{if(d.batches.every(b=>b.status==='checked'))controller.abort('pause');return true;}});
+  expect(first.creationStatus).toBe('paused');expect(stages).toEqual(['plan','write','check']);expect(first.notebook.gameDesign!.control).toBe('paused');expect(first.notebook.gameDesign!.overview).toBeUndefined();expect(first.ai.activityIds).toEqual([]);
+  const second=await prepareGameExperience(parsePackage(serializePackage(first.notebook)),{},options);expect(second.creationStatus).toBe('ready');expect(stages).toEqual(['plan','write','check','overview']);
+ });
+ it('does not reuse stale source work or accept forged cached evidence during a provider switch',async()=>{
+  vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);return reply(directorFixtureResponse(r.stage,r.data));}));
+  const first=await prepareGameExperience(notebook(),{}, {...options,maxRequests:2}),saved=parsePackage(serializePackage(first.notebook));expect(saved.gameDesign!.control).toBe('paused');
+  const forged=structuredClone(saved);forged.gameDesign!.batches[0].drafts![0].activity.sourceRefs[0].evidence='A nonexistent source instruction.';
+  const switched={...options,ai:{config:{...config,model:'next-model'},consent:'create-game' as const}};
+  const rejected=await prepareGameExperience(forged,{},switched);expect(rejected.creationStatus).toBe('failed');expect(rejected.ai.requestCount).toBe(0);
+  const revised={...saved,sources:saved.sources.map(source=>({...source,text:source.text+'\n4. Close the settings panel.'}))};
+  const replan=await prepareGameExperience(revised,{}, {...switched,maxRequests:1});expect(replan.ai.requestCount).toBe(1);expect(replan.notebook.gameDesign!.receipts.at(-1)?.stage).toBe('plan');expect(replan.notebook.gameDesign!.batches[0].drafts).toHaveLength(0);expect(replan.notebook.gameDesign!.receipts.slice(0,2)).toEqual(saved.gameDesign!.receipts);
+ });
+ it('does not claim a saved pause when the interruption checkpoint fails',async()=>{
+  const controller=new AbortController();let entered!:()=>void;const started=new Promise<void>(resolve=>{entered=resolve;});vi.stubGlobal('fetch',vi.fn(async()=>{entered();return new Promise(()=>{});}));
+  const pending=prepareGameExperience(notebook(),{}, {...options,signal:controller.signal,onCheckpoint:async d=>!d.control});await started;controller.abort('pause');const result=await pending;
+  expect(result.creationStatus).toBe('failed');expect(result.ai.message).toMatch(/could not be saved/);expect(result.notebook.gameDesign!.receipts[0].status).toBe('canceled');
+ });
  it('continues the correction after a request-budget pause instead of replaying the identical invalid prompt',async()=>{
   let writes=0;const prompts:string[]=[];
   vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body),value=directorFixtureResponse(r.stage,r.data);prompts.push(r.prompt);if(r.stage==='write'&&++writes===1)value.missions[0].missionId='wrong-mission';return reply(value);}));

@@ -22,11 +22,11 @@ export interface GameDesignBatch {
  missions?:GameMissionPlan[];study?:GameStudyDisposition[];drafts?:GameMissionDraft[];checks?:GameMissionCheck[];overviewNotes?:OverviewNote[];
 }
 export type GameCreationPhase='plan'|'write'|'check'|'finish';
-export type GameCreationEventKind='completed'|'retry'|'failed'|'source-study'|'resumed';
+export type GameCreationEventKind='completed'|'retry'|'failed'|'source-study'|'resumed'|'paused'|'canceled';
 export type GameCreationErrorCategory='validation'|'provider'|'timeout'|'storage'|'canceled';
 export interface GameCreationEvent {id:string;at:string;phase:GameCreationPhase;batchId?:string;missionId?:string;kind:GameCreationEventKind;category?:GameCreationErrorCategory;message:string}
 export interface GameDesign {
- version:1;inputRevision:string;status:'preparing'|'ready';
+ version:1;inputRevision:string;status:'preparing'|'ready';control?:'paused'|'canceled';
  provider:{id:string;model:string;endpointFingerprint:string|null};
  units:Omit<DirectorSourceUnit,'excerpt'>[];batches:GameDesignBatch[];
  unavailableSources:{sourceId:string;reason:string}[];
@@ -109,7 +109,7 @@ export function gameDesignProgress(design:GameDesign){
 export function validateGameCreationEvents(value:unknown,batchIds:string[]):GameCreationEvent[]{
  return list(value,'creation events',120).map(raw=>{
   const e=obj(raw,'creation event');fields(e,['id','at','phase','batchId','missionId','kind','category','message'],'Creation event');
-  if(!['plan','write','check','finish'].includes(String(e.phase))||!['completed','retry','failed','source-study','resumed'].includes(String(e.kind))||e.category!==undefined&&!['validation','provider','timeout','storage','canceled'].includes(String(e.category)))throw new Error('Invalid creation event classification.');
+  if(!['plan','write','check','finish'].includes(String(e.phase))||!['completed','retry','failed','source-study','resumed','paused','canceled'].includes(String(e.kind))||e.category!==undefined&&!['validation','provider','timeout','storage','canceled'].includes(String(e.category)))throw new Error('Invalid creation event classification.');
   if(typeof e.at!=='string'||e.at.length>40||!/^\d{4}-\d{2}-\d{2}T/.test(e.at)||!Number.isFinite(Date.parse(e.at)))throw new Error('Invalid creation event time.');
   if(e.batchId!==undefined&&!batchIds.includes(String(e.batchId)))throw new Error('Creation event refers to an unknown group.');
   return{id:id(e.id,'creation event ID'),at:e.at,phase:e.phase as GameCreationPhase,...(e.batchId===undefined?{}:{batchId:id(e.batchId,'creation event batch')}),...(e.missionId===undefined?{}:{missionId:id(e.missionId,'creation event mission')}),kind:e.kind as GameCreationEventKind,...(e.category===undefined?{}:{category:e.category as GameCreationErrorCategory}),message:str(e.message,'creation event message',600)};
@@ -167,8 +167,9 @@ export function createGameDesignValidator(notebook:Pick<Notebook,'sources'|'ageG
  };
 }
 function validateGameDesignValue(value:unknown,notebook:Pick<Notebook,'sources'|'ageGroup'|'goal'>,context?:GameDesignValidationContext):GameDesign {
- const v=obj(value,'game design');fields(v,['version','inputRevision','status','provider','units','batches','unavailableSources','receipts','events','generatedModels','audioDirection','visualDirection','overview'],'Game design');
+ const v=obj(value,'game design');fields(v,['version','inputRevision','status','control','provider','units','batches','unavailableSources','receipts','events','generatedModels','audioDirection','visualDirection','overview'],'Game design');
  if(v.version!==1||!['preparing','ready'].includes(String(v.status)))throw new Error('Invalid game design version or state.');
+ if(v.control!==undefined&&(!['paused','canceled'].includes(String(v.control))||v.status!=='preparing'))throw new Error('Invalid creation stop state.');
  const p=obj(v.provider,'selected provider');fields(p,['id','model','endpointFingerprint'],'Selected provider');if(!providers.includes(String(p.id))||p.endpointFingerprint!==null&&(typeof p.endpointFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(p.endpointFingerprint)))throw new Error('Invalid selected provider.');
  const provider={id:p.id as string,model:str(p.model,'selected model'),endpointFingerprint:p.endpointFingerprint as string|null},receipts=validateAIUsageReceipts(v.receipts);
  const generatedModels=list(v.generatedModels??[],'generated model provenance',300).map(raw=>{const item=obj(raw,'generated model provenance');fields(item,['id','fingerprint'],'Generated model provenance');const key=id(item.id,'generated model');if(!/^director-[a-f0-9]{40}$/.test(key)||typeof item.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(item.fingerprint))throw new Error('Invalid generated model provenance.');return{id:key,fingerprint:item.fingerprint};});unique(generatedModels.map(m=>m.id),'generated models');
@@ -206,7 +207,7 @@ function validateGameDesignValue(value:unknown,notebook:Pick<Notebook,'sources'|
  });
  if(batches.length!==fresh.batches.length)throw new Error('Game batches omitted a source unit.');
  const ready=batches.every(b=>b.status==='checked');if(v.status==='ready'&&!ready)throw new Error('A game cannot be ready with unfinished source batches.');
- const result:GameDesign={...fresh,status:v.status as GameDesign['status'],batches,...(v.events===undefined?{}:{events:validateGameCreationEvents(v.events,batches.map(b=>b.id))})};
+ const result:GameDesign={...fresh,status:v.status as GameDesign['status'],...(v.control===undefined?{}:{control:v.control as GameDesign['control']}),batches,...(v.events===undefined?{}:{events:validateGameCreationEvents(v.events,batches.map(b=>b.id))})};
  if(v.visualDirection!==undefined){const accepted=batches.flatMap(b=>(b.drafts??[]).filter(d=>b.checks?.some(c=>c.missionId===d.missionId&&c.decision==='retain')).map(d=>({d,p:b.missions!.find(m=>m.id===d.missionId)!})));if(!accepted.length||!exact(v.visualDirection,accepted[0].p.visualDirection)||!exact(v.audioDirection,accepted[0].d.audioDirection))throw new Error('The world direction must match its first retained mission.');result.visualDirection=accepted[0].p.visualDirection;result.audioDirection=accepted[0].d.audioDirection;}else if(v.audioDirection!==undefined)throw new Error('Audio direction needs its matching visual scene.');
  if(v.overview!==undefined){if(!ready)throw new Error('The overall introduction follows the complete saved source plan.');result.overview=validateOverviewWork(v.overview,{...notebook,units,batches});if(result.status==='ready'&&result.overview.nodes.some(node=>node.status==='pending'))throw new Error('The game introduction is not finished.');}
  return result;

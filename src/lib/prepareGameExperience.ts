@@ -23,8 +23,8 @@ export type GameLaunch=
 export interface GameSummary {title:string;description:string;sourceCount:number;chapterCount:number;activityCount:number;recallCount:number;reviewRequiredCount:number}
 export type PreparationStage='local'|'selecting'|'drafting'|'validating'|'ready'|'blocked';
 export interface PreparationProgress {stage:PreparationStage;message:string;completedUnits?:number;totalUnits?:number;completedSteps?:number;totalSteps?:number;percent?:number;currentBatch?:number;totalBatches?:number;currentPhase?:'plan'|'write'|'check'|'finish';completedMissions?:number;plannedMissions?:number}
-export interface GameAIResult {status:'not-requested'|'draft-added'|'kept-existing'|'unavailable'|'insufficient-source'|'declined'|'failed'|'canceled';message:string;requestCount:number;activityId?:string;activityIds?:string[];disclosedSourceIds:string[]}
-export type GameCreationStatus='ready'|'needs-connection'|'needs-source'|'failed'|'canceled'|'incomplete';
+export interface GameAIResult {status:'not-requested'|'draft-added'|'kept-existing'|'unavailable'|'insufficient-source'|'declined'|'failed'|'canceled'|'paused';message:string;requestCount:number;activityId?:string;activityIds?:string[];disclosedSourceIds:string[]}
+export type GameCreationStatus='ready'|'needs-connection'|'needs-source'|'failed'|'canceled'|'paused'|'incomplete';
 export interface GameExperience {creationStatus:GameCreationStatus;suggestedTheme?:string;notebook:Notebook;launch:GameLaunch;summary:GameSummary;warnings:string[];ai:GameAIResult}
 export interface PrepareGameOptions {
  /** Required creation never presents deterministic fallback as an AI-created game. Offline play is unaffected. */
@@ -211,6 +211,6 @@ export async function prepareGameExperience(notebook:Notebook,preferences:GamePr
  const local={...automatic,notebook:{...automatic.notebook,activities:automatic.notebook.activities?.filter(activity=>!replaceable.has(activity.id))}};
  const directed=await runGameDirector(local.notebook,{ai:options.ai,signal:options.signal,timeoutMs:options.timeoutMs,maxRequests:options.maxRequests,onCheckpoint:options.onCheckpoint,onProgress:options.onProgress});
  const result=preparedWithOrder(directed.notebook,directed.activityIds[0]),ready=directed.status==='ready';
- const aiStatus:GameAIResult['status']=ready?(directed.requestCount?'draft-added':'kept-existing'):directed.status==='canceled'?'canceled':directed.status==='needs-connection'?'unavailable':directed.status==='needs-source'?'insufficient-source':'failed';
+ const aiStatus:GameAIResult['status']=ready?(directed.requestCount?'draft-added':'kept-existing'):directed.status==='canceled'||directed.status==='paused'?directed.status:directed.status==='needs-connection'?'unavailable':directed.status==='needs-source'?'insufficient-source':'failed';
  return{...result,creationStatus:directed.status,launch:ready?result.launch:{kind:'materials'},...(ready&&directed.notebook.gameDesign?.visualDirection?{suggestedTheme:directed.notebook.gameDesign.visualDirection.scene}:{}),warnings:[...local.warnings,...directed.warnings],ai:{status:aiStatus,message:directed.message,requestCount:directed.requestCount,activityIds:directed.activityIds,...(directed.activityIds[0]?{activityId:directed.activityIds[0]}:{}),disclosedSourceIds:directed.disclosedSourceIds}};
 }
