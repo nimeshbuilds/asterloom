@@ -104,7 +104,7 @@ test('reading sources after an independent result preserves its credit and suppo
  await expect(hud.locator('[data-hud=score]')).toContainText('Mission score');
  const afterDownload=await readProgress();expect(afterDownload.structured[activityId].response._draft).toMatchObject({checked:true,hintUsed:false,postResultAssistance:true});
  expect(afterDownload.xp).toBe(earned.xp);expect(afterDownload.mastery).toBe(earned.mastery);expect(afterDownload.independentActivityAwards).toEqual(earned.independentActivityAwards);expect(afterDownload.structured[activityId].review).toEqual(earned.structured[activityId].review);
- await page.reload();await page.locator('.campaign-chapters').getByRole('button',{name:'Learn & play this mission',exact:true}).click();
+ await page.reload();await page.locator(`.campaign-lessons article[data-activity-id="${activityId}"]`).getByRole('button',{name:'Revisit this mission',exact:true}).click();
  await expect(hud).toHaveAttribute('data-mode','independent');await expect(hud.locator('[data-hud=score]')).toContainText('Mission score');
  await expect(page.locator('.structured-feedback .reaction-effects')).toHaveAttribute('data-motion','still');
  await page.getByRole('button',{name:'Move Read the task description. down',exact:true}).click();
