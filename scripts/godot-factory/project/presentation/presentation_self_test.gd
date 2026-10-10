@@ -74,6 +74,15 @@ func run() -> void:
 	root.add_child(restored)
 	await process_frame
 	check(restored.muted and restored.reduced_motion, "Sound and motion preferences persist")
+	presentation.apply_launch_preferences(PackedStringArray(["--music-enabled=false","--effects-enabled=true","--music-volume=0.3","--effects-volume=0.4","--reduced-motion=false"]))
+	check(not presentation.music_enabled and presentation.effects_enabled and not presentation.muted, "Desktop effects-only preference is independent of music")
+	check(is_equal_approx(presentation.music_volume,0.3) and is_equal_approx(presentation.effects_volume,0.4), "Desktop mix volumes reach native playback")
+	check(not presentation.debug_snapshot().music_playing and presentation.play_cue("place"), "Effects-only native playback starts a cue without music")
+	await create_timer(0.06).timeout
+	presentation.set_audio_enabled("effects",false); presentation.set_audio_enabled("music",true)
+	check(presentation.debug_snapshot().music_playing and not presentation.play_cue("place"), "Music-only playback suppresses action sounds")
+	presentation.apply_launch_preferences(PackedStringArray(["--music-volume=0","--effects-enabled=true","--effects-volume=0"]))
+	check(not presentation.debug_snapshot().music_playing and not presentation.play_cue("place"), "Zero volumes silence their players")
 	DirAccess.remove_absolute(presentation.settings_path)
 	print(JSON.stringify({"checks": checked, "failures": failures, "distinct_recipe_scores": loaded_tracks.size()}))
 	presentation.stop_all()

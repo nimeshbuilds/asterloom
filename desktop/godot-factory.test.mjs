@@ -24,6 +24,21 @@ test('launch validates and saves a portable game, uses Electron Node mode and fi
 
 test('draft native games retain author review state and cannot approve themselves',async t=>{const options=await setup(t),fake=spawning(t);await launchNativeFactory({packageText:serialized(notebook('needs-review'))},{...options,...fake});const saved=JSON.parse(await fs.readFile(fake.calls[0].args[1].slice(15),'utf8'));assert.equal(saved.notebook.activities[0].reviewStatus,'needs-review');});
 
+test('native launch carries the learner sound mix and motion choice without adding them to the shared game',async t=>{
+ const options=await setup(t),fake=spawning(t);
+ await launchNativeFactory({packageText:serialized(notebook()),presentation:{musicEnabled:false,effectsEnabled:true,musicVolume:.18,effectsVolume:.4,reducedMotion:true}},{...options,...fake});
+ const args=fake.calls[0].args;
+ for(const expected of ['--music-enabled=false','--effects-enabled=true','--music-volume=0.18','--effects-volume=0.4','--reduced-motion=true'])assert.ok(args.includes(expected),expected);
+ const pack=JSON.parse(await fs.readFile(args[1].slice('--mission-pack='.length),'utf8'));
+ assert.equal(pack.presentation,undefined);assert.equal(pack.notebook.presentation,undefined);
+});
+
+test('native sound preferences reject malformed input before any launch',async t=>{
+ const options=await setup(t),fake=spawning(t),valid={musicEnabled:false,effectsEnabled:true,musicVolume:.18,effectsVolume:.4,reducedMotion:true};
+ for(const presentation of [null,{}, {...valid,musicEnabled:'true'},{...valid,musicVolume:NaN},{...valid,effectsVolume:1.1},{...valid,musicVolume:-.1},{...valid,resourcePath:'/untrusted'}])await assert.rejects(launchNativeFactory({packageText:serialized(notebook()),presentation},{...options,...fake}),/sound and motion/);
+ assert.equal(fake.calls.length,0);
+});
+
 test('legacy source-backed cards reach native recall conversion instead of being rejected at the launcher',async t=>{
  const options=await setup(t),fake=spawning(t),legacy=notebook();
  legacy.scaffoldIds=['recall-escape-mission'];legacy.activities=[];

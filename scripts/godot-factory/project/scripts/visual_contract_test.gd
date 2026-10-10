@@ -30,7 +30,7 @@ func run() -> void:
 			print("NATIVE_DRAFT_PRACTICE "+JSON.stringify({"outcome":main.result.get("outcome"),"practiceCorrect":main.practice_result.get("correct"),"participationXp":saved.get("participationXp"),"independent":saved.get("independent")}))
 		await process_frame; await process_frame; await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(output_dir.path_join(str(entry.scaffoldId)+".png"))
-		main.content.get_parent().scroll_vertical = int(main.board.position.y)
+		if main.board.get_parent() is ScrollContainer: main.board.get_parent().scroll_vertical = 0
 		await process_frame; await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(output_dir.path_join(str(entry.scaffoldId)+"-controls.png"))
 		print("VISUAL_QA "+str(entry.scaffoldId))

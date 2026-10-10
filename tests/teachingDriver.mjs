@@ -39,7 +39,7 @@ export async function learnBeforeQuest(page) {
  if(await context.count()){
   const teaching=context.locator('.lesson-teaching');
   if(await teaching.count()){
-   const walkthrough=context.getByRole('button',{name:/^(?:Study the walkthrough|Try it in practice)$/,exact:true});
+   const walkthrough=context.getByRole('button',{name:/^(?:Study the walkthrough|Try it in practice|Start guided quest)$/,exact:true});
    for(let step=0;step<12&&!await walkthrough.isEnabled();step++){
     const exploreIdea=teaching.getByRole('button',{name:/^Explore idea \d+$/});
     if(await exploreIdea.count()){const name=await exploreIdea.innerText();await exploreIdea.click();await expect(teaching.getByRole('button',{name,exact:true})).toHaveCount(0);}
@@ -49,6 +49,8 @@ export async function learnBeforeQuest(page) {
   }
   const unread=context.getByRole('button',{name:/^Mark passage \d+ explored$/});
   while(await unread.count()){const name=await unread.first().innerText();await unread.first().click();await expect(context.getByRole('button',{name,exact:true})).toHaveCount(0);}
+  const start=context.getByRole('button',{name:'Start guided quest',exact:true});
+  if(await start.count()){await start.click();await expect(briefing).toHaveCount(0);return;}
   await context.getByRole('button',{name:/^(?:Study the walkthrough|Try it in practice)$/,exact:true}).click();await expect(briefing.locator('.lesson-walkthrough,.lesson-practice')).toBeVisible();
  }
  const quotedSteps=[];
@@ -57,7 +59,7 @@ export async function learnBeforeQuest(page) {
   quotedSteps.push((await briefing.locator('.lesson-worked-step blockquote').first().innerText()).trim());
   const next=briefing.getByRole('button',{name:'Next walkthrough step',exact:true});
   if(await next.count()){const label=await briefing.locator('.lesson-section-label').textContent();await next.click();await expect(briefing.locator('.lesson-section-label')).not.toHaveText(label);}
-  else {await briefing.getByRole('button',{name:/^(?:Build my field note|Build my mission kit)$/,exact:true}).click();await expect(briefing.locator('.lesson-practice')).toBeVisible();break;}
+  else {const start=briefing.getByRole('button',{name:'Start guided quest',exact:true});if(await start.count()){await start.click();await expect(briefing).toHaveCount(0);return;}await briefing.getByRole('button',{name:/^(?:Build my field note|Build my mission kit)$/,exact:true}).click();await expect(briefing.locator('.lesson-practice')).toBeVisible();break;}
  }
  if(await kit.count()){await completeVisibleKit();return;}
  const guidedStart=briefing.getByRole('button',{name:'Start guided quest',exact:true});

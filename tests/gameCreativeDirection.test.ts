@@ -26,6 +26,16 @@ function draft(input:ReturnType<typeof prepared>){
 }
 
 describe('durable source-first creative direction',()=>{
+ it('asks for a concrete playable job within runtime affordances instead of narrating the lesson workflow',()=>{
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('one concrete fictional job');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('using its supplied controls');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('only the visible result its actual checks can support');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('Keep lesson stages and assessment terminology out of premise and throughline');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('Never promise persistent world changes, unlocks, failure costs or new characters unless the supplied runtime contract explicitly implements them');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('Do not describe a guided first attempt as independent assessment');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('FICTIONAL connective framing, never teaching, citations, source evidence, answer rules or a claim of mastery');
+  expect(CREATIVE_DIRECTION_INSTRUCTION).not.toContain('briefing, short teaching, guided application, independent attempt, debrief');
+ });
  it('binds every source input and audience/goal, while ignoring provider and later generated-model changes',()=>{
   const {notebook}=prepared(),initial=creativeDirectionFingerprint(notebook);
   expect(creativeDirectionFingerprint({...notebook,gameDesign:{provider:{id:'claude-code',model:'changed'}}} as Notebook)).toBe(initial);

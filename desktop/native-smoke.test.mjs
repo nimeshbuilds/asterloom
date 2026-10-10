@@ -282,8 +282,7 @@ test('desktop studio preserves full player features and launches a separate nati
     assert.equal(await page.locator('.aster-reaction[data-reaction="success"]').count(),1,'A saved correct answer should show the recipe reaction');
     await page.getByRole('button',{name:'Complete this chapter',exact:true}).click();
     await page.getByRole('button',{name:'Return to my notebook',exact:true}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/50\s*Journey XP/,'Distinct supported model20 + model20 + recall10 rewards must be visible');
-    assert.match(await page.locator('.world-statbar').innerText(),/0\s*solved independently/,'First-day teaching cannot grant independent mastery');
+    assert.match(await page.locator('.adventure-home-stats').innerText(),/50\s*Journey XP/,'Distinct supported model20 + model20 + recall10 rewards must be visible');
     const combinedProgress=await readSavedProgress(page,fixtureNotebook.id);
     assert.equal(combinedProgress.xp,0);assert.equal(combinedProgress.practice?.xp,50);assert.equal(combinedProgress.mastery,0);assert.deepEqual(combinedProgress.completedCardIds,[]);assert.deepEqual(combinedProgress.independentActivityAwards??{},{});
     assert.deepEqual(Object.values(combinedProgress.practice.awards).map(({kind,objectiveId,xp})=>({kind,objectiveId,xp})).sort((a,b)=>a.objectiveId.localeCompare(b.objectiveId)),[{kind:'card',objectiveId:'native-card',xp:10},{kind:'activity',objectiveId:'native-data-lab',xp:20},{kind:'activity',objectiveId:'native-unreviewed-lab',xp:20}]);
@@ -323,7 +322,7 @@ test('desktop studio preserves full player features and launches a separate nati
     await page.locator('.structured-feedback.correct').waitFor();
     assert.match(await page.locator('.structured-review-banner').innerText(),/0 independent attempts/,'Preserved draft feedback remains supported after author approval');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/50\s*Journey XP/,'Approving and repeating the same model must not award its discovery points again');
+    assert.match(await page.locator('.adventure-home-stats').innerText(),/50\s*Journey XP/,'Approving and repeating the same model must not award its discovery points again');
     const approvedProgress=await readSavedProgress(page,fixtureNotebook.id);
     assert.equal(approvedProgress.xp,0);assert.equal(approvedProgress.mastery,0);assert.deepEqual(approvedProgress.completedCardIds,[]);assert.deepEqual(approvedProgress.independentActivityAwards??{},{});
     assert.deepEqual(approvedProgress.practice,combinedProgress.practice,'Author approval and replay must preserve the exact previously committed reward ledger');

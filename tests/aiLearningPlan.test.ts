@@ -102,14 +102,14 @@ describe('AI teaching runtime with existing lesson gates',()=>{
   const progress={...emptyProgress(notebook.id),lessons:{[p.id]:ready}},restored=parseProgress(serializeProgress(progress));
   expect(restored.lessons![p.id]).toEqual(ready);expect(restored.xp).toBe(0);expect(restored.mastery).toBe(0);expect(initialLessonState(p,restored.lessons![p.id])).toEqual(ready);
  });
- it('cannot use a handoff flag to bypass source identity, explored teaching, real walkthroughs, kits or ordered practice',()=>{
+ it('cannot use a guided-start flag to bypass source identity, explored teaching, or an authored worked example',()=>{
   const {p,practice}=guidedPlan(),ready=completeGuidedLesson(p,practice);
   expect(lessonReady(p,{...ready,viewedPassageIds:[]})).toBe(false);
   expect(completeGuidedLesson(p,{...practice,viewedPassageIds:[]}).practice.guidedStart).toBeUndefined();
   expect(lessonReady({...p,id:'lesson-'+'a'.repeat(64)},ready)).toBe(false);
   const noTeaching={...p,teaching:undefined};expect(lessonAllowsGuidedStart(noTeaching)).toBe(false);expect(lessonReady(noTeaching,ready)).toBe(false);
-  const real=plan().plan;expect(lessonAllowsGuidedStart(real)).toBe(false);expect(completeGuidedLesson(real,initialLessonState(real)).completedAt).toBeUndefined();
-  const ordered={...p,practice:{...p.practice,orderIds:['step-0','step-1']}};expect(lessonAllowsGuidedStart(ordered)).toBe(false);expect(lessonReady(ordered,ready)).toBe(false);
+  const real=plan().plan;expect(lessonAllowsGuidedStart(real)).toBe(true);expect(completeGuidedLesson(real,initialLessonState(real)).completedAt).toBeUndefined();
+  const ordered={...p,practice:{...p.practice,orderIds:['step-0','step-1']}};expect(lessonAllowsGuidedStart(ordered)).toBe(true);expect(lessonReady(ordered,ready)).toBe(true);
   const example={...p,teaching:{...p.teaching!,workedExample:plan().mission.workedExample}};
   expect(completeGuidedLesson(example,practice).completedAt).toBeUndefined();
   expect(validateLessonState({...ready,practice:{...ready.practice,guidedStart:'yes'}})).toBeUndefined();
@@ -147,11 +147,40 @@ describe('AI teaching runtime with existing lesson gates',()=>{
   const prepared={...practice,practice:{...practice.practice,explanation:'I will keep observations connected to the supplied rule and evidence.',compared:true}},ready=completeLesson(p,prepared);
   expect(lessonReady(p,ready)).toBe(true);expect(initialLessonState(p,JSON.parse(JSON.stringify(ready)))).toEqual(ready);
   expect(lessonReady(p,{...ready,viewedPassageIds:[]})).toBe(false);
-  expect(initialLessonState(p,{...explored,stage:'walkthrough'}).stage).toBe('practice');
+  expect(initialLessonState(p,{...explored,stage:'walkthrough'}).stage).toBe('context');
  });
  it('requires teaching and walkthrough before a source kit can unlock the quest, saves chunk progress, and rejects forged completion',()=>{
   const {plan:p}=plan();const state=initialLessonState(p);expect(lessonRequiresWalkthrough(p)).toBe(true);expect(beginLessonRehearsal(p,state).rehearsal).toBeUndefined();const first={...state,stage:'context' as const,missionAccepted:true,viewedPassageIds:[lessonTeachingChunkIds(p)[0]]};expect(initialLessonState(p,JSON.parse(JSON.stringify(first)))).toEqual(first);expect(lessonContextReady(p,first)).toBe(false);
   const viewed={...first,viewedPassageIds:lessonTeachingChunkIds(p),walkthroughStep:p.walkthrough.steps.length};expect(lessonContextReady(p,viewed)).toBe(true);const kit=beginLessonRehearsal(p,viewed);kit.rehearsal={...kit.rehearsal!,checked:true,answers:Object.fromEntries(p.rehearsal!.slots.map(slot=>[slot.id,slot.acceptedTileIds[0]]))};const complete=completeLesson(p,kit);expect(lessonReady(p,complete)).toBe(true);expect(lessonReady(p,{...complete,viewedPassageIds:[]})).toBe(false);expect(lessonReady(p,{...complete,walkthroughStep:0})).toBe(false);
+ });
+ it('opens AI teaching immediately and goes from all authored ideas and worked steps to the real quest without a second quiz',()=>{
+  const {notebook,plan:p}=plan(),fresh=initialLessonState(p),before=JSON.stringify(notebook);
+  expect(fresh.stage).toBe('context');expect(fresh.viewedPassageIds).toEqual([]);expect(fresh.walkthroughStep).toBe(0);expect(fresh.rehearsal).toBeUndefined();
+  const read={...fresh,viewedPassageIds:lessonTeachingChunkIds(p)};
+  expect(completeGuidedLesson(p,read).completedAt).toBeUndefined();
+  const partlyWorked={...read,stage:'walkthrough' as const,walkthroughStep:p.walkthrough.steps.length-1};
+  expect(completeGuidedLesson(p,partlyWorked).completedAt).toBeUndefined();
+  const studied={...partlyWorked,walkthroughStep:p.walkthrough.steps.length},ready=completeGuidedLesson(p,studied,1000);
+  expect(lessonReady(p,ready)).toBe(true);expect(ready.rehearsal).toBeUndefined();expect(ready.practice.explanation).toBe('');expect(ready.practice.compared).toBe(false);expect(ready.practice.guidedStart).toBe(true);
+  expect(lessonQuestSupport(p,ready,1000).assisted).toBe(true);expect(JSON.stringify(notebook)).toBe(before);
+  for(const missing of lessonTeachingChunkIds(p))expect(lessonReady(p,{...ready,viewedPassageIds:ready.viewedPassageIds.filter(id=>id!==missing)})).toBe(false);
+  const restarted=restartLesson(p,ready);expect(restarted.stage).toBe('context');expect(restarted.viewedPassageIds).toEqual([]);expect(restarted.walkthroughStep).toBe(0);expect(lessonReady(p,restarted)).toBe(false);
+ });
+ it('does not add an extracted route quiz or walkthrough when the AI lesson already teaches the procedure',()=>{
+  const f=generated(),mission={...f.mission,workedExample:undefined},notebook={...f.notebook,aiLearningPlan:{version:1 as const,missions:[mission]}},p=buildLearningBriefing({notebook,activity:f.activity,scaffold:SCAFFOLDS.find(s=>s.id==='process-reconstruction')!});
+  expect(p.walkthrough.kind).toBe('source-procedure');expect(p.rehearsal?.kind).toBe('route-kit');expect(lessonRequiresWalkthrough(p)).toBe(false);
+  const initial=initialLessonState(p);expect(completeGuidedLesson(p,initial).completedAt).toBeUndefined();
+  const ready=completeGuidedLesson(p,{...initial,viewedPassageIds:lessonTeachingChunkIds(p)});
+  expect(lessonReady(p,ready)).toBe(true);expect(ready.walkthroughStep).toBe(0);expect(ready.rehearsal).toBeUndefined();
+  expect(ready.practice.order).not.toEqual(p.practice.orderIds);expect(ready.viewedPassageIds).toEqual(lessonTeachingChunkIds(p));
+ });
+ it('resumes older acceptance and incomplete-kit states without inventing read progress or erasing their notes',()=>{
+  const {plan:p}=plan(),fresh=initialLessonState(p),notes={explanation:'My existing observation and its conditions.',connection:'Which condition applies to the decision?'};
+  const oldMission={...fresh,stage:'mission' as const,missionAccepted:false,practice:{...fresh.practice,...notes}};
+  const restored=initialLessonState(p,oldMission);expect(restored.stage).toBe('context');expect(restored.viewedPassageIds).toEqual([]);expect(restored.practice).toMatchObject(notes);expect(restored.completedAt).toBeUndefined();
+  const read={...restored,viewedPassageIds:lessonTeachingChunkIds(p),walkthroughStep:p.walkthrough.steps.length},kit=beginLessonRehearsal(p,read);
+  const resumed=initialLessonState(p,JSON.parse(JSON.stringify(kit)));expect(resumed.stage).toBe('context');expect(resumed.rehearsal).toEqual(kit.rehearsal);expect(resumed.practice).toMatchObject(notes);expect(resumed.completedAt).toBeUndefined();
+  const ready=completeGuidedLesson(p,resumed);expect(lessonReady(p,ready)).toBe(true);expect(ready.rehearsal).toEqual(kit.rehearsal);expect(ready.practice).toMatchObject(notes);
  });
  it('binds saved preparation to teaching text and clears obsolete approval without losing unchanged progress',()=>{
   const f=plan(),initial={...initialLessonState(f.plan),missionAccepted:true,stage:'context' as const,viewedPassageIds:[lessonTeachingChunkIds(f.plan)[0]]};expect(initialLessonState(f.plan,initial).viewedPassageIds).toEqual(initial.viewedPassageIds);

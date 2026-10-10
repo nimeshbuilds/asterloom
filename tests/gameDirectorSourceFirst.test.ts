@@ -20,6 +20,11 @@ describe('source-first campaign creation',()=>{
   const result=await runGameDirector(notebook(7),{...options,onCheckpoint:async design=>{saved.push(design);return true;},onProgress:p=>progress.push(p)});
   expect(result.status,result.message).toBe('ready');
   expect(requests.slice(0,4).map(r=>r.stage)).toEqual(['plan','plan','plan','direction']);
+  const plans=requests.filter(request=>request.stage==='plan');
+  expect(plans.map(request=>request.data.planningHistory.plannedMissionCount)).toEqual([0,3,6]);
+  expect(plans[2].data.planningHistory.byKind).toEqual([{kind:'sequence',count:6}]);
+  expect(plans[2].data.planningHistory.recentMissions).toHaveLength(6);
+  expect(plans[2].data.planningHistory.recentMissions.every((mission:any)=>Object.keys(mission).sort().join(',')==='kind,objective,scaffoldId')).toBe(true);
   const direction=requests.find(r=>r.stage==='direction')!,design=result.notebook.gameDesign!;
   expect(direction.data.templateSkillVersion).toBe(GAME_TEMPLATE_SKILL_VERSION);
   expect(direction.data.choices.every((choice:any)=>choice.templateSkill.learningPrinciple&&choice.templateSkill.challengeFrame)).toBe(true);
@@ -34,6 +39,7 @@ describe('source-first campaign creation',()=>{
   }
   expect(saved.every(d=>!d.batches.some(b=>b.drafts?.length)||!!d.creativeDirection)).toBe(true);
   expect(saved.some(d=>!!d.creativeDirection&&d.batches.every(b=>b.status==='planned'&&!b.drafts?.length))).toBe(true);
+  expect(design).not.toHaveProperty('planningHistory');
   expect(progress.some(p=>p.currentPhase==='direction'&&p.completedSteps===7&&p.totalSteps===23)).toBe(true);
   expect(progress.map(p=>p.percent)).toEqual(progress.map(p=>p.percent).sort((a,b)=>a-b));
   expect(gameDesignProgress(design)).toMatchObject({completedSteps:23,totalSteps:23,percent:100});

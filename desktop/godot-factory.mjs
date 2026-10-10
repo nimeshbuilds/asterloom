@@ -21,9 +21,13 @@ export async function nativeFactoryRuntime({platform=process.platform,runtimeDir
 }
 
 function checkedRequest(request) {
-  if(!request||typeof request!=='object'||Array.isArray(request)||Object.keys(request).some(key=>!['packageText','activityId'].includes(key)))throw Error('Choose a saved notebook to open in the native player.');
+  if(!request||typeof request!=='object'||Array.isArray(request)||Object.keys(request).some(key=>!['packageText','activityId','presentation'].includes(key)))throw Error('Choose a saved notebook to open in the native player.');
   if(typeof request.packageText!=='string'||Buffer.byteLength(request.packageText)>MAX_PACKAGE_BYTES)throw Error('The native learning pack exceeds the 64 MB portable package limit.');
   if(request.activityId!==undefined&&(typeof request.activityId!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(request.activityId)))throw Error('Choose a prepared mission from this notebook.');
+  if(request.presentation!==undefined){
+    const p=request.presentation,keys=['musicEnabled','effectsEnabled','musicVolume','effectsVolume','reducedMotion'];
+    if(!p||typeof p!=='object'||Array.isArray(p)||Object.keys(p).length!==keys.length||Object.keys(p).some(key=>!keys.includes(key))||['musicEnabled','effectsEnabled','reducedMotion'].some(key=>typeof p[key]!=='boolean')||['musicVolume','effectsVolume'].some(key=>typeof p[key]!=='number'||!Number.isFinite(p[key])||p[key]<0||p[key]>1))throw Error('Choose valid game sound and motion settings.');
+  }
   return request;
 }
 
@@ -49,9 +53,12 @@ export async function launchNativeFactory(request,{userData,executablePath=proce
   try{await fs.writeFile(temporary,text,{mode:0o600,flag:'wx'});await fs.rename(temporary,filename);}finally{await fs.rm(temporary,{force:true});}
   const mediaManifest=await writeNativeMediaManifest(notebook,{directory:paths.media,resolveAsset});
   const saveDirectory=paths.progress;
+  const p=request.presentation;
+  // These are the learner's current preferences, never AI-authored pack data.
+  const presentationArgs=p?[`--music-enabled=${p.musicEnabled}`,`--effects-enabled=${p.effectsEnabled}`,`--music-volume=${p.musicVolume}`,`--effects-volume=${p.effectsVolume}`,`--reduced-motion=${p.reducedMotion}`]:[];
   // Electron's bundled Node runs the deterministic bridge. No separate runtime
   // download, provider connection, HTML surface, or renderer code is involved.
-  const child=spawnProcess(runtime.executable,['--',`--mission-pack=${filename}`,`--node=${executablePath}`,`--engine=${runtime.engine}`,`--save-dir=${saveDirectory}`,`--preferences-file=${paths.preferences}`,`--storage-owner=${path.basename(paths.games)}`,...(mediaManifest?[`--asset-manifest=${mediaManifest}`]:[])],{shell:false,windowsHide:false,detached:false,stdio:'ignore',env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
+  const child=spawnProcess(runtime.executable,['--',`--mission-pack=${filename}`,`--node=${executablePath}`,`--engine=${runtime.engine}`,`--save-dir=${saveDirectory}`,`--preferences-file=${paths.preferences}`,`--storage-owner=${path.basename(paths.games)}`,...presentationArgs,...(mediaManifest?[`--asset-manifest=${mediaManifest}`]:[])],{shell:false,windowsHide:false,detached:false,stdio:'ignore',env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
   const session={child,notebookId:notebook.id,userData:path.resolve(userData)};running.set(sessionKey,session);
   const forget=()=>{if(running.get(sessionKey)===session)running.delete(sessionKey);void fs.rm(lease,{force:true}).catch(()=>{});if(mediaManifest)void fs.rm(mediaManifest,{force:true}).catch(()=>{});};
   child.once('exit',forget);

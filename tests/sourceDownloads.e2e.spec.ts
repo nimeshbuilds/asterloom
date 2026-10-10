@@ -49,12 +49,12 @@ test('bundled and saved games expose exact originals, edited readable text and i
 
 test('source downloads remain available in the lesson and quest and mark assistance before saving a copy',async({page})=>{
  const n=fixture();await open(page,n);
- await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();
+ await page.locator('.adventure-home-start').getByRole('button',{name:'Play game',exact:true}).click();
  await page.getByRole('button',{name:'Source materials',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Source materials',exact:true});
  expect((await download(page,dialog.getByRole('article',{name:'Field manual.pdf',exact:true}),/original/i)).bytes).toEqual(original);
  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await learnBeforeQuest(page);
- await page.getByRole('button',{name:'Source materials',exact:true}).click();
+ await page.locator('.mission-guide-dock>summary').click();await page.getByRole('button',{name:'Source materials',exact:true}).click();
  await expect(dialog).toContainText('source-supported practice');
  expect((await download(page,dialog.getByRole('article',{name:'My pasted notes',exact:true}),/readable text/i)).bytes.toString()).toBe(readable);
  const stored=await page.evaluate(id=>new Promise<any>((resolve,reject)=>{const request=indexedDB.open('asterloom-local-v1',1);request.onsuccess=()=>{const db=request.result,read=db.transaction('records').objectStore('records').get('progress:'+id);read.onsuccess=()=>{db.close();resolve(read.result);};read.onerror=()=>reject(read.error);};request.onerror=()=>reject(request.error);}),n.id);
@@ -82,7 +82,7 @@ test('reading sources after an independent result preserves its credit and suppo
  if(n.aiLearningPlan)n.aiLearningPlan={...n.aiLearningPlan,missions:n.aiLearningPlan.missions.map(mission=>({...mission,reviewStatus:'reviewed'}))};
  await page.clock.setFixedTime(new Date('2026-10-08T12:00:00.000Z'));
  await open(page,n);
- await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();
+ await page.locator('.adventure-home-start').getByRole('button',{name:'Play game',exact:true}).click();
  await learnBeforeQuest(page);await openDetailedWorkspace(page);
  // A real completed lesson becomes independent retrieval on a later day.
  await page.clock.setFixedTime(new Date('2026-10-10T12:00:00.000Z'));
@@ -96,7 +96,7 @@ test('reading sources after an independent result preserves its credit and suppo
  await expect(hud.locator('[data-hud=score]')).toContainText('Mission score');
  const earned=await readProgress();expect(earned.xp).toBe(50);expect(earned.structured[activityId].response._draft.hintUsed).toBe(false);
  expect(earned.structured[activityId].review.independentSuccesses).toBe(1);
- await page.getByRole('button',{name:'Source materials',exact:true}).click();
+ await page.locator('.mission-guide-dock>summary').click();await page.getByRole('button',{name:'Source materials',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Source materials',exact:true});
  expect((await download(page,dialog.getByRole('article',{name:'Field manual.pdf',exact:true}),/original/i)).bytes).toEqual(original);
  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();

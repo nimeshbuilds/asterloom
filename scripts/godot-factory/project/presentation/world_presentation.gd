@@ -11,6 +11,10 @@ var age_settings: Dictionary = {}
 var direction: Dictionary = {}
 var phase := "study"
 var muted := true
+var music_enabled := false
+var effects_enabled := false
+var music_volume := 1.0
+var effects_volume := 1.0
 var reduced_motion := false
 var narration_active := false
 var focused := true
@@ -38,6 +42,10 @@ func _ready() -> void:
 	var preferences := ConfigFile.new()
 	if preferences.load(settings_path) == OK:
 		muted = preferences.get_value("presentation", "muted", true) != false
+		music_enabled = preferences.get_value("presentation", "music_enabled", not muted) == true
+		effects_enabled = preferences.get_value("presentation", "effects_enabled", not muted) == true
+		music_volume = clampf(float(preferences.get_value("presentation", "music_volume", 1.0)),0,1)
+		effects_volume = clampf(float(preferences.get_value("presentation", "effects_volume", 1.0)),0,1)
 		reduced_motion = preferences.get_value("presentation", "reduced_motion", false) == true
 	_music = AudioStreamPlayer.new()
 	_music.name = "PreparedWorldScore"
@@ -84,6 +92,27 @@ func _texture(asset_path: String) -> Texture2D:
 	if asset_path.begins_with("res://presentation/generated/") and ResourceLoader.exists(asset_path):
 		return load(asset_path) as Texture2D
 	return null
+
+func world_texture() -> Texture2D:
+	return _texture(str(manifest.get("worlds",{}).get(_artwork_id,{}).get("path","")))
+
+func apply_launch_preferences(arguments: PackedStringArray) -> void:
+	for arg in arguments:
+		if arg in ["--music-enabled=true","--music-enabled=false"]: music_enabled = arg.ends_with("=true")
+		elif arg in ["--effects-enabled=true","--effects-enabled=false"]: effects_enabled = arg.ends_with("=true")
+		elif arg in ["--reduced-motion=true","--reduced-motion=false"]: reduced_motion = arg.ends_with("=true")
+		elif arg.begins_with("--music-volume=") and arg.trim_prefix("--music-volume=").is_valid_float(): music_volume = clampf(float(arg.trim_prefix("--music-volume=")),0,1)
+		elif arg.begins_with("--effects-volume=") and arg.trim_prefix("--effects-volume=").is_valid_float(): effects_volume = clampf(float(arg.trim_prefix("--effects-volume=")),0,1)
+	muted = not music_enabled and not effects_enabled
+	_request_music()
+
+func set_audio_enabled(kind: String, value: bool) -> void:
+	if kind == "music": music_enabled = value
+	elif kind == "effects": effects_enabled = value
+	muted = not music_enabled and not effects_enabled
+	if not effects_enabled:
+		for voice in _voices: voice.stop()
+	_save_preferences(); _request_music()
 
 func create_banner() -> Control:
 	_banner = PanelContainer.new()
@@ -178,7 +207,7 @@ func _request_music() -> void:
 	if not is_instance_valid(_music):
 		return
 	var requested := _requested_track()
-	if muted or not focused or requested.is_empty():
+	if not music_enabled or music_volume <= 0 or not focused or requested.is_empty():
 		_music.stop()
 		_track_id = ""
 		_update_label()
@@ -213,7 +242,7 @@ func _update_level() -> void:
 	level += -5.0 if phase == "study" else 0.0
 	level += -3.0 if age_group in ["3-5", "6-8"] else 0.0
 	level += -20.0 if narration_active else 0.0
-	_music.volume_db = level + linear_to_db(maxf(0.01, float(data.get("gain", 1.0))))
+	_music.volume_db = level + linear_to_db(maxf(0.01, float(data.get("gain", 1.0)))) + linear_to_db(maxf(0.001,music_volume))
 
 func _update_label() -> void:
 	if is_instance_valid(_music_label):
@@ -222,6 +251,7 @@ func _update_label() -> void:
 
 func set_muted(value: bool) -> void:
 	muted = value
+	music_enabled = not value; effects_enabled = not value
 	for voice in _voices:
 		voice.stop()
 	if is_instance_valid(_sound_button):
@@ -242,6 +272,10 @@ func set_reduced_motion(value: bool) -> void:
 func _save_preferences() -> void:
 	var preferences := ConfigFile.new()
 	preferences.set_value("presentation", "muted", muted)
+	preferences.set_value("presentation", "music_enabled", music_enabled)
+	preferences.set_value("presentation", "effects_enabled", effects_enabled)
+	preferences.set_value("presentation", "music_volume", music_volume)
+	preferences.set_value("presentation", "effects_volume", effects_volume)
 	preferences.set_value("presentation", "reduced_motion", reduced_motion)
 	if preferences.save(settings_path) != OK:
 		push_warning("Presentation preferences could not be saved.")
@@ -262,7 +296,7 @@ func play_cue(event: String) -> bool:
 			_banner.modulate = Color(1.12, 1.12, 1.06)
 			_feedback_tween = create_tween()
 			_feedback_tween.tween_property(_banner, "modulate", Color.WHITE, 0.4)
-	if muted or not focused or narration_active or _effect_policy == "off":
+	if not effects_enabled or effects_volume <= 0 or not focused or narration_active or _effect_policy == "off":
 		return false
 	var now := Time.get_ticks_msec()
 	if now - _last_cue_ms < 65:
@@ -280,7 +314,7 @@ func play_cue(event: String) -> bool:
 			voice.stream = load(resource_path) as AudioStream
 			if voice.stream == null:
 				return false
-			voice.volume_db = (-8.0 if _effect_policy == "quiet" else -2.0) - (3.0 if age_key == "young" else 0.0)
+			voice.volume_db = (-8.0 if _effect_policy == "quiet" else -2.0) - (3.0 if age_key == "young" else 0.0) + linear_to_db(maxf(0.001,effects_volume))
 			voice.play()
 			_last_cue_ms = now
 			_started_cues += 1
