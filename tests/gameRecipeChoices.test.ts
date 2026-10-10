@@ -1,3 +1,4 @@
+import {planningExpressions} from '../src/lib/gamePlanningCatalog';
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {AGE_GROUPS,SCAFFOLDS} from '../src/data/scaffolds';
 import {GAME_FAMILY_RECIPES,GAME_WRITER_CAPABILITIES,gameRecipeChoices,gameRecipeCoverage,validatePreparedGameDraft} from '../src/lib/gameDraftAdapters';
@@ -48,7 +49,7 @@ describe('runtime-derived AI recipe choices',()=>{
  it('supplies concise domain, real mechanic and exact recipe prerequisites to planning and writing',()=>{
   const notebook=createNotebook({sources:[source]}),design=emptyGameDesign(notebook,provider),units=buildDirectorSourceInventory(notebook).units,prompt=gamePlanningPrompt(notebook,design.batches[0],units),data=JSON.parse(prompt.split('REFERENCE DATA (JSON):\n')[1]);
   expect(data.choices.find((choice:any)=>choice.scaffoldId==='cloud-architecture-builder')).toMatchObject({kind:'construction',domain:'cloud',requires:SCAFFOLDS.find(s=>s.id==='cloud-architecture-builder')!.prerequisites});
-  expect(data.familyPrerequisites.scenario).toContain('explicit finite case');expect(prompt).toContain('topic keyword');expect(data.asterExpressions.every((expression:any)=>!('pose' in expression)&&!('assetPath' in expression))).toBe(true);
+  expect(data.familyPrerequisites.scenario).toContain('explicit finite case');expect(prompt).toContain('topic keyword');expect(planningExpressions(data).every((expression:any)=>!('pose' in expression)&&!('assetPath' in expression))).toBe(true);
   const choice=data.choices.find((choice:any)=>choice.scaffoldId==='infrastructure-change-planner');
   const batch={...design.batches[0],status:'planned' as const,missions:[{id:'change',unitId:units[0].id,kind:'sequence' as const,scaffoldId:choice.scaffoldId,title:'Plan the source change',objective:'Preserve the backup and verification order.',visualDirection:{scene:choice.scene,sourceAssetIds:[]}}],study:[]};
   const writing=JSON.parse(gameWritingPrompt(notebook,batch,units).split('REFERENCE DATA (JSON):\n')[1]);expect(writing.missions[0].recipe.domain).toBe('cloud');expect(writing.missions[0].recipe.requires).toEqual(choice.requires);

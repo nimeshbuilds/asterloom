@@ -1,3 +1,4 @@
+import {planningExpressions} from '../src/lib/gamePlanningCatalog';
 import {describe,expect,it} from 'vitest';
 import {getGameDirectorOutputSchema,normalizeGameDirectorStructuredReply,type GameDirectorOutputSchema} from '../src/lib/gameDirectorSchemas';
 import {gamePlanningPrompt,gameWritingPrompt,gameCheckingPrompt} from '../src/lib/gameDirector';
@@ -51,7 +52,7 @@ describe('bounded director structured response schemas',()=>{
   for(const mutate of [(v:any)=>v.missions[0].rationale='unsupported field',(v:any)=>v.missions[0].objective='x'.repeat(401),(v:any)=>v.missions[0].scaffoldId='invented-world',(v:any)=>v.missions[0].unitId='undisclosed-unit',(v:any)=>v.missions[0].visualDirection.sourceAssetIds=['unprovided-image'],(v:any)=>delete v.study]){const invalid=structuredClone(f.wirePlan);mutate(invalid);expect(accepts(schema,invalid)).toBe(false);}
  });
  it('restricts Aster expressions to the disclosed compatible moment and retains null summaries',()=>{
-  const f=fixture(),schema=getGameDirectorOutputSchema('plan',f.planData)!,pose=f.planData.asterExpressions.find((p:any)=>p.moments.includes('welcome'));
+  const f=fixture(),schema=getGameDirectorOutputSchema('plan',f.planData)!,pose=planningExpressions(f.planData).find((p:any)=>p.moments.includes('welcome'))!;
   f.wirePlan.missions[0].asterDirection={welcome:pose.id,concept:null,hint:null,retry:null,success:null,reflection:null};f.wirePlan.overviewNotes[0].summary=null;
   expect(accepts(schema,f.wirePlan)).toBe(true);const normalized=normalizeGameDirectorStructuredReply('plan',f.wirePlan) as any;
   expect(normalized.missions[0].asterDirection).toEqual({welcome:pose.id});expect(normalized.overviewNotes[0].summary).toBe(null);

@@ -5,6 +5,7 @@ import {askAster} from '../lib/asterKnowledge';
 import {preparedAsterAnswer} from '../lib/asterPreparedAnswer';
 import {askAsterAI,asterRuntimeFingerprint,AsterAIError,type AsterAIResult,type AsterConversationTurn} from '../lib/asterAI';
 import {useAsterConnection} from './AsterConnection';
+import AsterTransitionVideo from './AsterTransitionVideo';
 import AsterAIAnswer,{AsterAIUsage,renderAsterText} from './AsterAIAnswer';
 import {sourceRevision,textDigest} from '../lib/evidence';
 import {listSourceDownloads,downloadSourceMaterial} from '../lib/sourceDownloads';
@@ -61,11 +62,16 @@ export default function AsterGuide({notebook,mode,activityId,creationStage,conte
  useEffect(()=>{
   const previous=previousConnection.current;previousConnection.current=aiConnected;if(previous===aiConnected)return;
   const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
-  if(motion.matches||document.visibilityState==='hidden'){setConnectionTransition(null);return;}
+  const motionReduced=()=>motion.matches||document.documentElement.dataset.reduced==='true';
+  if(motionReduced()||document.visibilityState==='hidden'){setConnectionTransition(null);return;}
   const sequence=++transitionSequence.current;setConnectionTransition({id:sequence,direction:aiConnected?'connect':'disconnect'});
-  const reduced=()=>{if(motion.matches)setConnectionTransition(null);};motion.addEventListener('change',reduced);
+  const reduced=()=>{if(motionReduced())setConnectionTransition(null);};motion.addEventListener('change',reduced);
+  // The app preference disables CSS motion globally, but a video must also be
+  // unmounted so its playback and owned sound cue stop. Re-enabling never replays it.
+  const preferenceObserver=new MutationObserver(reduced);
+  preferenceObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-reduced']});
   const timer=setTimeout(()=>setConnectionTransition(current=>current?.id===sequence?null:current),2800);
-  return()=>{clearTimeout(timer);motion.removeEventListener('change',reduced);};
+  return()=>{clearTimeout(timer);motion.removeEventListener('change',reduced);preferenceObserver.disconnect();};
  },[aiConnected]);
  const id=useId().replace(/:/g,''),launcher=useRef<HTMLButtonElement>(null),input=useRef<HTMLInputElement>(null),downloadSummary=useRef<HTMLHeadingElement>(null),request=useRef(0),searchAbort=useRef<AbortController|null>(null),hintInFlight=useRef<number|null>(null);
  const [preferences,setPreferences]=useState<AsterPreferences>(getAsterPreferences),[open,setOpen]=useState(false),[bubble,setBubble]=useState(false),[question,setQuestion]=useState(''),[searching,setSearching]=useState(false),[error,setError]=useState(''),[showHint,setShowHint]=useState(false),[portraitFailed,setPortraitFailed]=useState(false),[failedExpression,setFailedExpression]=useState('');
@@ -211,7 +217,7 @@ export default function AsterGuide({notebook,mode,activityId,creationStage,conte
  };
  const openEvidence=async(reference:EvidenceReference)=>{const version=request.current,activeScope=scope;try{if(await assistance.current?.()===false)throw Error('Help save failed');if(version!==request.current||activeScope!==currentScope.current)return;onOpenSource?.(reference.sourceId,reference.quote);}catch{if(version===request.current&&activeScope===currentScope.current)setError('This source could not be opened. You can read the excerpt here.');}};
  const changePreference=(mode:AsterPreferences['mode'])=>{setAsterPreferences({mode});setBubble(false);if(mode==='off')close();};
- const portrait=(className:string)=><span className={className} aria-hidden="true">{portraitFailed?<span className="aster-initial">A</span>:<img src={imageUrl} alt="" onError={()=>{if(imageUrl!==portraitUrl)setFailedExpression(emotion.assetPath);else setPortraitFailed(true);}} draggable={false}/>}{className==='aster-launcher-portrait'&&connectionTransition&&<video key={connectionTransition.id} className="aster-transformation-video" data-direction={connectionTransition.direction} src={`/assets/aster/transitions/${connectionTransition.direction}.webm`} muted autoPlay playsInline preload="auto" tabIndex={-1} onEnded={()=>setConnectionTransition(current=>current?.id===connectionTransition.id?null:current)} onError={()=>setConnectionTransition(current=>current?.id===connectionTransition.id?null:current)}/>}</span>;
+ const portrait=(className:string)=><span className={className} aria-hidden="true">{portraitFailed?<span className="aster-initial">A</span>:<img src={imageUrl} alt="" onError={()=>{if(imageUrl!==portraitUrl)setFailedExpression(emotion.assetPath);else setPortraitFailed(true);}} draggable={false}/>}{className==='aster-launcher-portrait'&&connectionTransition&&<AsterTransitionVideo key={connectionTransition.id} direction={connectionTransition.direction} ageGroup={notebook?.ageGroup} onFinish={()=>setConnectionTransition(current=>current?.id===connectionTransition.id?null:current)}/>}</span>;
  if(preferences.mode==='off')return <div className="aster-restore"><button type="button" onClick={()=>changePreference('quiet')}><MessageCircle size={13} aria-hidden="true"/>Show Aster</button></div>;
  return <aside className={`aster-guide${open?' aster-open':''}${automaticTipVisible?' aster-automatic':''}${aiConnected?' aster-connected':''}${connectionArrival?' aster-connection-arrival':''}${connectionTransition?' aster-mode-transition':''}${searching?' aster-thinking':''}`} data-connection={aiConnected?'connected':'local'} style={{'--aster-aura-image':"url('/assets/aster/agentic-aura.png')"} as CSSProperties} aria-label="Aster learning companion" data-mode={mode} data-preference={preferences.mode} data-guidance={automaticTipVisible?'automatic':open?'manual':'idle'} data-moment={moment} data-expression={emotion.id}>
   {open&&<section id={`${id}-panel`} className="aster-panel" role="dialog" aria-modal="false" aria-labelledby={`${id}-title`} onKeyDown={event=>{if(event.key==='Escape'){event.stopPropagation();close();}}}>

@@ -1,7 +1,15 @@
 import {describe,it,expect} from 'vitest';
 import {SCAFFOLDS} from '../src/data/scaffolds';
-import {actionCuePlan,asterCuePlan,activityActionCue,lessonActionCue,type GameActionCue,type AsterActionCue} from '../src/lib/actionFeedback';
+import {actionCuePlan,asterCuePlan,asterTransitionCuePlan,activityActionCue,lessonActionCue,type GameActionCue,type AsterActionCue} from '../src/lib/actionFeedback';
 describe('action sound design',()=>{
+ it('gives each Aster transformation a distinct contour within the local video, with quieter child cues',()=>{
+  const connect=asterTransitionCuePlan('connect'),disconnect=asterTransitionCuePlan('disconnect');
+  expect(connect.notes.slice(0,4).map(note=>note.midi)).toEqual([...disconnect.notes.slice(0,4).map(note=>note.midi)].reverse());
+  expect(connect.notes[0].instrument).toBe('glass');expect(disconnect.notes[0].instrument).toBe('felt');
+  for(const direction of ['connect','disconnect']as const){const plan=asterTransitionCuePlan(direction),young=asterTransitionCuePlan(direction,'3-5');expect(plan.maxDuration).toBeLessThan(2.4);
+   for(const [index,note]of plan.notes.entries()){expect(note.at+note.duration+(note.instrument==='air'?.47:.24)).toBeLessThanOrEqual(plan.maxDuration);expect(note.velocity).toBeLessThanOrEqual(.16);expect(young.notes[index].velocity).toBeLessThan(note.velocity);}
+  }
+ });
  it('gives Aster distinct bounded conversation cues, quieter for young learners',()=>{
   const plans=(['notice','open','ask','answer'] as AsterActionCue[]).map(kind=>asterCuePlan(kind,'adult'));
   expect(new Set(plans.map(plan=>JSON.stringify(plan.notes))).size).toBe(4);

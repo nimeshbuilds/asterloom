@@ -3,6 +3,16 @@ import type {ScoreInstrument} from './scoreTypes';
 
 export type GameActionCue='select'|'place'|'move'|'connect'|'remove'|'inspect'|'reveal'|'commit';
 export type AsterActionCue='notice'|'open'|'ask'|'answer';
+export type AsterTransitionCue='connect'|'disconnect';
+/** A reversible musical signature for the 2.4-second local mantle animation.
+ * These are mode-change cues, not a correctness reward or an authentication claim. */
+export function asterTransitionCuePlan(direction:AsterTransitionCue,ageGroup?:string){
+ const young=ageGroup==='3-5'||ageGroup==='6-8',root=young?60:64,level=young?.7:1;
+ const steps=direction==='connect'?[0,7,12,16]:[16,12,7,0];
+ const notes=steps.map((interval,index)=>({at:[0,.22,.5,.84][index],midi:root+interval,duration:index===3?.5:.25,velocity:(index===3?.16:.12)*level,instrument:(direction==='connect'?'glass':'felt') as ScoreInstrument,pan:(index-1.5)*.12}));
+ notes.push({at:.04,midi:root-12,duration:1.35,velocity:.08*level,instrument:'air',pan:0});
+ return{direction,notes,maxDuration:1.86};
+}
 /** Aster's small glass-and-felt signature acknowledges conversation, never correctness.
  * The notice is deliberately shortest; no repeated pulse or spoken content is needed. */
 export function asterCuePlan(kind:AsterActionCue,ageGroup?:string){

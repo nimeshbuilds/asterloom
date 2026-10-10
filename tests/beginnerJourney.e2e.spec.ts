@@ -311,3 +311,34 @@ test('a title edit queued behind a hidden mission checkpoint preserves that chec
  await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();expect(stages).toEqual(['plan','write','check','overview']);
  expect((await records(page))[0].gameDesign?.receipts).toHaveLength(4);
 });
+
+test('add sources and recreate makes a separate AI edition without changing the playable original or its progress',async({page},testInfo)=>{
+ const requests:any[]=[];
+ await page.route('**/api/generate',async route=>{const body=route.request().postDataJSON();requests.push(body);await route.fulfill({json:reply(body)});});
+ await begin(page,'Maintenance adventure');
+ const originalBytes=Buffer.from(material.replaceAll('\n','\r\n')+'\r\n','utf8');
+ await page.getByLabel('Upload source files',{exact:true}).setInputFiles({name:'maintenance.txt',mimeType:'text/plain',buffer:originalBytes});
+ await expect(page.locator('.source-main')).toContainText('maintenance.txt');await connect(page);
+ await page.getByRole('button',{name:'Create game with AI',exact:true}).click();await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();expect(requests).toHaveLength(4);
+ await expect(page.getByRole('button',{name:'Refresh from my materials',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Play game',exact:true}).click();await learnBeforeQuest(page);await expect(page.getByRole('button',{name:'Check my work',exact:true})).toBeVisible();
+ const original=(await records(page))[0];await expect.poll(async()=>!!Object.values((await progressFor(page,original.id))?.structured??{}).some(state=>(state.response as any)?._draft?.lesson?.completedAt)).toBe(true);const oldProgress=await progressFor(page,original.id);
+ await page.getByRole('button',{name:'Save & return',exact:true}).click();await page.getByRole('button',{name:'Edit materials',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Paste notes',exact:true})).toHaveCount(0);await expect(page.getByRole('combobox',{name:'Age group',exact:true})).toBeDisabled();
+ await page.locator('.source-main').click();await expect(page.getByRole('textbox',{name:'Readable source text',exact:true})).toHaveAttribute('readonly','');await page.getByRole('button',{name:'Done',exact:true}).click();
+ await page.locator('button.aster-launcher').click();const guide=page.getByRole('dialog',{name:'Ask Aster',exact:true});await guide.getByRole('textbox',{name:'Message Aster',exact:true}).fill('What should I do now?');await guide.getByRole('button',{name:'Find in my sources',exact:true}).click();await expect(guide.getByRole('region',{name:'Current activity answer',exact:true})).toContainText('Add sources & recreate');await page.getByRole('button',{name:'Close Aster',exact:true}).click();
+ await page.getByRole('button',{name:'Add sources & recreate',exact:true}).click();await expect(page.getByLabel('Notebook title',{exact:true})).toHaveValue('Maintenance adventure · Edition 2');
+ await expect(page.getByRole('status').filter({hasText:'New edition of'})).toContainText('Your original game and its progress stay unchanged');
+ await expect(page.getByRole('button',{name:'Create game with AI',exact:true})).toBeEnabled();expect(requests).toHaveLength(4);
+ const edition=(await records(page)).find(item=>item.id!==original.id)!;expect(edition.editionOf).toEqual({id:original.id,title:original.title});expect(edition.sources).toEqual(original.sources);expect(edition.activities).toEqual([]);expect(edition.cards).toEqual([]);expect(edition.gameDesign).toBeUndefined();expect(edition.aiLearningPlan).toBeUndefined();expect(edition.aiToolReceipts).toBeUndefined();expect(await progressFor(page,edition.id)).toBeUndefined();
+ expect(Buffer.from(edition.sources[0].originalFile!.dataUrl.split(',')[1],'base64')).toEqual(originalBytes);
+ await page.getByRole('button',{name:'Paste notes',exact:true}).click();await page.getByLabel('Source title',{exact:true}).fill('Conditional maintenance');await page.getByLabel('Your material',{exact:true}).fill('# Conditional reset procedure\n1. Open the settings panel.\n2. Choose the reset command.\n3. Confirm the selected reset only when the panel reports ready.');await page.getByRole('button',{name:'Add material',exact:false}).click();
+ await expect(page.locator('.source-row')).toHaveCount(2);await expect.poll(async()=>(await records(page)).find(item=>item.id===edition.id)?.sources.length).toBe(2);expect(requests).toHaveLength(4);
+ expect((await records(page)).find(item=>item.id===original.id)).toEqual(original);expect(await progressFor(page,original.id)).toEqual(oldProgress);
+ await page.screenshot({path:testInfo.outputPath('new-edition-before-explicit-creation.png'),fullPage:true});
+ await page.getByRole('button',{name:'Create game with AI',exact:true}).click();await expect(page.getByRole('button',{name:'Play game',exact:true})).toBeVisible();
+ const saved=(await records(page)).find(item=>item.id===edition.id)!;expect(saved.creation?.status).toBe('ready');expect(saved.aiLearningPlan?.missions).toHaveLength(2);expect(saved.gameDesign?.receipts).toHaveLength(5);expect(saved.gameDesign?.receipts?.map(receipt=>receipt.stage)).toEqual(['plan','write','write','check','overview']);expect(requests.slice(4).map(request=>request.prompt.match(/STAGE: (\w+)/)?.[1])).toEqual(['plan','write','write','check','overview']);
+ const plans=requests.filter(request=>request.prompt.includes('STAGE: plan'));expect(plans).toHaveLength(2);const newPlan=JSON.parse(plans[1].prompt.split('REFERENCE DATA (JSON):\n')[1]);expect(new Set(newPlan.units.map((unit:any)=>unit.sourceId))).toEqual(new Set(saved.sources.map(source=>source.id)));expect(newPlan.units.some((unit:any)=>unit.excerpt.includes('only when the panel reports ready'))).toBe(true);
+ expect(saved.sources[0].originalFile).toEqual(original.sources[0].originalFile);expect((await records(page)).find(item=>item.id===original.id)).toEqual(original);expect(await progressFor(page,original.id)).toEqual(oldProgress);expect(await progressFor(page,edition.id)).toBeUndefined();
+ await page.reload();await page.getByRole('button',{name:'Open Maintenance adventure',exact:true}).click();await expect(page.getByRole('button',{name:/^(Play game|Continue game)$/})).toBeEnabled();expect((await records(page)).find(item=>item.id===original.id)).toEqual(original);expect(await progressFor(page,original.id)).toEqual(oldProgress);expect(requests).toHaveLength(9);
+});

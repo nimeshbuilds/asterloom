@@ -1,3 +1,4 @@
+import {planningExpressions} from './gamePlanningCatalog';
 /** Structured generation constrains response shape, not source truth or playability.
  * Existing director, evidence, teaching and gameplay validators remain mandatory.
  * Use only closed objects, explicit required keys and nested nullable alternatives;
@@ -26,7 +27,7 @@ const unitCitation=(unitIds:unknown[])=>closed({unitId:enumeration(unitIds),evid
 const claim=(citation:GameDirectorOutputSchema,max:number,maxCitations=2)=>closed({text:text(max),citations:array(citation,1,maxCitations)});
 
 function planSchema(input:Data){
- const units=rows(input.units),choices=rows(input.choices),unitIds=units.map(unit=>unit.unitId),eligible=units.filter(unit=>unit.missionEligible===true),assets=strings(units.flatMap(unit=>Array.isArray(unit.sourceAssetIds)?unit.sourceAssetIds:[])),expressions=rows(input.asterExpressions);
+ const units=rows(input.units),choices=rows(input.choices),unitIds=units.map(unit=>unit.unitId),eligible=units.filter(unit=>unit.missionEligible===true),assets=strings(units.flatMap(unit=>Array.isArray(unit.sourceAssetIds)?unit.sourceAssetIds:[])),expressions=planningExpressions(input);
  const poses=closed(Object.fromEntries(MOMENTS.map(moment=>[moment,nullable(enumeration(expressions.filter(expression=>Array.isArray(expression.moments)&&expression.moments.includes(moment)).map(expression=>expression.id)))])));
  const mission=closed({id:identifier,unitId:enumeration(eligible.map(unit=>unit.unitId)),kind:enumeration(choices.map(choice=>choice.kind)),scaffoldId:enumeration(choices.map(choice=>choice.scaffoldId)),title:text(180),objective:text(400),visualDirection:closed({scene:enumeration(choices.map(choice=>choice.scene)),sourceAssetIds:array(enumeration(assets),0,Math.min(8,assets.length))}),asterDirection:nullable(poses)});
  return closed({missions:array(mission,0,Math.min(3,eligible.length)),study:array(closed({unitId:enumeration(unitIds),reason:text(600)}),0,Math.min(3,units.length)),overviewNotes:nullable(array(closed({unitId:enumeration(unitIds),summary:nullable(claim(unitCitation(unitIds),ageBounds(input.ageGroup).overview))}),units.length,units.length))});

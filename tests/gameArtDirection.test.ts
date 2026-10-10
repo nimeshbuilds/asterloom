@@ -26,6 +26,17 @@ describe('portable AI art direction',()=>{
   }
   expect(MUSIC_TRACKS.map(track=>track.id)).toEqual(original);
  });
+ it('varies the first reading choice by recipe without losing options or changing saved directions',()=>{
+  const firstChoices=new Map<string,Set<string>>(),sceneOptions=new Map<string,string[]>();
+  for(const scaffold of SCAFFOLDS){const ageGroup=scaffold.ages.includes('adult')?'adult':scaffold.ages[0],context={scaffoldId:scaffold.id,ageGroup},catalog=audioDirectionCatalog(context),ids=catalog.studyTracks.map(track=>track.id);
+   expect(catalog).toEqual(audioDirectionCatalog(context));expect(catalog.studyTracks[0].kind).toBe('recording');expect(new Set(ids).size).toBe(ids.length);
+   const scene=scaffold.visual.scene,prior=sceneOptions.get(scene);if(prior)expect([...ids].sort()).toEqual(prior);else sceneOptions.set(scene,[...ids].sort());
+   const choices=firstChoices.get(scene)??new Set<string>();choices.add(ids[0]);firstChoices.set(scene,choices);
+   // Every earlier saved compatible ID remains accepted, not just the new first choice.
+   for(const studyTrackId of ids)expect(validateGameAudioDirection({...directionFor(context),studyTrackId},context)).toEqual([]);
+  }
+  for(const [scene,choices]of firstChoices)expect(choices.size,scene).toBeGreaterThan(1);
+ });
  it('rejects unknown assets, remote references, arbitrary programs, incompatible age/scene/mechanic and policies',()=>{
   const direction=directionFor(context);for(const patch of [{playTrackId:'https://example.com/live.mp3'},{effectProfileId:'alert.exe'},{studyTrackId:'not-bundled'},{effects:'always-on'},{version:2},{script:'run()'}])expect(validateGameAudioDirection({...direction,...patch},context).length).toBeGreaterThan(0);
   expect(resolveGameAudioDirection(direction,{...context,ageGroup:'3-5'})).toBeUndefined();expect(resolveGameAudioDirection(direction,{...context,scaffoldId:'concept-map-repair'})).toBeUndefined();expect(resolveGameAudioDirection(direction,{...context,theme:'ocean'})).toBeUndefined();expect(resolveGameAudioDirection(direction,{...context,ageGroup:'mystery'})).toBeUndefined();

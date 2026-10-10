@@ -56,7 +56,7 @@ export function codexEnvironment(root,env=process.env){
 export const CODEX_LOCKED_CONFIG={
  approval_policy:'never',sandbox_mode:'read-only',web_search:'disabled',cli_auth_credentials_store:'file',check_for_update_on_startup:false,project_doc_max_bytes:0,
  'features.shell_tool':false,'features.unified_exec':false,'features.shell_snapshot':false,'features.code_mode':false,'features.multi_agent':false,'features.apps':false,'features.plugins':false,'features.image_generation':false,'features.browser_use':false,'features.browser_use_external':false,'features.computer_use':false,'features.view_image':false,'features.code_mode_host':false,'features.hooks':false,'features.memories':false,'features.remote_plugin':false,'features.skill_search':false,'features.skill_mcp_dependency_install':false,'features.skip_host_skill_discovery':true,'features.goals':false,'features.sleep_tool':false,'features.in_app_local_automation':false,
- 'apps._default.enabled':false,'apps._default.default_tools_enabled':false,
+ 'apps._default.enabled':false,
 };
 export class CodexRpc extends EventEmitter{
  constructor(child,{requestTimeout=30000}={}){super();this.child=child;this.pending=new Map();this.nextId=1;this.buffer='';this.dead=false;this.requestTimeout=requestTimeout;

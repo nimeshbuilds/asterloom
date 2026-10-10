@@ -103,7 +103,8 @@ describe('soundtrack persistence and lifecycle',()=>{
   const directed={...context,artDirection:direction};music.syncLearningSoundtrack(directed,{enabled:false,volume:.2});expect(AudioContextMock.instances).toHaveLength(0);expect(music.musicFeedback('success',context.scaffoldId,'adult')).toBe(false);
   music.setSoundPreferences({enabled:true,volume:.4});music.syncLearningSoundtrack(directed,{enabled:true,volume:.2});const audio=AudioContextMock.instances[0];expect(music.getMusicRuntimeStatus().trackId).toBe(direction.playTrackId);expect(music.getMusicRuntimeStatus().selection?.effectProfileId).toBe(direction.effectProfileId);expect(audio.gains[1].gain.value).toBeCloseTo(.22);
   music.setMusicPreferences({mode:'pinned',trackId:'score-quiet-orbit'});vi.advanceTimersByTime(170);expect(music.getMusicRuntimeStatus().trackId).toBe('score-quiet-orbit');expect(audio.gains[1].gain.value).toBeCloseTo(.22);
-  music.syncLearningSoundtrack({...directed,artDirection:{...direction,effects:'off'}},{enabled:true,volume:.2});expect(audio.gains[1].gain.value).toBe(0);expect(music.musicFeedback('success',context.scaffoldId,'adult')).toBe(false);expect(music.gameActionFeedback('place',context.scaffoldId,'adult')).toBe(false);
+  expect(music.asterTransitionFeedback('connect')).toBeTypeOf('function');const transition=audio.oscillators.slice(-5);
+  music.syncLearningSoundtrack({...directed,artDirection:{...direction,effects:'off'}},{enabled:true,volume:.2});expect(audio.gains[1].gain.value).toBe(0);expect(music.musicFeedback('success',context.scaffoldId,'adult')).toBe(false);expect(music.gameActionFeedback('place',context.scaffoldId,'adult')).toBe(false);expect(music.asterTransitionFeedback('disconnect')).toBeUndefined();expect(transition.every(node=>node.stopCalls.includes(undefined))).toBe(true);
   music.stopMusic();expect(vi.getTimerCount()).toBe(0);
  });
  it('actually synthesizes the directed effect profile rather than the original recipe motif',async()=>{
@@ -169,6 +170,33 @@ describe('soundtrack persistence and lifecycle',()=>{
   music.duckMusic(true);expect(music.asterFeedback('ask')).toBe(false);music.duckMusic(false);Object.assign(window,{speechSynthesis:{speaking:true}});expect(music.asterFeedback('ask')).toBe(false);Object.assign(window,{speechSynthesis:{speaking:false}});expect(music.asterFeedback('ask')).toBe(true);music.setSoundPreferences({enabled:false});music.stopMusic();
  });
 
+ it('never unlocks a transition automatically and cancels only its own voices on reversal or unmount',async()=>{
+  storage.set('asterloom:sound-preferences:v1',JSON.stringify({enabled:true,volume:.3}));const music=await import('../src/lib/music');
+  expect(music.asterTransitionFeedback('connect')).toBeUndefined();expect(AudioContextMock.instances).toHaveLength(0);
+  music.unlockGameAudio();const audio=AudioContextMock.instances[0],cancelFirst=music.asterTransitionFeedback('connect');expect(cancelFirst).toBeTypeOf('function');expect(audio.oscillators).toHaveLength(5);
+  expect(music.asterFeedback('notice')).toBe(false);const cancelSecond=music.asterTransitionFeedback('disconnect');expect(audio.oscillators).toHaveLength(10);expect(audio.oscillators.slice(0,5).every(node=>node.stopCalls.includes(undefined))).toBe(true);
+  cancelFirst!();expect(audio.oscillators.slice(5).every(node=>!node.stopCalls.includes(undefined))).toBe(true);cancelSecond!();expect(audio.oscillators.every(node=>node.stopCalls.includes(undefined))).toBe(true);
+  music.asterTransitionFeedback('connect');music.setSoundPreferences({enabled:false});expect(audio.oscillators.every(node=>node.stopCalls.includes(undefined))).toBe(true);expect(music.asterTransitionFeedback('disconnect')).toBeUndefined();
+ });
+ it('cancels queued effects as source media starts, so ending a short recording cannot revive them',async()=>{
+  class SourceMedia {paused=false;ended=false;muted=false;volume=1;isConnected=true;}
+  vi.stubGlobal('HTMLMediaElement',SourceMedia);const music=await import('../src/lib/music');music.setSoundPreferences({enabled:true,volume:.3});const audio=AudioContextMock.instances[0];
+  music.asterTransitionFeedback('connect');const media=new SourceMedia(),play=new Event('play');Object.defineProperty(play,'target',{value:media});document.dispatchEvent(play);
+  expect(audio.oscillators).toHaveLength(5);expect(audio.oscillators.every(node=>node.stopCalls.includes(undefined))).toBe(true);expect(music.asterTransitionFeedback('disconnect')).toBeUndefined();
+  media.paused=true;const pause=new Event('pause');Object.defineProperty(pause,'target',{value:media});document.dispatchEvent(pause);vi.advanceTimersByTime(2000);expect(audio.oscillators).toHaveLength(5);
+  music.asterFeedback('ask');music.asterFeedback('answer');media.paused=false;document.dispatchEvent(play);expect(audio.oscillators.every(node=>node.stopCalls.includes(undefined))).toBe(true);
+  media.paused=true;music.stopMusic();
+ });
+ it('keeps the two transition contours in the same musical key while a game score plays',async()=>{
+  const music=await import('../src/lib/music');music.setSoundPreferences({enabled:true,volume:.3});music.syncLearningSoundtrack(context,{enabled:true,volume:.2});const audio=AudioContextMock.instances[0],before=audio.oscillators.length;
+  music.asterTransitionFeedback('connect');const rising=audio.oscillators.slice(before,before+4).map(node=>node.frequency.value);music.asterTransitionFeedback('disconnect');const falling=audio.oscillators.slice(before+5,before+9).map(node=>node.frequency.value);expect(falling).toEqual([...rising].reverse());music.stopMusic();
+ });
+ it('gives rewards priority and respects transition suppression without leaving scheduled tails',async()=>{
+  const music=await import('../src/lib/music');music.setSoundPreferences({enabled:true,volume:.3});const audio=AudioContextMock.instances[0];
+  music.asterTransitionFeedback('connect');music.musicFeedback('complete');expect(audio.oscillators.slice(0,5).every(node=>node.stopCalls.includes(undefined))).toBe(true);expect(music.asterTransitionFeedback('disconnect')).toBeUndefined();
+  vi.advanceTimersByTime(2000);music.duckMusic(true);expect(music.asterTransitionFeedback('connect')).toBeUndefined();music.duckMusic(false);Object.assign(document,{visibilityState:'hidden'});expect(music.asterTransitionFeedback('connect')).toBeUndefined();Object.assign(document,{visibilityState:'visible'});
+  music.asterTransitionFeedback('disconnect');music.setSoundPreferences({volume:0});expect(audio.oscillators.every(node=>node.stopCalls.includes(undefined))).toBe(true);expect(music.asterTransitionFeedback('connect')).toBeUndefined();music.stopMusic();
+ });
  it('retries a blocked recording from an explicit gesture without replaying music after mute',async()=>{
   class Recording extends EventTarget{static all:Recording[]=[];loop=false;paused=true;currentTime=0;preload='';src='';plays=0;constructor(src=''){super();this.src=src;Recording.all.push(this);}canPlayType(){return'probably';}play(){this.plays++;if(this.plays===1)return Promise.reject(Object.assign(new Error('gesture needed'),{name:'NotAllowedError'}));this.paused=false;return Promise.resolve();}pause(){this.paused=true;}removeAttribute(){this.src='';}load(){}}
   vi.stubGlobal('Audio',Recording);const music=await import('../src/lib/music');music.syncLearningSoundtrack({...context,phase:'study'},{enabled:true,volume:.2});await Promise.resolve();await Promise.resolve();expect(music.getMusicRuntimeStatus().state).toBe('suspended');const audio=Recording.all.at(-1)!;

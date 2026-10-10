@@ -66,6 +66,41 @@
       "prompt": "Premium game environment concept art, wide landscape16:9. A breathtaking systems observatory for an adult learning adventure: floating circular stone-and-glass platforms linked by thin illuminated bridges within a vast open astronomical atrium, elegant central brass astrolabe, modular architectural consoles, distant stars through curved windows. Sophisticated strategy game art, cinematic indigo and teal with restrained gold glows, crisp geometry, tangible polished materials, mature visual style. Broad calm dark central and lower area for separate interactive relationship nodes. Interesting detail framed around edges and top. No text, no labels, no numbers, no logos, no people, no UI. Fictional decorative setting, never a factual technical diagram.",
       "tool": "Built-in image_gen",
       "createdAt": "2026-10-09"
+    },
+    {
+      "id": "tool-routing-studio",
+      "file": "tool-routing-studio.png",
+      "prompt": "Use case: stylized-concept. Asset type: shipped decorative environment artwork for Asterloom's agent-workflow-studio learning game. Create a premium cinematic 3D game environment: 'The tool routing studio', a sophisticated glass and brass atelier where luminous teal channels connect distinct modular workstations and a central routing dais, warm amber practical lamps, indigo architecture, quiet distant city lights. Architectural strategy-adventure aesthetic for ages12+ and adults, striking silhouettes, tangible polished materials, beautiful atmospheric depth. Wide landscape16:9 composition, environment details around upper third and edges; broad calm dark-slate central foreground for real interactive cards overlaid later. No text, letters, numbers, logos, UI, people, characters, diagrams or factual teaching claims. Fictional scenery only; do not depict a technical diagram. No childish toys, no neon overload.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-10"
+    },
+    {
+      "id": "cloud-systems-yard",
+      "file": "cloud-systems-yard.png",
+      "prompt": "Use case: stylized-concept. Asset type: shipped game environment for Asterloom cloud-architecture-builder. Create 'The cloud systems yard': a breathtaking original architectural sky harbor above cloud layers, modular ivory and blue-glass towers on interlinked stone terraces, elegant suspended conduits, docking gantries and copper service bridges; sophisticated mature strategy game setting, cinematic morning light, polished tangible3D materials, depth and refined details. Wide landscape16:9. Frame intricate towers along edges and top; central lower foreground is a calm navy work terrace for later interactive cards. Fictional decorative scene only, not an actual network diagram or educational claim. No words, letters, numbers, logos, user interface, people or characters. Beautiful coherent environment, not generic glowing computers, no childish toys.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-10"
+    },
+    {
+      "id": "inspection-outpost",
+      "file": "inspection-outpost.png",
+      "prompt": "Use case: stylized-concept. Asset type: shipped decorative environment for Asterloom fault-diagnosis learning game. Create 'The inspection outpost': a cinematic sophisticated cliffside mechanical signal observatory at dusk, rugged elegant stone and brass architecture, large circular inspection lenses, service walkways, carefully housed amber and teal signal instruments, misty mountains beyond. Original polished3D strategy-adventure environment, tactile materials, refined mature visual storytelling. Wide16:9. Instruments and beautiful architecture occupy upper third and edges; calm dark slate central foreground for real interactive evidence cards later. No text, labels, numbers, logos, characters, people, diagrams or UI. Scenery is fiction and must not encode technical facts or answers.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-10"
+    },
+    {
+      "id": "pocket-theater",
+      "file": "pocket-theater.png",
+      "prompt": "Use case: stylized-concept. Asset type: shipped decorative game environment for Asterloom puppet-stories children learning scaffold ages3\u20138. Create 'The pocket puppet theater': an exquisite handcrafted miniature storybook theatre in a cozy garden treehouse, curved honey-colored wood frame, soft coral curtains pulled aside, tiny felt leaf bunting, warm lanterns and sculptural flowers at edges. Inviting empty stage and simple legible rounded silhouettes, premium3D animated-film environment quality, rich tactile fabric and wood, cheerful daylight, safe and gentle. Wide16:9, clear uncluttered center for real learning controls overlaid later. No puppets or characters, no people, no text/letters/numbers/logos, no UI. Fictional decorative setting only, not factual lesson imagery.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-10"
+    },
+    {
+      "id": "learning-railway",
+      "file": "learning-railway.png",
+      "prompt": "Use case: stylized-concept. Asset type: shipped decorative game environment for Asterloom step-train children learning scaffold ages3\u20138. Create 'The little learning railway': a delightful premium3D storybook garden railway in a sunny valley, curved wooden track crosses gentle low bridges between rounded colorful station shelters, bright small empty wooden wagons at the edge, soft hills and flowers, crafted wood textures, simple readable inviting shapes. Wide16:9, environment arranged around upper third and sides, generous calm grassy central clearing for actual learning controls overlaid later. High-quality original animation-film environment, no characters or people, no words/letters/numbers/logos, no UI, no diagrams. Fictional scenery only, never source evidence or invented educational facts.",
+      "tool": "Built-in image_gen",
+      "createdAt": "2026-10-10"
     }
   ],
   "pending": []

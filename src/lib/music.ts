@@ -3,7 +3,7 @@ import {MUSIC_TRACKS,INTERACTIVE_SCORES,RECORDING_TRACKS,RECORDING_PLAYBACK_GAIN
 import {selectLearningSoundtrack,getMusicPreferences,type SoundtrackContext,type SoundtrackSelection} from './musicSelection';
 export {selectLearningSoundtrack,getMusicPreferences,setMusicPreferences} from './musicSelection';
 export type {SoundtrackContext,SoundtrackSelection,MusicPreferences} from './musicSelection';
-import {actionCuePlan,asterCuePlan,type AsterActionCue,type GameActionCue} from './actionFeedback';
+import {actionCuePlan,asterCuePlan,asterTransitionCuePlan,type AsterActionCue,type AsterTransitionCue,type GameActionCue} from './actionFeedback';
 import {feedbackCuePlan} from '../data/reactionProfiles';
 import {resolveGameAudioDirection} from './gameArtDirection';
 import {createLayerMixer,arrangedScoreEvents,createScoreSpace,cuePitchOffset,scheduleVoice,SCORE_LAYERS} from './musicSynthesis';
@@ -22,7 +22,7 @@ export function setSoundPreferences(patch:Partial<SoundPreferences>):SoundPrefer
  const previous=getSoundPreferences();preferences={enabled:typeof patch.enabled==='boolean'?patch.enabled:previous.enabled,volume:clamp(patch.volume,previous.volume)};
  try{localStorage.setItem(preferenceKey,JSON.stringify(preferences));}catch{}
  if(preferences.enabled&&preferences.volume>0)ensureContext(); // Called synchronously from the explicit sound opt-in gesture.
- if(!preferences.enabled||preferences.volume<=0){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;}
+ if(!preferences.enabled||preferences.volume<=0){stopOneShotVoices();}
  refreshOutput();if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:{...preferences}}));return{...preferences};
 }
 export interface MusicRuntimeStatus {state:'stopped'|'playing'|'suspended'|'unavailable';source:'recording'|'interactive'|null;trackId:string|null;phase:MusicPhase;effects?:'standard'|'quiet'|'off';reason?:string;selection?:SoundtrackSelection;phrase?:number;positionBeats?:number}
@@ -36,7 +36,7 @@ let rewardDuckUntil=0,rewardDuckLevel=1,rewardDuckTimer:ReturnType<typeof setTim
 let pendingSelection:SoundtrackSelection|undefined,programmeKey='',programmeStep=0,scoreCycle=0,pausedBeat=0;
 let recording:HTMLAudioElement|undefined,recordingNode:MediaElementAudioSourceNode|undefined,currentVolume=.15,musicWanted=false,manualDuck=false;
 let currentScore:InteractiveScore|undefined,nextIndex=0,loopStart=0,generation=0,listening=false,lastCue=-Infinity,lastAction=-Infinity,lastAster=-Infinity,lastAsterKind:AsterActionCue|null=null,asterTail=0;
-const musicVoices=new Set<OscillatorNode>(),effectVoices=new Set<OscillatorNode>(),actionVoices=new Set<OscillatorNode>(),asterVoices=new Set<OscillatorNode>(),playingSourceMedia=new Set<HTMLMediaElement>();
+const musicVoices=new Set<OscillatorNode>(),effectVoices=new Set<OscillatorNode>(),actionVoices=new Set<OscillatorNode>(),asterVoices=new Set<OscillatorNode>(),transitionVoices=new Set<OscillatorNode>(),playingSourceMedia=new Set<HTMLMediaElement>();
 const hidden=()=>typeof document!=='undefined'&&document.visibilityState==='hidden';
 function ducked():boolean {
  // Media events are asynchronous. A paused element removed in the same turn
@@ -52,14 +52,15 @@ function ducked():boolean {
  return manualDuck||audible||(typeof window!=='undefined'&&window.speechSynthesis?.speaking===true);
 }
 function stopVoices(voices:Set<OscillatorNode>){for(const node of voices){try{node.stop();}catch{}}voices.clear();}
+function stopOneShotVoices(){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);stopVoices(transitionVoices);asterTail=0;}
 function keepVoice(node:OscillatorNode,set:Set<OscillatorNode>){set.add(node);node.addEventListener('ended',()=>set.delete(node),{once:true});}
 function listen(){if(listening||typeof document==='undefined')return;listening=true;
  const prime=()=>{if((getSoundPreferences().enabled&&getSoundPreferences().volume>0)||musicWanted)ensureContext();};document.addEventListener('pointerdown',prime,{capture:true,passive:true});document.addEventListener('keydown',prime,{capture:true,passive:true});
- document.addEventListener('visibilitychange',()=>{if(hidden()){if(currentScore&&context)pausedBeat=Math.max(0,(context.currentTime-loopStart)/(60/currentScore.bpm));if(timer)clearInterval(timer);timer=undefined;recording?.pause();stopVoices(musicVoices);stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;void context?.suspend().catch(()=>{});if(musicWanted)updateStatus({state:'suspended'});}else if(musicWanted||getSoundPreferences().enabled){ensureContext();if(musicWanted){if(recording){const version=generation;void recording.play().then(()=>{if(version===generation&&musicWanted)updateStatus({state:'playing'});}).catch(()=>{if(version===generation&&musicWanted)updateStatus({state:'suspended',reason:'Select play to enable audio.'});});}else startSchedule(true);}}});
- const media=(event:Event)=>{const node=event.target;if(!(node instanceof HTMLMediaElement)||node===recording)return;if(!node.paused&&!node.ended&&node.isConnected)playingSourceMedia.add(node);else playingSourceMedia.delete(node);refreshOutput();};
+ document.addEventListener('visibilitychange',()=>{if(hidden()){if(currentScore&&context)pausedBeat=Math.max(0,(context.currentTime-loopStart)/(60/currentScore.bpm));if(timer)clearInterval(timer);timer=undefined;recording?.pause();stopVoices(musicVoices);stopOneShotVoices();void context?.suspend().catch(()=>{});if(musicWanted)updateStatus({state:'suspended'});}else if(musicWanted||getSoundPreferences().enabled){ensureContext();if(musicWanted){if(recording){const version=generation;void recording.play().then(()=>{if(version===generation&&musicWanted)updateStatus({state:'playing'});}).catch(()=>{if(version===generation&&musicWanted)updateStatus({state:'suspended',reason:'Select play to enable audio.'});});}else startSchedule(true);}}});
+ const media=(event:Event)=>{const node=event.target;if(!(node instanceof HTMLMediaElement)||node===recording)return;if(!node.paused&&!node.ended&&node.isConnected)playingSourceMedia.add(node);else playingSourceMedia.delete(node);if(ducked())stopOneShotVoices();refreshOutput();};
  for(const event of ['play','pause','ended','volumechange'])document.addEventListener(event,media,true);
  window.addEventListener('asterloom:music-preferences',()=>{if(learningContext)applyLearningSelection();});
- window.addEventListener('storage',event=>{if(event.key===preferenceKey){preferencesLoaded=false;getSoundPreferences();if(!preferences.enabled||preferences.volume<=0){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;}refreshOutput();window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:getSoundPreferences()}));}});
+ window.addEventListener('storage',event=>{if(event.key===preferenceKey){preferencesLoaded=false;getSoundPreferences();if(!preferences.enabled||preferences.volume<=0){stopOneShotVoices();}refreshOutput();window.dispatchEvent(new CustomEvent('asterloom:sound-preferences',{detail:getSoundPreferences()}));}});
 }
 function ensureContext():AudioContext|undefined {
  listen();if(typeof window==='undefined')return;
@@ -73,13 +74,14 @@ function ensureContext():AudioContext|undefined {
  }catch{updateStatus({state:'unavailable',reason:'Audio could not start in this browser.'});return;}
 }
 function refreshOutput(){if(!context)return;const suppressed=ducked()||hidden(),rewardLevel=context.currentTime<rewardDuckUntil?rewardDuckLevel:1;
+ if(suppressed)stopOneShotVoices();
  const phaseLevel=recording?({intro:.66,study:.44,practice:.82,quest:1,success:.85,retry:.5}[status.phase])*(RECORDING_PLAYBACK_GAINS[status.trackId??'']??1):1;
  musicBus?.gain.setTargetAtTime(musicWanted&&!hidden()&&!transitioning?currentVolume*phaseLevel*rewardLevel*(suppressed?.06:1):0,context.currentTime,.055);
- const pref=getSoundPreferences(),directed=directedFeedback();effectBus?.gain.setTargetAtTime(pref.enabled&&!suppressed&&directed.policy!=='off'?pref.volume*directed.level:0,context.currentTime,.015);
+ const pref=getSoundPreferences(),directed=directedFeedback();if(!pref.enabled||pref.volume<=0||directed.policy==='off')stopOneShotVoices();effectBus?.gain.setTargetAtTime(pref.enabled&&!suppressed&&directed.policy!=='off'?pref.volume*directed.level:0,context.currentTime,.015);
 }
 function stopSchedule(){if(timer)clearInterval(timer);timer=undefined;stopVoices(musicVoices);for(const node of Object.values(layers??{}))node.disconnect();layers=undefined;scoreSpace?.dispose();scoreSpace=undefined;}
 function stopPlayback(){musicWanted=false;generation++;if(phaseTimer)clearTimeout(phaseTimer);phaseTimer=undefined;if(transitionTimer)clearTimeout(transitionTimer);transitionTimer=undefined;pendingSelection=undefined;transitioning=false;stopSchedule();if(recording){recording.pause();recording.removeAttribute('src');recording.load();recording=undefined;}recordingNode?.disconnect();recordingNode=undefined;currentScore=undefined;refreshOutput();updateStatus({state:'stopped',source:null,trackId:null,reason:undefined});}
-export function stopMusic(){learningContext=null;programmeKey='';programmeStep=0;stopPlayback();stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;if(rewardDuckTimer)clearTimeout(rewardDuckTimer);rewardDuckTimer=undefined;rewardDuckUntil=0;rewardDuckLevel=1;lastCue=-Infinity;lastCueKind=null;updateStatus({selection:undefined});}
+export function stopMusic(){learningContext=null;programmeKey='';programmeStep=0;stopPlayback();stopOneShotVoices();if(rewardDuckTimer)clearTimeout(rewardDuckTimer);rewardDuckTimer=undefined;rewardDuckUntil=0;rewardDuckLevel=1;lastCue=-Infinity;lastCueKind=null;updateStatus({selection:undefined});}
 /** Unlock synchronously in a button handler; never required for the learning controls to work. */
 export function unlockGameAudio(){
  ensureContext();
@@ -182,7 +184,7 @@ function playRewardCue(kind:'success'|'try-again'|'complete',scaffoldId?:string,
  const active=ensureContext();if(!active||!effectBus||active.state!=='running')return false;
  if(active.currentTime-lastCue<.14&&!(kind==='complete'&&lastCueKind==='success'))return false;
  lastCue=active.currentTime;lastCueKind=kind;
- stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;stopVoices(effectVoices);
+ stopOneShotVoices();
  const plan=feedbackCuePlan(kind==='try-again'?'retry':kind,directed.profileId,ageGroup);
  if(rewardDuckTimer)clearTimeout(rewardDuckTimer);
  rewardDuckUntil=active.currentTime+plan.maxDuration;rewardDuckLevel=kind==='complete'?.24:kind==='success'?.4:.7;
@@ -202,7 +204,7 @@ export function previewRewardSound():boolean {
  return playRewardCue('complete',learningContext?.scaffoldId,learningContext?.ageGroup);
 }
 /** Speech and source recordings always take priority; feedback cues are suppressed. */
-export function duckMusic(duck:boolean){manualDuck=duck;if(duck){stopVoices(effectVoices);stopVoices(actionVoices);stopVoices(asterVoices);asterTail=0;}refreshOutput();}
+export function duckMusic(duck:boolean){manualDuck=duck;if(duck){stopOneShotVoices();}refreshOutput();}
 
 /** Immediate action acknowledgment; grading cues have priority and no points are implied. */
 export function gameActionFeedback(kind:GameActionCue|null,scaffoldId?:string,ageGroup?:string):boolean {
@@ -217,7 +219,7 @@ export function gameActionFeedback(kind:GameActionCue|null,scaffoldId?:string,ag
 }
 function feedbackUnavailable():false {
  if(rewardDuckTimer)clearTimeout(rewardDuckTimer);rewardDuckTimer=undefined;rewardDuckUntil=0;rewardDuckLevel=1;try{refreshOutput();}catch{}
- stopVoices(actionVoices);stopVoices(effectVoices);stopVoices(asterVoices);asterTail=0;
+ stopOneShotVoices();
  // Optional presentation must never prevent a move or turn a committed result into a save error.
  updateStatus({state:'unavailable',reason:'Game feedback audio is unavailable. Your game and progress still work.'});return false;
 }
@@ -229,7 +231,7 @@ export function asterFeedback(kind:AsterActionCue,ageGroup?:string):boolean {
   const directed=directedFeedback(undefined,ageGroup);
   if(directed.policy==='off'||!getSoundPreferences().enabled||getSoundPreferences().volume<=0||ducked()||hidden())return false;
   const active=kind==='open'||kind==='ask'?ensureContext():context;
-  if(!active||active.state!=='running'||!effectBus||active.currentTime-lastCue<.85)return false;
+  if(!active||active.state!=='running'||!effectBus||active.currentTime-lastCue<.85||transitionVoices.size>0)return false;
   if(kind==='notice'&&active.currentTime<asterTail)return false;
   if(kind===lastAsterKind&&active.currentTime-lastAster<.18)return false;
   // A local answer can arrive in the same turn as Ask. Let the short ask motif
@@ -241,4 +243,18 @@ export function asterFeedback(kind:AsterActionCue,ageGroup?:string):boolean {
   for(const note of plan.notes)keepVoice(scheduleVoice(active,effectBus,{...note,instrument:plan.instrument,at:start+note.at}),asterVoices);
   asterTail=start+plan.maxDuration;return true;
  }catch{return feedbackUnavailable();}
+}
+
+/** Called once by a playing transition video. Never creates/resumes audio or
+ * changes a preference; the returned cancellation affects only this cue. */
+export function asterTransitionFeedback(direction:AsterTransitionCue,ageGroup?:string):(()=>void)|undefined {
+ try{
+  const directed=directedFeedback(undefined,ageGroup),pref=getSoundPreferences(),active=context;
+  if(directed.policy==='off'||!pref.enabled||pref.volume<=0||ducked()||hidden()||!active||active.state!=='running'||!effectBus||active.currentTime-lastCue<.85)return;
+  stopVoices(transitionVoices);stopVoices(asterVoices);asterTail=0;
+  const owned=new Set<OscillatorNode>(),plan=asterTransitionCuePlan(direction,ageGroup),offset=cuePitchOffset(Math.min(...plan.notes.map(note=>note.midi)),currentScore?.tonic);
+  refreshOutput();
+  for(const note of plan.notes){const voice=scheduleVoice(active,effectBus,{...note,midi:note.midi+offset,at:active.currentTime+.012+note.at});keepVoice(voice,transitionVoices);keepVoice(voice,owned);}
+  return()=>{for(const voice of owned)transitionVoices.delete(voice);stopVoices(owned);};
+ }catch{feedbackUnavailable();return;}
 }

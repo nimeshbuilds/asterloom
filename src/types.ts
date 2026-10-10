@@ -65,6 +65,8 @@ export interface NotebookArtwork {
 }
 
 export interface Notebook {
+  /** A new draft copied from this game; the original game and progress remain separate. */
+  editionOf?: {id:string;title:string};
   aiToolReceipts?: AIUsageReceipt[];
   gameDesign?: GameDesign;
   aiLearningPlan?: AILearningPlan;

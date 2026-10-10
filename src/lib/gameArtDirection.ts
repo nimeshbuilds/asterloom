@@ -21,6 +21,7 @@ const scenes=new Set(['islands','observatory','forest','workshop','ocean','libra
 const scaffoldLookup=new Map(SCAFFOLDS.map(scaffold=>[scaffold.id,scaffold]));
 const sceneRecordings:Record<string,readonly string[]>={forest:['moss-and-morning','homeward','first-light','paper-stars'],ocean:['tidepool','homeward','the-quiet-atlas','first-light'],observatory:['the-quiet-atlas','moon-library','paper-stars','golden-hour'],workshop:['moon-library','first-light','golden-hour','little-machines'],library:['moon-library','the-quiet-atlas','first-light','moss-and-morning'],islands:['tidepool','paper-stars','golden-hour','homeward']};
 const sceneFocus:Record<string,readonly string[]>={forest:['score-cedar-room','score-pressed-leaves'],ocean:['score-river-notes','score-tide-and-time'],observatory:['score-quiet-orbit','score-small-constellation','score-cloud-ledger'],workshop:['score-copper-lines','score-blueprint-nocturne','score-dawn-workshop'],library:['score-ink-and-lantern','score-walking-home'],islands:['score-open-window','score-saffron-sky','score-lantern-festival']};
+function rotateForRecipe<T>(items:T[],seed:string):T[]{let value=2166136261;for(const letter of seed)value=Math.imul(value^letter.charCodeAt(0),16777619);const offset=items.length?(value>>>0)%items.length:0;return[...items.slice(offset),...items.slice(0,offset)];}
 function contextRules(context:AudioDirectionContext){
  const scaffold=scaffoldLookup.get(context.scaffoldId??''),age=context.ageGroup==='adults'?'adult':context.ageGroup??'adult';
  const scene=context.theme??scaffold?.visual.scene??'islands';
@@ -35,7 +36,10 @@ export function audioDirectionCatalog(context:AudioDirectionContext):AudioDirect
  const compatible=SCAFFOLDS.filter(scaffold=>scaffold.ages.includes(age)&&scaffold.visual.scene===scene&&(!families||families.includes(scaffold.family)));
  const ids=new Set(compatible.map(scaffold=>scaffold.id));
  const descriptor=(track:typeof MUSIC_TRACKS[number]):AudioTrackDescriptor=>({id:track.id,name:track.name,description:track.description,mood:track.mood,kind:track.kind});
- const studyTracks=MUSIC_TRACKS.filter(track=>sceneRecordings[scene].includes(track.id)||sceneFocus[scene].includes(track.id)).map(descriptor);
+ // A first-choice model should not give every workshop the same reading piece.
+ // Reorder only the compatible set; existing saved IDs remain equally valid.
+ const studySeed=`${context.scaffoldId??context.activityKind??scene}|${age}`;
+ const studyTracks=[...rotateForRecipe(MUSIC_TRACKS.filter(track=>sceneRecordings[scene].includes(track.id)),studySeed),...rotateForRecipe(MUSIC_TRACKS.filter(track=>sceneFocus[scene].includes(track.id)),studySeed)].map(descriptor);
  // Put the recipe's own identity first. A creator may still choose any validated
  // compatible alternative, but first-choice models must not converge on the
  // same global catalog entry for every related game.

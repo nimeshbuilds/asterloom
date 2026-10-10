@@ -5,6 +5,9 @@ import {worldArtworkFor} from '../lib/worldArtwork';
 import {worldBackdropMarkup} from '../lib/worldIllustration';
 import type {SceneAction,SceneSnapshot} from '../lib/worldScene';
 import {useWorldArtwork} from './useWorldArtwork';
+import {resolveGameAudioDirection,type GameAudioDirection} from '../lib/gameArtDirection';
+import type {SceneFeedbackEvent} from '../lib/sceneFeedback';
+import SceneEventEffects from './SceneEventEffects';
 import './mission-arena.css';
 
 const families:Record<SceneLayout,{label:string;verb:string;icon:typeof Compass}>={
@@ -19,15 +22,15 @@ const families:Record<SceneLayout,{label:string;verb:string;icon:typeof Compass}
 export interface MissionArenaProps {
  scaffoldId:string;theme?:string;ageGroup?:string;snapshot:SceneSnapshot;selectedId:string;
  onSelect:(id:string)=>void;actions:SceneAction[];onAction:(action:SceneAction)=>void;
- mode?:'play'|'backdrop';feedback?:{event:number;outcome:'complete'|'retry'|'reflection'};
+ mode?:'play'|'backdrop';actionFeedback?:SceneFeedbackEvent;artDirection?:GameAudioDirection;activityKind?:string;storySetting?:string;feedback?:{event:number;outcome:'complete'|'retry'|'reflection'};
 }
 /** An accessible scene for the learner's actual response. Selection and allocation
  * are work-in-progress, never correctness. Rewards arrive only after durable commit. */
-export default function MissionArena({scaffoldId,theme='islands',ageGroup='adult',snapshot,selectedId,onSelect,actions,onAction,feedback,mode='play'}:MissionArenaProps){
+export default function MissionArena({scaffoldId,theme='islands',ageGroup='adult',snapshot,selectedId,onSelect,actions,onAction,feedback,actionFeedback,artDirection,activityKind,storySetting,mode='play'}:MissionArenaProps){
  const playable=mode==='play';
  const world=worldForScaffold(scaffoldId),family=families[world.layout],Icon=family.icon,age=getAgePresentation(ageGroup);
- const art=worldArtworkFor(world,ageGroup),artStatus=useWorldArtwork(art.assetPath),id=useId();
- const [expanded,setExpanded]=useState(true),[page,setPage]=useState(0),[move,setMove]=useState(0);
+ const art=worldArtworkFor(world,ageGroup,storySetting),artStatus=useWorldArtwork(art.assetPath),id=useId();
+ const [expanded,setExpanded]=useState(true),[page,setPage]=useState(0);
  const selected=snapshot.nodes.find(node=>node.id===selectedId),pages=Math.max(1,Math.ceil(snapshot.nodes.length/6));
  const currentPage=Math.min(page,pages-1),nodes=snapshot.nodes.slice(currentPage*6,currentPage*6+6);
  const positions=useMemo(()=>new Map(nodes.map((node,index)=>[node.id,{x:nodes.length===1?50:nodes.length===2?28+index*44:18+(world.layout==='trail'&&index>=3?2-index%3:index%3)*32,y:nodes.length<=3?55:33+Math.floor(index/3)*43}])),[nodes.map(node=>node.id).join('|'),world.layout]);
@@ -35,6 +38,8 @@ export default function MissionArena({scaffoldId,theme='islands',ageGroup='adult
  const selectedLinks=selected?snapshot.links.filter(link=>link.from===selected.id||link.to===selected.id):[];
  const choose=(nodeId:string)=>{onSelect(nodeId);};
  const result=feedback&&feedback.event>0?feedback:undefined;
+ const effectProfile=resolveGameAudioDirection(artDirection,{scaffoldId,ageGroup,theme,activityKind})?.effectProfileId??scaffoldId;
+ const visual=result?{event:result.event,kind:result.outcome}:actionFeedback;
  return <section className={`mission-arena arena-family-${world.layout} arena-age-${age.density}${playable?'':' arena-backdrop-only'}${expanded?'':' arena-collapsed'}`} aria-label={`${art.name}: mission arena`} data-scaffold={scaffoldId} data-world-art={art.id} data-art-status={artStatus}>
   <header className="arena-heading"><div><Icon size={17}/><span>{family.label}</span></div><button type="button" onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded} aria-controls={`${id}-stage`}>{expanded?<Minimize2 size={15}/>:<Maximize2 size={15}/>}<span>{expanded?'Compact scene':'Open scene'}</span></button></header>
   <div className="arena-stage" id={`${id}-stage`} hidden={!expanded}>
@@ -49,14 +54,14 @@ export default function MissionArena({scaffoldId,theme='islands',ageGroup='adult
      </button>;})}
     {!nodes.length&&<div className="arena-empty"><Icon size={38}/><strong>Your world is ready</strong><span>Use the workspace below to bring it to life.</span></div>}
    </div>
-   {move>0&&<span key={`move-${move}`} className="arena-move-signal" aria-hidden="true"><Layers size={15}/>Move applied</span>}
-   {result&&<div key={`feedback-${result.event}`} className={`arena-result-flare arena-result-${result.outcome}`} aria-hidden="true"><span/><span/><span/></div>}
+
+   {visual&&visual.event>0&&<div className={result?`arena-result-flare arena-result-${result.outcome}`:'arena-action-effect'}><SceneEventEffects kind={visual.kind} scaffoldId={effectProfile} ageGroup={ageGroup} eventKey={`${result?'result':'action'}:${visual.event}`} surface="scene"/></div>}
    <div className="arena-world-label">Fictional setting · your source-based work</div>
   </div>
   <div className="arena-console" hidden={!playable}>
    <div className="arena-readout"><span className="arena-readout-light" aria-hidden="true"/><p>{snapshot.summary}</p>{pages>1&&<nav className="arena-pagination" aria-label="Scene pages"><button type="button" aria-label="Previous scene pieces" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)}><ArrowLeft size={16}/></button><span>{currentPage+1} / {pages}</span><button type="button" aria-label="Next scene pieces" disabled={currentPage===pages-1} onClick={()=>setPage(currentPage+1)}><ArrowRight size={16}/></button></nav>}</div>
    {snapshot.metrics.length>0&&<dl className="arena-meters">{snapshot.metrics.map((metric,index)=><div key={index}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}</dl>}
-   {selected?<div className="arena-command" aria-label="Selected scene piece"><div className="arena-command-copy"><span>SELECTED PIECE</span><strong>{selected.label}</strong><p>{selected.detail}</p>{selectedLinks.length>0&&<ul className="arena-connections" aria-label="Your current connections">{selectedLinks.map((link,index)=><li key={index}><GitBranch size={14}/><span>{link.from===selected.id?'To: ':'From: '}{snapshot.nodes.find(node=>node.id===(link.from===selected.id?link.to:link.from))?.label}{link.label?` · ${link.label}`:''}</span></li>)}</ul>}</div>{actions.length>0?<div className="arena-command-actions">{actions.map(action=><button type="button" key={`${action.id}-${action.value??''}`} disabled={action.disabled} onClick={()=>{onAction(action);setMove(value=>value+1);}}><ArrowRight size={15}/>{action.label}</button>)}</div>:<p className="arena-continue">Use the task controls below to change this part of your model.</p>}</div>:<p className="arena-prompt"><Icon size={16}/>{family.verb} Selections do not show whether an answer is correct.</p>}
+   {selected?<div className="arena-command" aria-label="Selected scene piece"><div className="arena-command-copy"><span>SELECTED PIECE</span><strong>{selected.label}</strong><p>{selected.detail}</p>{selectedLinks.length>0&&<ul className="arena-connections" aria-label="Your current connections">{selectedLinks.map((link,index)=><li key={index}><GitBranch size={14}/><span>{link.from===selected.id?'To: ':'From: '}{snapshot.nodes.find(node=>node.id===(link.from===selected.id?link.to:link.from))?.label}{link.label?` · ${link.label}`:''}</span></li>)}</ul>}</div>{actions.length>0?<div className="arena-command-actions">{actions.map(action=><button type="button" key={`${action.id}-${action.value??''}`} disabled={action.disabled} onClick={()=>onAction(action)}><ArrowRight size={15}/>{action.label}</button>)}</div>:<p className="arena-continue">Use the task controls below to change this part of your model.</p>}</div>:<p className="arena-prompt"><Icon size={16}/>{family.verb} Selections do not show whether an answer is correct.</p>}
   </div>
  </section>;
 }
