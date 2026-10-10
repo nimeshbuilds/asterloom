@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "recordedDate": "2026-10-10",
+  "scope": "Native contract verification using explicit reference fixtures; not a claim of successful live AI generation or human playtesting.",
+  "referenceContracts": {
+    "recipesExpected": 75,
+    "recipesValidated": 75,
+    "interactionKinds": 18,
+    "specializedPresenterVariants": 27,
+    "positiveAndWrongEvaluationsCompared": 150,
+    "positiveMeaning": "Expected model outcome, including human-review boundaries; not every positive fixture earns automatic correctness credit.",
+    "sourceInvalidationRejected": 75,
+    "savedResponseResumed": 75,
+    "referenceReviewStatus": "Explicit test-only reviewed clones where needed; user and generated draft review state remains unchanged."
+  },
+  "latestSourceVerification": {
+    "nativeFirstControlInteractionPass": 75,
+    "nativeFirstControlInteractionFail": 0,
+    "fullHumanPlaythroughs": 0,
+    "guideBoundaryChecksPass": 5,
+    "progressOwnershipAndRaceChecksPass": 34,
+    "desktopLaunchAndStorageTestsPass": 22,
+    "notebookDeletionTestsPass": 8,
+    "typecheck": "passed",
+    "representativeGraphicsCaptured": 9,
+    "visualCorrection": "Sequence movement controls now use readable Move earlier / Move later labels and minimum 160 by 44 logical-pixel row targets."
+  },
+  "packagedCandidateVerification": {
+    "status": "Integrated local-model and native factory candidate passed on macOS arm64; development ad-hoc package, not a signed/notarized release.",
+    "platformExecuted": "macOS arm64",
+    "desktopElectronArchitecturesVerified": [
+      "arm64",
+      "x86_64"
+    ],
+    "godotArchitecturesVerified": [
+      "arm64",
+      "x86_64"
+    ],
+    "macIntelExecuted": false,
+    "windowsExecutedLocally": false,
+    "bundledGodotAndElectronAssessmentCasesPassed": 75,
+    "fullDesktopWorkflowSmokePassed": true,
+    "fullDesktopWorkflowElapsedMs": 94382.359667,
+    "nativeAutomatedCaseTimingMs": {
+      "aggregate": 21235,
+      "minimum": 269,
+      "median": 283,
+      "p95": 292,
+      "maximum": 334,
+      "interpretation": "Elapsed time per automated render/assessment/save/source-check case; not FPS, input latency or user play duration."
+    },
+    "focusedDesktopNativeLaunchPassed": true,
+    "focusedDesktopNativeLaunchElapsedMs": 8687.264708,
+    "localModelIntegration": {
+      "studioCatalog": true,
+      "exportedCatalog": true,
+      "noAutomaticDownloads": true,
+      "recipientSelectionRequiresOptIn": true,
+      "actualInferenceEvidence": "docs/qa/local-models-2026-10-10.json"
+    }
+  },
+  "remainingGates": [
+    "Execute packaged Windows checks and Mac Intel runtime checks on those platforms.",
+    "Human playtesting for readability, accessibility, age suitability and learning effectiveness.",
+    "Live model authoring quality and source fidelity; tracked separately with failures and repair costs.",
+    "Native Aster, studio progress synchronization, competition and original-file download integration.",
+    "Native MP4/WebM decoder support; current preview exposes the limitation and provided transcript.",
+    "Stable assessment-only progress identity; metadata-only pack changes can currently start separate progress."
+  ],
+  "productEntry": "Native game preview; full Play game remains available.",
+  "privacy": "Aggregate results only; no private source text, filesystem paths, provider receipts or credentials.",
+  "integratedChecks": {
+    "unitTestsPassed": 1659,
+    "unitTestFilesPassed": 119,
+    "serverTestsPassed": 176,
+    "serverTestsSkipped": 3,
+    "desktopTestsPassed": 61,
+    "desktopTestsSkipped": 1,
+    "localModelBrowserCasesPassed": 7,
+    "typecheck": "passed",
+    "rendererBuild": "passed",
+    "generatedGuideCheck": "75 template skills and 3 native guides passed",
+    "qualification": "No model qualified for chat or game creation."
+  }
+}

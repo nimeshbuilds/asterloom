@@ -1,0 +1,17 @@
+; Native Godot learning factory. Assessment runs in the bundled local engine.
+config_version=5
+[application]
+config/name="Asterloom Native Factory"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=900
+window/size/window_width_override=1280
+window/size/window_height_override=900
+window/stretch/mode="canvas_items"
+[rendering]
+textures/vram_compression/import_etc2_astc=true
+renderer/rendering_method="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.039,0.067,0.094,1)

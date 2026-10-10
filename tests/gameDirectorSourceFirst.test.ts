@@ -21,7 +21,8 @@ describe('source-first campaign creation',()=>{
   expect(result.status,result.message).toBe('ready');
   expect(requests.slice(0,4).map(r=>r.stage)).toEqual(['plan','plan','plan','direction']);
   const direction=requests.find(r=>r.stage==='direction')!,design=result.notebook.gameDesign!;
-  expect(direction.data.choices.every((choice:any)=>choice.templateSkill.version===GAME_TEMPLATE_SKILL_VERSION&&choice.templateSkill.scaffoldId===choice.scaffoldId)).toBe(true);
+  expect(direction.data.templateSkillVersion).toBe(GAME_TEMPLATE_SKILL_VERSION);
+  expect(direction.data.choices.every((choice:any)=>choice.templateSkill.learningPrinciple&&choice.templateSkill.challengeFrame)).toBe(true);
   expect(direction.data.nativeTemplates.every((template:any)=>template.skill.version===1&&template.skill.engineOwns)).toBe(true);
   expect(direction.data.sourceAnalysis).toMatchObject({unitCount:7,missionCount:7,studyCount:0});
   expect(direction.data.sourceAnalysis.exampleObjectives.at(-1).title).toContain('7');

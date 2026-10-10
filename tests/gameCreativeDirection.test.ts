@@ -1,3 +1,4 @@
+import {resolveCreativeAudioChoices} from '../src/lib/creativeAudioChoices';
 import {describe,expect,it} from 'vitest';
 import {AGE_GROUPS} from '../src/data/scaffolds';
 import type {Notebook} from '../src/types';
@@ -119,7 +120,7 @@ describe('complete analysis with bounded presentation context',()=>{
   expect(JSON.stringify(request).length).toBeLessThan(100000);
   expect(new Set(request.audioLibrary.tracks.map(track=>track.id)).size).toBe(request.audioLibrary.tracks.length);
   expect(new Set(request.audioLibrary.effectProfiles.map(profile=>profile.id)).size).toBe(request.audioLibrary.effectProfiles.length);
-  for(const choice of request.choices){const audio=audioDirectionCatalog({ageGroup:'adult',scaffoldId:choice.scaffoldId,activityKind:choice.kind,theme:choice.scene});expect(choice.audioChoices).toEqual({playTrackIds:audio.playTracks.map(track=>track.id),studyTrackIds:audio.studyTracks.map(track=>track.id),effectProfileIds:audio.effectProfiles.map(profile=>profile.id)});for(const track of [...audio.playTracks,...audio.studyTracks])expect(request.audioLibrary.tracks.find(saved=>saved.id===track.id)).toEqual(track);}
+  for(const choice of request.choices){const audio=audioDirectionCatalog({ageGroup:'adult',scaffoldId:choice.scaffoldId,activityKind:choice.kind,theme:choice.scene});const resolved=resolveCreativeAudioChoices(request,choice);for(const [key,values] of Object.entries({playTrackIds:audio.playTracks.map(track=>track.id),studyTrackIds:audio.studyTracks.map(track=>track.id),effectProfileIds:audio.effectProfiles.map(profile=>profile.id)})){expect(resolved[key as keyof typeof resolved][0]).toBe(values[0]);expect([...resolved[key as keyof typeof resolved]].sort()).toEqual([...values].sort());};for(const track of [...audio.playTracks,...audio.studyTracks])expect(request.audioLibrary.tracks.find(saved=>saved.id===track.id)).toEqual(track);}
   expect(input.batches).toEqual(before);
   expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('untrusted reference data');expect(CREATIVE_DIRECTION_INSTRUCTION).toContain('not all raw source text');
  });

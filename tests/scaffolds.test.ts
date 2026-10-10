@@ -182,7 +182,8 @@ describe('honest recipe runtime eligibility', () => {
   const notebook = { ageGroup: 'adult', activities: ACTIVITY_EXAMPLES, cards: [], sources:[{...EXAMPLE_ACTIVITY_SOURCE,kind:'text' as const,addedAt:'2026-10-04T00:00:00Z'}] };
   it('covers all 75 recipes and never routes advanced recipes to source recall', () => {
     expect(SCAFFOLD_RUNTIME).toHaveLength(75);
-    expect(SCAFFOLD_RUNTIME.filter(runtime => runtime.mode === 'source-practice').map(runtime => runtime.scaffoldId)).toEqual(['recall-escape-mission']);
+    expect(SCAFFOLD_RUNTIME.filter(runtime => runtime.mode === 'source-practice')).toEqual([]);
+    expect(SCAFFOLD_RUNTIME.find(runtime => runtime.scaffoldId === 'recall-escape-mission')).toMatchObject({mode:'structured',activityKinds:['recall']});
     expect(resolveScaffoldRuntime('fault-diagnosis', notebook).available).toBe(false);
     expect(resolveScaffoldRuntime('branching-decisions', notebook).mode).toBe('structured');
     expect(resolveScaffoldRuntime('branching-decisions', notebook).available).toBe(false);

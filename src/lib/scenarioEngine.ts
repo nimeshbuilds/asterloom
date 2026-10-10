@@ -294,13 +294,13 @@ function responseError(activity: ScenarioActivity, response: unknown): string | 
   if (typeof response.selectedActionId !== 'string' || response.selectedActionId && !activity.actions.some(action => action.id === response.selectedActionId)) return 'This saved case contains an invalid action selection.';
   return validateScenarioCommitments(activity, response);
 }
-export function initialScenarioResponse(activity: ScenarioActivity, saved?: unknown): ScenarioResponse {
+export function initialScenarioResponse(activity: ScenarioActivity, saved?: unknown, options: {practice?: boolean} = {}): ScenarioResponse {
   const initial: ScenarioResponse = { kind: 'scenario-response', fingerprint: scenarioFingerprint(activity), actions: [], selectedEvidenceIds: [], selectedActionId: '' };
   if (saved === undefined || saved === null) return initial;
   const error = responseError(activity, saved);
   if (error) return { ...initial, notice: error };
   const value = saved as unknown as ScenarioResponse;
-  const replay = replayScenario(activity, value);
+  const replay = replayScenario(activity, value, options);
   if (replay.phase === 'invalid') return { ...initial, notice: replay.error };
   return { ...initial, actions: [...value.actions], selectedEvidenceIds: [...value.selectedEvidenceIds], selectedActionId: value.selectedActionId, ...(value.commitments ? { commitments: JSON.parse(JSON.stringify(value.commitments)) } : {}), ...(value.modeDraft ? { modeDraft: JSON.parse(JSON.stringify(value.modeDraft)) } : {}) };
 }
@@ -321,10 +321,10 @@ function conclude(activity: ScenarioActivity, snapshot: ScenarioSnapshot) {
   else if (snapshot.history.length >= activity.maxSteps || !activity.actions.some(action => !actionProblem(activity, snapshot, action, true))) snapshot.phase = 'exhausted';
 }
 /** Replay is the authority for state, costs, acquired observations and grading. */
-export function replayScenario(activity: ScenarioActivity, response: unknown): ScenarioSnapshot {
+export function replayScenario(activity: ScenarioActivity, response: unknown, options: {practice?: boolean} = {}): ScenarioSnapshot {
   const snapshot: ScenarioSnapshot = { phase: 'active', state: {}, spent: 0, remaining: activity.budget?.limit ?? 0, observationIds: [], history: [], ...createScenarioModeState(activity) };
   const modelErrors = validateScenarioFields(activity as unknown as Record<string, unknown>);
-  const error = modelErrors[0] ?? (activity.reviewStatus !== 'reviewed' ? 'The author must review this scenario before it can be played.' : responseError(activity, response));
+  const error = modelErrors[0] ?? (activity.reviewStatus !== 'reviewed' && options.practice !== true ? 'The author must review this scenario before it can be played.' : responseError(activity, response));
   const fail = (message: string) => ({ ...snapshot, phase: 'invalid' as const, error: message });
   if (error) return fail(error);
   const saved = response as ScenarioResponse;
@@ -362,25 +362,25 @@ export function replayScenario(activity: ScenarioActivity, response: unknown): S
   if (saved.selectedEvidenceIds.some(id => !snapshot.observationIds.includes(id))) return fail('Only evidence discovered during this run can support your conclusion.');
   return snapshot;
 }
-export function scenarioAvailableActions(activity: ScenarioActivity, response: unknown): ScenarioActionAvailability[] {
-  const snapshot = replayScenario(activity, response);
+export function scenarioAvailableActions(activity: ScenarioActivity, response: unknown, options: {practice?: boolean} = {}): ScenarioActionAvailability[] {
+  const snapshot = replayScenario(activity, response, options);
   return activity.actions.map(action => { const reason = actionProblem(activity, snapshot, action) ?? ''; return { action, available: !reason, reason }; });
 }
-export function advanceScenario(activity: ScenarioActivity, response: ScenarioResponse, actionId: string): { success: true; response: ScenarioResponse; snapshot: ScenarioSnapshot } | { success: false; error: string } {
-  const snapshot = replayScenario(activity, response);
+export function advanceScenario(activity: ScenarioActivity, response: ScenarioResponse, actionId: string, options: {practice?: boolean} = {}): { success: true; response: ScenarioResponse; snapshot: ScenarioSnapshot } | { success: false; error: string } {
+  const snapshot = replayScenario(activity, response, options);
   if (snapshot.phase === 'invalid') return { success: false, error: snapshot.error! };
   const action = activity.actions.find(item => item.id === actionId);
   if (!action) return { success: false, error: 'Choose an action in this case.' };
   const problem = actionProblem(activity, snapshot, action); if (problem) return { success: false, error: problem };
   const next: ScenarioResponse = { kind: 'scenario-response', fingerprint: response.fingerprint, actions: [...response.actions, actionId], selectedEvidenceIds: [...response.selectedEvidenceIds], selectedActionId: '', ...(response.commitments ? { commitments: response.commitments } : {}), ...(response.modeDraft ? { modeDraft: response.modeDraft } : {}) };
-  const updated = replayScenario(activity, next);
+  const updated = replayScenario(activity, next, options);
   return updated.phase === 'invalid' ? { success: false, error: updated.error! } : { success: true, response: next, snapshot: updated };
 }
-export function recordScenarioCommitment(activity: ScenarioActivity, response: ScenarioResponse, input: ScenarioCommitmentInput): { success: true; response: ScenarioResponse; snapshot: ScenarioSnapshot } | { success: false; error: string } {
-  const current = replayScenario(activity, response);
+export function recordScenarioCommitment(activity: ScenarioActivity, response: ScenarioResponse, input: ScenarioCommitmentInput, options: {practice?: boolean} = {}): { success: true; response: ScenarioResponse; snapshot: ScenarioSnapshot } | { success: false; error: string } {
+  const current = replayScenario(activity, response, options);
   if (current.phase === 'invalid') return { success: false, error: current.error! };
   const next: ScenarioResponse = { ...response, commitments: [...(response.commitments ?? []), { ...input, atStep: response.actions.length } as ScenarioCommitment], selectedActionId: '', modeDraft: {} };
-  const snapshot = replayScenario(activity, next);
+  const snapshot = replayScenario(activity, next, options);
   return snapshot.phase === 'invalid' ? { success: false, error: snapshot.error! } : { success: true, response: next, snapshot };
 }
 export function scenarioConditionMet(rule: Rule, state: Record<string, ScenarioValue>): boolean { return testCondition(rule, state); }
@@ -388,8 +388,8 @@ export function getScenarioCapabilities(activity: ScenarioActivity): ('predictio
   if (validateScenarioFields(activity as unknown as Record<string, unknown>).length) return [];
   return [...(activity.scenarioPresentation?.prediction ? ['prediction', 'hypothesis'] as const : []), ...(activity.scenarioPresentation?.campaign ? ['campaign', 'planning', 'transfer-debrief'] as const : []), ...(activity.scenarioPresentation?.dialogue ? ['dialogue'] as const : []), ...(activity.scenarioPresentation?.dialogue?.mode === 'perspective' ? ['perspective'] as const : []), ...(activity.scenarioPresentation?.promptComparison ? ['prompt-comparison'] as const : [])];
 }
-export function evaluateScenario(activity: ScenarioActivity, response: unknown): Evaluation {
-  const snapshot = replayScenario(activity, response);
+export function evaluateScenario(activity: ScenarioActivity, response: unknown, options: {practice?: boolean} = {}): Evaluation {
+  const snapshot = replayScenario(activity, response, options);
   if (snapshot.phase === 'invalid') return { valid: false, correct: false, outcome: 'invalid', score: 0, maxScore: activity.objectives?.length || 1, feedback: snapshot.error!, details: [] };
   const selected = (response as ScenarioResponse).selectedEvidenceIds;
   const details = activity.objectives.map(objective => {
@@ -403,7 +403,7 @@ export function evaluateScenario(activity: ScenarioActivity, response: unknown):
   const extra = selected.some(id => !expected.has(id));
   const correct = snapshot.phase === 'success' && details.every(item => item.correct) && !extra;
   const score = snapshot.phase === 'success' && !extra ? details.filter(item => item.correct).length : 0;
-  const feedback = snapshot.phase === 'failed' ? 'A stopping condition was reached. Review the consequences and start a new investigation.' : snapshot.phase === 'exhausted' ? 'This run ended before the goal was reached. Review how you used your actions and budget.' : snapshot.phase === 'active' ? 'The investigation is still open. Take further actions before submitting your conclusion.' : extra ? 'Some selected observations do not support the stated objectives. Narrow your evidence.' : correct ? `Your decisions and selected evidence satisfy the reviewed scenario. ${activity.explanation}` : 'The outcome is ready. Select the discovered evidence that supports your conclusion.';
+  const feedback = snapshot.phase === 'failed' ? 'A stopping condition was reached. Review the consequences and start a new investigation.' : snapshot.phase === 'exhausted' ? 'This run ended before the goal was reached. Review how you used your actions and budget.' : snapshot.phase === 'active' ? 'The investigation is still open. Take further actions before submitting your conclusion.' : extra ? 'Some selected observations do not support the stated objectives. Narrow your evidence.' : correct ? `Your decisions and selected evidence satisfy the ${activity.reviewStatus === 'reviewed' ? 'reviewed' : 'draft'} scenario. ${activity.explanation}` : 'The outcome is ready. Select the discovered evidence that supports your conclusion.';
   return { valid: true, correct, outcome: correct ? 'correct' : 'retry', score, maxScore: details.length, feedback, details };
 }
 

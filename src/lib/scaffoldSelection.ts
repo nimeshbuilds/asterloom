@@ -15,7 +15,10 @@ export function sourceSupportedScaffoldIds(notebook: Notebook): string[] {
     if (!scaffold.ages.includes(notebook.ageGroup)) return false;
     const runtime = getScaffoldRuntimeDefinition(scaffold.id);
     if (!runtime.engineReady) return false;
-    if (runtime.mode === 'source-practice') return hasRecall;
+    // Older notebooks keep their exact source-recall cards until an explicit
+    // structured recall model is bound. This suggests drafts without approving them.
+    const legacyRecall = scaffold.id === 'recall-escape-mission' && !(notebook.activities ?? []).some(activity => activity.kind === 'recall' && activity.scaffoldIds?.includes(scaffold.id));
+    if (runtime.mode === 'source-practice' || legacyRecall) return hasRecall;
     return activities.some(activity => activity.scaffoldIds?.includes(scaffold.id)
       && runtime.activityKinds.includes(activity.kind) && fitsSpecificContract(scaffold.id, activity));
   }).map(scaffold => scaffold.id);

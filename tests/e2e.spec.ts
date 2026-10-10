@@ -191,7 +191,7 @@ test('advanced laboratories create real models, resume investigations, and trave
   await page.getByRole('button', { name: 'Save & return', exact: false }).click();
   const downloaded = await exportDownload(page, 'pack'), file = testInfo.outputPath('advanced-source-laboratory.learnpack'); await downloaded.saveAs(file);
   const context = await browser.newContext(), recipient = await context.newPage(), requests: string[] = [];
-  recipient.setDefaultTimeout(15_000); recipient.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith('http://127.0.0.1:4319/')) requests.push(request.url()); });
+  recipient.setDefaultTimeout(15_000); recipient.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith(new URL(testInfo.project.use.baseURL!).origin+'/')) requests.push(request.url()); });
   await openBundledNotebook(recipient, file, {authorPreview:true});
   await expect((await campaignActivities(recipient))).toHaveCount(13);
   await (await campaignActivities(recipient)).filter({ hasText: 'Hear the two-tone signal' }).click(); await learnBeforeQuest(recipient);
@@ -685,7 +685,7 @@ test('an editable notebook preserves one world, player progress and a recipient 
   const context = await browser.newContext({ acceptDownloads: true });
   const offline = await context.newPage(); const errors: string[] = []; const external: string[] = [];
   offline.on('pageerror', error => errors.push(error.message));
-  offline.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith('http://127.0.0.1:4319/')) external.push(request.url()); });
+  offline.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith(new URL(testInfo.project.use.baseURL!).origin+'/')) external.push(request.url()); });
   await openBundledNotebook(offline, path, {authorPreview:true});
   await expect(offline.getByRole('heading', { name: 'The portable network world', exact: true })).toBeVisible();
   await offline.locator('.campaign-modes > summary').click(); await offline.getByRole('button', { name: 'Recall escape mission', exact: false }).click(); await learnBeforeQuest(offline);

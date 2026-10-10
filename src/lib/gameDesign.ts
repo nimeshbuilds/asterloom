@@ -6,7 +6,7 @@ import {validateActivity} from './structuredEngine';
 import {validateAILearningPlan,type AILearningMission} from './aiLearningPlan';
 import {validateAIUsageReceipts,type AIUsageReceipt} from './aiUsage';
 import {validateGameAudioDirection,type GameAudioDirection} from './gameArtDirection';
-import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,teachingContextWindow,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit,type DirectorSourceInventory} from './gameDirectorSources';
+import {buildDirectorSourceInventory,directorInputRevision,assertDirectorProseEvidence,assertDirectorCodeReviewEvidence,teachingContextWindow,LEGACY_CODE_STUDY_LIMITATION,MIXED_CODE_PROSE_LIMITATION,type DirectorSourceUnit,type DirectorSourceInventory} from './gameDirectorSources';
 import {GAME_FAMILY_RECIPES,type GameDraftKind} from './gameDraftAdapters';
 import {scaffoldById} from '../data/scaffolds';
 import {fitsSpecificContract} from './scaffoldRuntime';
@@ -37,7 +37,7 @@ export interface GameDesign {
  generatedModels:{id:string;fingerprint:string}[];
  audioDirection?:GameAudioDirection;visualDirection?:GameVisualDirection;overview?:GameOverviewWork;
 }
-const providers=['openai','anthropic','xai','compatible','chatgpt','grok','claude-code'];
+const providers=['openai','anthropic','xai','compatible','chatgpt','grok','claude-code','local'];
 const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 const obj=(value:unknown,name:string)=>{if(!plain(value))throw new Error(`Invalid ${name}.`);return value;};
 const fields=(value:Record<string,unknown>,allowed:string[],name:string)=>{
@@ -153,7 +153,10 @@ export function designedMission(design:GameDesign|undefined,activityId:string){
 export function validateGameMissionProse(unit:DirectorSourceUnit,notebook:Pick<Notebook,'sources'>,activity:StructuredActivity,teaching:AILearningMission,units?:DirectorSourceUnit[]):void {
  const citations=[...teaching.conceptExplanation.citations,...teaching.chunks.flatMap(chunk=>chunk.citations),...(teaching.workedExample?[teaching.workedExample.sourceEvidence,...teaching.workedExample.steps.flatMap(step=>step.citations)]:[])];
  if(activity.sourceRefs.some(ref=>ref.sourceId!==unit.sourceId||!unit.excerpt.includes(ref.evidence)))throw new Error('The activity must use only its primary disclosed source unit.');
- assertDirectorProseEvidence(unit,notebook.sources,activity.sourceRefs);
+ if(activity.kind==='explanation'&&activity.codeReview){
+  const checked=validateActivity(activity,notebook.sources);if(!checked.success)throw new Error(checked.errors.slice(0,3).join(' '));
+  assertDirectorCodeReviewEvidence(unit,notebook.sources,activity);
+ }else assertDirectorProseEvidence(unit,notebook.sources,activity.sourceRefs);
  const context=teachingContextWindow(unit,units??buildDirectorSourceInventory(notebook).units,notebook);
  for(const window of teaching.sourceWindows){
   // Legacy primary-only windows remain exact and unchanged. New wider windows

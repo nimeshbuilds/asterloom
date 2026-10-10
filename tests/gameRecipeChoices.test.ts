@@ -3,7 +3,10 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {AGE_GROUPS,SCAFFOLDS} from '../src/data/scaffolds';
 import {GAME_FAMILY_RECIPES,GAME_WRITER_CAPABILITIES,gameRecipeChoices,gameRecipeCoverage,validatePreparedGameDraft} from '../src/lib/gameDraftAdapters';
 import {evaluateActivityForAuthoring} from '../src/lib/structuredEngine';
-import {getScaffoldRuntimeDefinition,scaffoldRequiredCapabilities} from '../src/lib/scaffoldRuntime';
+import {SCENARIO_EXAMPLES} from '../src/lib/scenarioEngine';
+import {PLANT_EXPLANATION} from '../src/lib/compositionExamples';
+import {COMPLETION_EXAMPLES} from '../src/lib/extendedExamples';
+import {getScaffoldRuntimeDefinition,scaffoldRequiredCapabilities,fitsSpecificContract} from '../src/lib/scaffoldRuntime';
 import {emptyGameDesign,validateGameBatchPlan} from '../src/lib/gameDesign';
 import {buildDirectorSourceInventory} from '../src/lib/gameDirectorSources';
 import {gamePlanningPrompt,gameWritingPrompt} from '../src/lib/gameDirector';
@@ -18,9 +21,9 @@ const config={provider:'compatible' as const,model:'design-model',apiKey:'sessio
 const source=createSource('Procedure for a prepared change:\n1. Save a backup.\n2. Apply the change.\n3. Verify the documented result.','Procedure');
 
 describe('runtime-derived AI recipe choices',()=>{
- it('accounts for all75 recipes and only exposes the50 contracts these ten writer families can construct',()=>{
-  const audit=gameRecipeCoverage();expect(audit).toHaveLength(75);expect(new Set(audit.map(r=>r.scaffoldId)).size).toBe(75);expect(audit.filter(r=>r.supported)).toHaveLength(50);
-  expect(audit.filter(r=>!r.supported&&r.missingCapabilities.length)).toHaveLength(12);expect(audit.filter(r=>!r.supported&&!r.missingCapabilities.length)).toHaveLength(13);
+ it('accounts for all75 recipes with explicit bounded family and specialized authoring contracts',()=>{
+  const audit=gameRecipeCoverage();expect(audit).toHaveLength(75);expect(new Set(audit.map(r=>r.scaffoldId)).size).toBe(75);expect(audit.filter(r=>r.supported)).toHaveLength(75);
+  expect(audit.filter(r=>!r.supported)).toHaveLength(0);
   for(const [kind,ids] of Object.entries(GAME_FAMILY_RECIPES))for(const id of ids){const runtime=getScaffoldRuntimeDefinition(id);expect(runtime.engineReady).toBe(true);expect(runtime.mode).toBe('structured');expect(runtime.activityKinds).toContain(kind);expect(scaffoldRequiredCapabilities(id).every(capability=>GAME_WRITER_CAPABILITIES[kind as keyof typeof GAME_WRITER_CAPABILITIES]?.includes(capability))).toBe(true);}
   expect(GAME_FAMILY_RECIPES.construction).toContain('cloud-architecture-builder');expect(GAME_FAMILY_RECIPES.scenario).toContain('incident-response-command');expect(GAME_FAMILY_RECIPES.dependency).toContain('threat-model-canvas');expect(GAME_FAMILY_RECIPES.sequence).toContain('packet-path-inspector');expect(GAME_FAMILY_RECIPES.classification).toContain('test-design-studio');
  });
@@ -39,12 +42,13 @@ describe('runtime-derived AI recipe choices',()=>{
    expect(()=>validateGameBatchPlan({missions:[{id:'wrong-age',unitId:units[0].id,kind,scaffoldId:other.id,title:'Wrong audience',objective:'Use the source.',visualDirection:{scene:other.visual.scene,sourceAssetIds:[]}}],study:[]},design.batches[0],units,notebook)).toThrow(/audience/);
   }
  });
- it('does not relabel a base scenario or explanation as a specialized mode the writer cannot supply',()=>{
-  const excluded=gameRecipeCoverage().filter(r=>!r.supported&&r.missingCapabilities.length).map(r=>r.scaffoldId);
-  expect(excluded).toEqual(expect.arrayContaining(['prompt-experiment-bench','prediction-and-experiment','language-dialogue-trail','strategy-campaign','secure-code-review','partner-helper','pattern-parade']));
-  for(const choice of gameRecipeChoices('adult'))expect(excluded).not.toContain(choice.scaffoldId);
-  const notebook=createNotebook({sources:[source]}),design=emptyGameDesign(notebook,provider),units=buildDirectorSourceInventory(notebook).units;
-  expect(()=>validateGameBatchPlan({missions:[{id:'unsupported',unitId:units[0].id,kind:'scenario',scaffoldId:'prompt-experiment-bench',title:'Pretend prompt comparison',objective:'An ordinary scenario is insufficient.',visualDirection:{scene:'islands',sourceAssetIds:[]}}],study:[]},design.batches[0],units,notebook)).toThrow(/contract/);
+ it('requires genuine specialized fields even though their AI contracts are now available',()=>{
+  for(const recipe of ['prompt-experiment-bench','prediction-and-experiment','language-dialogue-trail','strategy-campaign']){
+   expect(gameRecipeCoverage().find(row=>row.scaffoldId===recipe)?.supported).toBe(true);
+   expect(fitsSpecificContract(recipe,SCENARIO_EXAMPLES[0])).toBe(false);
+  }
+  for(const recipe of ['secure-code-review','partner-helper'])expect(fitsSpecificContract(recipe,PLANT_EXPLANATION)).toBe(false);
+  expect(fitsSpecificContract('pattern-parade',COMPLETION_EXAMPLES[0])).toBe(false);
  });
  it('supplies concise domain, real mechanic and exact recipe prerequisites to planning and writing',()=>{
   const notebook=createNotebook({sources:[source]}),design=emptyGameDesign(notebook,provider),units=buildDirectorSourceInventory(notebook).units,prompt=gamePlanningPrompt(notebook,design.batches[0],units),data=JSON.parse(prompt.split('REFERENCE DATA (JSON):\n')[1]);

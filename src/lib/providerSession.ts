@@ -7,4 +7,4 @@ export function useProviderSession():[ProviderConfig,(value:ProviderConfig)=>voi
  const config=useSyncExternalStore(callback=>{listeners.add(callback);return()=>listeners.delete(callback);},()=>current);
  return [config,value=>{current=value;for(const listener of listeners)listener();}];
 }
-export const canRequest=(config:ProviderConfig)=>!!config.model.trim()&&(config.provider==='compatible'||config.provider==='chatgpt'||config.provider==='grok'||config.provider==='claude-code'||!!config.apiKey.trim());
+export const canRequest=(config:ProviderConfig)=>!!config.model.trim()&&(config.provider==='local'||config.provider==='compatible'||config.provider==='chatgpt'||config.provider==='grok'||config.provider==='claude-code'||!!config.apiKey.trim());

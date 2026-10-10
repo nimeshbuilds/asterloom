@@ -15,7 +15,7 @@ export interface AudioDirectionContext {ageGroup?:string;scaffoldId?:string;acti
 export interface AudioTrackDescriptor {id:string;name:string;description:string;mood:string;kind:'recording'|'interactive'}
 export interface EffectProfileDescriptor {id:string;name:string;description:string;family:string}
 export interface AudioDirectionCatalog {playTracks:AudioTrackDescriptor[];studyTracks:AudioTrackDescriptor[];effectProfiles:EffectProfileDescriptor[]}
-export const AUDIO_KIND_FAMILIES:Readonly<Record<string,readonly string[]>>={sequence:['sequence'],classification:['sort','match'],decision:['scenario'],dependency:['connect','sequence'],budget:['scenario'],rubric:['explain'],diagram:['diagram'],completion:['cloze','sequence'],data:['sort','connect'],media:['explain'],scenario:['scenario'],construction:['connect','sequence'],explanation:['explain'],picture:['match','recall'],'rule-switch':['sort'],'child-play':['match','sequence'],'picture-build':['explain','match']};
+export const AUDIO_KIND_FAMILIES:Readonly<Record<string,readonly string[]>>={recall:['recall'],sequence:['sequence'],classification:['sort','match'],decision:['scenario'],dependency:['connect','sequence'],budget:['scenario'],rubric:['explain'],diagram:['diagram'],completion:['cloze','sequence'],data:['sort','connect'],media:['explain'],scenario:['scenario'],construction:['connect','sequence'],explanation:['explain'],picture:['match','recall'],'rule-switch':['sort'],'child-play':['match','sequence'],'picture-build':['explain','match']};
 const ages=new Set(['3-5','6-8','9-11','12-14','15-17','adult']);
 const scenes=new Set(['islands','observatory','forest','workshop','ocean','library']);
 const scaffoldLookup=new Map(SCAFFOLDS.map(scaffold=>[scaffold.id,scaffold]));

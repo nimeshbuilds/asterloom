@@ -1,6 +1,44 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,mkdir,writeFile,readFile,rm,readdir} from 'node:fs/promises';import {tmpdir} from 'node:os';import path from 'node:path';import {createHash} from 'node:crypto';import {EventEmitter} from 'node:events';import {PassThrough,Writable} from 'node:stream';
 import {createClaudeConnection,claudeArtifact,claudeEnvironment,claudeLoginURL,parseClaudeResult} from './claude-engine.mjs';
+import {boundedOutputSchema,assertStructuredOutput} from './output-schema.mjs';
 const binary=Buffer.from('inert mock Claude Code executable'),hash=createHash('sha256').update(binary).digest('hex');const artifact={url:'https://downloads.claude.ai/test/claude',bytes:binary.length,sha256:hash,downloadBytes:binary.length,downloadSha256:hash};
+const draftSchema={type:'object',properties:{title:{$ref:'#/$defs/title'},count:{type:'integer',minimum:1,maximum:3}},required:['title','count'],additionalProperties:false,$defs:{title:{type:'string',minLength:1,maxLength:40}}};
+test('Claude structured output is forwarded as a snapshotted schema and extracted independently of result prose',async t=>{
+ const structured_output={title:'Source lesson',count:2},schema=structuredClone(draftSchema),expected=structuredClone(schema);
+ const x=await setup(t,{generationOutput:JSON.stringify({type:'result',subtype:'success',result:'',structured_output,usage:{input_tokens:2,output_tokens:3,cache_creation_input_tokens:7},modelUsage:{'resolved-haiku':{}},stop_reason:'tool_use'})});await x.connection.start();
+ const pending=x.connection.generate({prompt:'source',model:'haiku',outputSchema:schema});schema.properties.count.maximum=1;
+ const result=await pending,call=x.calls.find(c=>c.args.includes('--print'));
+ assert.deepEqual(JSON.parse(call.args[call.args.indexOf('--json-schema')+1]),expected);assert.deepEqual(JSON.parse(result.text),structured_output);assert.equal(result.usage.cache_creation_input_tokens,7);assert.deepEqual(result.actualModels,['resolved-haiku']);assert.equal(result.finishReason,'structured_output');assert.equal(call.args[call.args.indexOf('--tools')+1],'');assert.equal(call.args[call.args.indexOf('--allowedTools')+1],'StructuredOutput');assert.equal(call.args[call.args.indexOf('--disallowedTools')+1],'mcp__*');assert.equal(call.args[call.args.indexOf('--max-turns')+1],'3');
+});
+test('Claude structured requests never fall back to text, malformed objects, extra fields or schema violations and retain usage',()=>{
+ for(const structured_output of [undefined,null,'{"title":"looks valid","count":2}',{title:'missing count'},{title:'bad bound',count:4},{title:'extra',count:2,unexpected:true}]){
+  assert.throws(()=>parseClaudeResult(JSON.stringify({type:'result',subtype:'success',result:'{"title":"valid prose fallback","count":2}',structured_output,usage:{input_tokens:4,output_tokens:5,cache_read_input_tokens:0,cache_creation_input_tokens:0}}),draftSchema),error=>error.code==='PROVIDER_INVALID_RESPONSE'&&error.aiUsage.inputTokens===4&&error.aiUsage.outputTokens===5);
+ }
+ const raw={type:'result',subtype:'success',result:'unfinished tool message',structured_output:{title:'Valid',count:2},stop_reason:'tool_use'};
+ assert.throws(()=>parseClaudeResult(JSON.stringify(raw)),error=>error.code==='PROVIDER_INVALID_RESPONSE');
+ assert.throws(()=>parseClaudeResult(JSON.stringify({...raw,structured_output:undefined}),draftSchema),error=>error.code==='PROVIDER_INVALID_RESPONSE');
+ assert.throws(()=>parseClaudeResult(JSON.stringify({...raw,permission_denials:[{tool_name:'Bash'}]}),draftSchema),/unavailable tool/);
+});
+test('Claude rejects unsupported or unbounded schemas before auth or provider work',async t=>{
+ const x=await setup(t);const deep={};let child=deep;for(let i=0;i<40;i++)child=child.nested={};
+ for(const outputSchema of [null,[],{$ref:'https://example.invalid/schema'},{$ref:'#/$defs/missing'},deep,{description:'x'.repeat(65537)},{type:'object',unknownAssertion:true},{type:'string',pattern:'(a+)+$'},{type:'unknown'},{required:[42]}]){
+  await assert.rejects(x.connection.generate({prompt:'source',model:'haiku',outputSchema}),error=>error.code==='INVALID_REQUEST'&&error.status===400);
+ }
+ assert.equal(x.calls.length,0);
+});
+test('known Claude formatter limits are invalid-response errors rather than account failures and retain telemetry',async t=>{
+ for(const subtype of ['error_max_structured_output_retries','error_max_turns']){
+  const raw={type:'result',subtype,is_error:true,stop_reason:'tool_use',errors:['private provider diagnostic'],usage:{input_tokens:4,output_tokens:5,cache_read_input_tokens:2,cache_creation_input_tokens:3},modelUsage:{'claude-haiku-4-5-20251001':{}}};
+  const x=await setup(t,{generationExitCode:1,generationOutput:JSON.stringify(raw)});await x.connection.start();
+  await assert.rejects(x.connection.generate({prompt:'source',model:'haiku',outputSchema:draftSchema}),error=>{assert.equal(error.code,'PROVIDER_INVALID_RESPONSE');assert.equal(error.aiUsage.totalTokens,14);assert.deepEqual(error.actualModels,['claude-haiku-4-5-20251001']);assert.match(error.message,/formatter|structured-output turn/);assert.doesNotMatch(error.message,/private|sign-in|model access/);return true;});
+ }
+ const x=await setup(t,{generationExitCode:1,generationOutput:JSON.stringify({type:'result',subtype:'unknown_provider_error',is_error:true,errors:['private diagnostic']})});await x.connection.start();await assert.rejects(x.connection.generate({prompt:'source',model:'haiku',outputSchema:draftSchema}),error=>error.code!=='PROVIDER_INVALID_RESPONSE');
+});
+test('the bounded schema vocabulary validates nullable alternatives, arrays, identifiers and local references',()=>{
+ const schema=boundedOutputSchema({type:'object',properties:{rows:{anyOf:[{type:'null'},{type:'array',minItems:1,maxItems:2,items:{type:'string',pattern:'^[A-Za-z][A-Za-z0-9_-]*$'}}]}},required:['rows'],additionalProperties:false});
+ for(const rows of [null,['a'],['a','b']])assert.doesNotThrow(()=>assertStructuredOutput({rows},schema));
+ for(const rows of [[],['1bad'],['a','b','c'],[2]])assert.throws(()=>assertStructuredOutput({rows},schema),error=>error.code==='PROVIDER_INVALID_RESPONSE');
+});
 async function setup(t,{holdLogin=false,holdGeneration=false,badResult=false,authPathMismatch=false,generationExitCode=0,generationOutput,loginCode,codeRejected=false,echoCode=false,loginTimeout=3000,emitLoginUrl=true}={}){const dataDir=await mkdtemp(path.join(tmpdir(),'asterloom-claude-test-')),base=path.join(dataDir,'engines/claude'),account=path.join(base,'account');await mkdir(path.join(base,'runtime'),{recursive:true});await writeFile(path.join(base,'runtime/claude'),binary);let loggedIn=false;const calls=[];
 const spawnProcess=(exe,args,options)=>{const child=new EventEmitter();child.exitCode=null;child.signalCode=null;child.stdout=new PassThrough();child.stderr=new PassThrough();let input='';child.stdin=new Writable({write(chunk,_e,done){input+=chunk.toString();if(args[0]==='auth'&&args[1]==='login'&&loginCode&&input.endsWith('\n'))queueMicrotask(()=>{if(echoCode){child.stdout.write('Echo '+input);child.stderr.write('Private diagnostic '+input);}if(input.trim()===loginCode&&!codeRejected){loggedIn=true;finish(0);}else finish(1);});done();},final(done){if(args.includes('--print')&&!holdGeneration)queueMicrotask(()=>{child.stdout.write(generationOutput??JSON.stringify(badResult?{type:'result',subtype:'error_max_turns',is_error:true,result:'partial'}:{type:'result',subtype:'success',is_error:false,result:'A verified source draft.',usage:{input_tokens:10,output_tokens:6},modelUsage:{'claude-provider-model':{}},stop_reason:'end_turn'}));finish(generationExitCode);});done();}});const finish=code=>{if(child.exitCode!==null||child.signalCode!==null)return;child.exitCode=code;child.emit('close',code);};child.kill=signal=>{if(child.exitCode!==null||child.signalCode!==null)return;child.signalCode=signal;child.emit('close',null,signal);return true;};child.finish=finish;calls.push({exe,args,options,child,input:()=>input});queueMicrotask(()=>{if(args.join(' ')==='auth status'){child.stdout.write(JSON.stringify({loggedIn,authMethod:loggedIn?'claude.ai':'none',configDirectory:authPathMismatch?'/some/other/account':account}));finish(loggedIn?0:1);}else if(args[0]==='auth'&&args[1]==='login'){if(emitLoginUrl)child.stdout.write('Open https://claude.com/cai/oauth/authorize?state=example\n');if(!holdLogin){loggedIn=true;finish(0);}}else if(args.join(' ')==='auth logout'){loggedIn=false;finish(0);}});return child;};
 const connection=await createClaudeConnection({dataDir,platform:'darwin',artifact,spawnProcess,fetcher:async()=>new Response(binary),timeouts:{command:100,generate:200,login:loginTimeout}});t.after(async()=>{await connection.close();await rm(dataDir,{recursive:true,force:true});});return {connection,calls,dataDir,account};}

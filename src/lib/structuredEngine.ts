@@ -1,3 +1,5 @@
+import { validateRecallFields, evaluateRecall } from './recallEngine';
+import type { RecallActivity, RecallResponse } from './recallEngine';
 import { validatePictureBuildFields, evaluatePictureBuild } from './pictureBuildEngine';
 import type { PictureBuildActivity, PictureBuildResponse } from './pictureBuildEngine';
 import { validateChildPlayFields, validateChildPlaySources, evaluateChildPlay } from './childPlayEngine';
@@ -57,7 +59,7 @@ export interface DiagramActivity extends ActivityBase {
   kind: 'diagram'; targets: { id: string; label: string; x: number; y: number }[];
   labels: ActivityItem[]; mapping: { labelId: string; targetId: string }[];
 }
-export type StructuredActivity = SequenceActivity | ClassificationActivity | DecisionActivity | DependencyActivity | BudgetActivity | RubricActivity | DiagramActivity | CompletionActivity | DataActivity | MediaActivity | ScenarioActivity | ConstructionActivity | ExplanationActivity | PictureActivity | RuleSwitchActivity | ChildPlayActivity | PictureBuildActivity;
+export type StructuredActivity = RecallActivity | SequenceActivity | ClassificationActivity | DecisionActivity | DependencyActivity | BudgetActivity | RubricActivity | DiagramActivity | CompletionActivity | DataActivity | MediaActivity | ScenarioActivity | ConstructionActivity | ExplanationActivity | PictureActivity | RuleSwitchActivity | ChildPlayActivity | PictureBuildActivity;
 export type ActivityValidation = { success: true; value: StructuredActivity } | { success: false; errors: string[] };
 export type ActivityResponse =
   | { order: string[] }
@@ -67,7 +69,7 @@ export type ActivityResponse =
   | { quantities: Record<string, number> }
   | { ratings: Record<string, number> }
   | { placements: Record<string, string> }
-  | CompletionResponse | DataResponse | MediaResponse | ScenarioResponse | CompositionResponse | PictureResponse | RuleSwitchResponse | ChildPlayResponse | PictureBuildResponse;
+  | RecallResponse | CompletionResponse | DataResponse | MediaResponse | ScenarioResponse | CompositionResponse | PictureResponse | RuleSwitchResponse | ChildPlayResponse | PictureBuildResponse;
 export interface Evaluation {
   /** Added by the player; a supported attempt is distinct from independent performance. */
   hintUsed?: boolean;
@@ -296,6 +298,7 @@ export function validateActivity(input: unknown, sources?: (Pick<Source, 'id' | 
       if ([...labelIds].some(id => !seen.has(id))) errors.push('mapping: every label needs a target');
       break;
     }
+    case 'recall': errors.push(...validateRecallFields(input)); break;
     case 'completion': errors.push(...validateCompletionFields(input)); break;
     case 'data': errors.push(...validateDataFields(input)); break;
     case 'media':
@@ -326,10 +329,11 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && new Set(a
 export function evaluateActivityForAuthoring(activity: StructuredActivity, response: unknown): Evaluation {
   const valid = validateActivity(activity); if (!valid.success) return invalid(valid.errors.join('; '));
   if (!plain(response)) return invalid('Submit a response object.');
+  if (activity.kind === 'recall') return evaluateRecall(activity, response);
   if (activity.kind === 'completion') return evaluateCompletion(activity, response);
   if (activity.kind === 'data') return evaluateData(activity, response);
   if (activity.kind === 'media') return evaluateMedia(activity, response);
-  if (activity.kind === 'scenario') return evaluateScenario(activity, response);
+  if (activity.kind === 'scenario') return evaluateScenario(activity, response, {practice:true});
   if (activity.kind === 'construction' || activity.kind === 'explanation') return evaluateComposition(activity, response);
   if (activity.kind === 'picture-build') return evaluatePictureBuild(activity, response);
   if (activity.kind === 'child-play') return evaluateChildPlay(activity, response);

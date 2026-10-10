@@ -125,20 +125,20 @@ export function buildLessonStory(scaffold: Scaffold, ageGroup: string): LessonSt
 export interface LessonActionGuide {id:string;prepare:string;act:string;inspect:string;commit?:string}
 type GuideActivity={kind:import('./structuredEngine').StructuredActivity['kind'];items?:readonly unknown[];partner?:unknown;codeReview?:unknown;pattern?:unknown;mode?:string;scenarioPresentation?:{prediction?:unknown;campaign?:unknown;dialogue?:unknown;promptComparison?:unknown}};
 const ACTION_GUIDES:Record<GuideActivity['kind']|'recall',readonly [string,string,string]>={
- recall:['Build a distinction from the cited material.','Close the guide and choose the idea that fits.','Use feedback to repair the connection; revisit it later.'],
+ recall:['Build a distinction from the cited material.','Close the guide and give your answer from memory.','Use feedback to repair the connection; revisit it later.'],
  sequence:['Find the order or prerequisites actually stated.','Choose a step, then move it into the order the source supports.','Check the source constraints, then revise the route.'],
  classification:['Inspect each category’s source-defined boundary.','Choose an item, then place it in every group the source supports.','Check memberships and revisit the boundaries that need work.'],
  decision:['Read the case observations and supplied policy.','Commit to an action for this case.','Compare the policy’s explanation with your decision.'],
  dependency:['Find the relationships the source explicitly supports.','Choose a starting concept, its relationship, and a target; then connect them.','Inspect the network for missing or conflicting links.'],
  budget:['Identify required capacity and the supplied costs.','Allocate quantities while watching costs and capacity.','Test all constraints; revise a feasible allocation.'],
- rubric:['Read the supplied criteria and sample.','Inspect the work and choose a level for each criterion.','Compare against the reviewed rubric; reflection has no automatic correctness grade.'],
+ rubric:['Read the supplied criteria and sample.','Inspect the work and choose a level for each criterion.','Compare against the supplied rubric; reflection has no automatic correctness grade.'],
  diagram:['Study the actual source figure or its text equivalent.','Place each label at a supplied target.','Check the mapping and revisit misplaced labels.'],
  completion:['Read the whole worked context around each gap.','Choose a source token and place it into a slot.','Read the assembled result and check its source constraints.'],
  data:['Inspect the supplied records, units and question.','Filter the data and select records to support a finding.','Check the quantity and the evidence behind it.'],
  media:['Watch or listen to the original recording in context.','Respond at the prepared checkpoints.','Revisit the cited moment and compare your response.'],
  scenario:['Read observations, available actions and resource limits.','Choose an action and inspect its prepared consequence.','Use the new observations to revise your next decision.'],
  construction:['Inspect the specification, components and typed ports.','Build a network while managing capacity and resource limits.','Test paths and constraints, then revise your design.'],
- explanation:['Distinguish the source claim, evidence and reasoning.','Assemble the prepared pieces into a supported argument.','Check that the pieces belong to a reviewed valid alternative.'],
+ explanation:['Distinguish the source claim, evidence and reasoning.','Assemble the prepared pieces into a supported argument.','Check that the pieces form a source-supported argument in the prepared model.'],
  picture:['Look together at the supplied picture.','Point or choose the part named by the prompt.','Look again and talk about the source annotation.'],
  'rule-switch':['Notice the sorting rule that is active now.','Sort the objects, then regroup when the rule changes.','Compare your two rounds using their different rules.'],
  'child-play':['Listen together to the supplied story and play rule.','Move the props and help the character make a choice.','See the prepared consequence, then talk about what changed.'],
@@ -146,7 +146,7 @@ const ACTION_GUIDES:Record<GuideActivity['kind']|'recall',readonly [string,strin
 };
 const SPECIAL_ACTION_GUIDES:Record<string,readonly [string,string,string]>={
  partner:['Agree who explains first and who reviews.','Take the prepared turns, hand over the device, and build an explanation.','Compare and revise together. This records collaboration, not independent mastery.'],
- 'code-review':['Read the supplied code and the source-defined review criteria.','Mark exact code spans and connect a finding, evidence and prepared repair.','Check that the annotation and argument support the same reviewed alternative.'],
+ 'code-review':['Read the supplied code and the source-defined review criteria.','Mark exact code spans and connect a finding, evidence and prepared repair.','Check that the annotation and argument support the same source-backed alternative.'],
  prediction:['Read the supplied test and commit a prediction.','Reveal the prepared observation after committing.','Compare the observation with your prediction and record a revision.'],
  campaign:['Plan the next actions using the current case and limits.','Carry out your plan, then revise it with a reason as evidence changes.','Debrief the stages and apply the learning to the changed final case.'],
  dialogue:['Read the current role and what that role can observe.','Choose a prepared reply and follow the authored turn or handoff.','Compare the resulting dialogue with the supplied language or role evidence.'],
@@ -165,8 +165,8 @@ export function buildLessonActionGuide(activity?:GuideActivity):LessonActionGuid
  // remains valid before the actual inventory has been written.
  if(activity?.kind==='sequence'&&activity.items)act=activity.items.length<=24?'Choose a step card, then use Move earlier or Move later to put it in order.':'Choose a step, then choose Place here at its destination.';
  // Every structured board exposes this shared commit control. Writer/checker
- // prompts need it as well as the controls for arranging a response. Recall
- // choices are committed by their own interaction and do not use this footer.
+ // prompts need it as well as the controls for arranging a response. This also
+ // covers structured recall; legacy cards use their own interaction instead.
  const commit=activity?activity.kind==='rubric'&&activity.mode==='self-assessment'?'Save my reflection':'Check my work':undefined;
  return{id,prepare:steps[0],act,inspect:commit?`Choose ${commit} when ready. ${steps[2]}`:steps[2],...(commit?{commit}:{})};
 }

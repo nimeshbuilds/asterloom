@@ -1,3 +1,6 @@
+import { initialActivityResponse as restoredResponse } from '../lib/activityResponse';
+import RecallBoard from './RecallBoard';
+import { initialRecallResponse } from '../lib/recallEngine';
 import type {AsterLearningState} from '../lib/asterAwareness';
 import AsterGuide from './AsterGuide';
 import {questDirections} from './questDirections';
@@ -65,7 +68,7 @@ export interface StructuredBoardProps {
   onRetrySave?: (evaluation: ActivityEvaluation) => void | Promise<boolean | void>;
 }
 export const ACTIVITY_KIND_LABELS: Record<StructuredActivity['kind'], string> = {
-  sequence: 'Rebuild the sequence', classification: 'Sort the evidence', decision: 'Make the decision',
+  recall: 'Open the source locks', sequence: 'Rebuild the sequence', classification: 'Sort the evidence', decision: 'Make the decision',
   dependency: 'Connect the system', budget: 'Balance the resources', rubric: 'Review with a purpose', diagram: 'Complete the model',
   completion: 'Complete the worked model', data: 'Investigate the observations', media: 'Explore the recording',
   scenario: 'Investigate and act', construction: 'Build, test and revise', explanation: 'Connect the reasoning',
@@ -73,30 +76,6 @@ export const ACTIVITY_KIND_LABELS: Record<StructuredActivity['kind'], string> = 
   'rule-switch': 'Adapt to a new rule', 'child-play': 'Bring the source story to life', 'picture-build': 'Build a picture and tell its story',
 };
 function object(value: unknown): Record<string, unknown> { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
-function restoredResponse(activity: StructuredActivity, saved?: unknown): ActivityResponse {
-  const value = object(saved);
-  switch (activity.kind) {
-    case 'completion': return initialCompletionResponse(activity, saved);
-    case 'data': return initialDataResponse(activity, saved);
-    case 'media': return initialMediaResponse(activity, saved);
-    case 'scenario': return initialScenarioResponse(activity, saved);
-    case 'construction': case 'explanation': return initialCompositionResponse(activity, saved);
-    case 'picture-build': return initialPictureBuildResponse(activity, saved);
-    case 'child-play': return initialChildPlayResponse(activity, saved);
-    case 'picture': return initialPictureResponse(activity, saved);
-    case 'rule-switch': return initialRuleSwitchResponse(activity, saved);
-    case 'sequence': {
-      const ids = activity.items.map(item => item.id), order = value.order;
-      return { order: Array.isArray(order) && order.length === ids.length && new Set(order).size === ids.length && order.every(id => typeof id === 'string' && ids.includes(id)) ? order : [...ids].reverse() };
-    }
-    case 'classification': return { assignments: Object.fromEntries(activity.items.map(item => { const prior = object(value.assignments)[item.id]; return [item.id, Array.isArray(prior) ? [...new Set(prior.filter(id => typeof id === 'string' && activity.categories.some(category => category.id === id)))] : []]; })) };
-    case 'decision': return { choiceId: typeof value.choiceId === 'string' && activity.choices.some(choice => choice.id === value.choiceId) ? value.choiceId : '' };
-    case 'dependency': return { edges: Array.isArray(value.edges) ? value.edges.filter((edge): edge is { from: string; to: string; relation: string } => { const data = object(edge); return typeof data.relation === 'string' && activity.nodes.some(node => node.id === data.from) && activity.nodes.some(node => node.id === data.to); }).slice(0, 120) : [] };
-    case 'budget': return { quantities: Object.fromEntries(activity.items.map(item => { const prior = object(value.quantities)[item.id]; return [item.id, typeof prior === 'number' && Number.isInteger(prior) && prior >= 0 && prior <= item.maxQuantity ? prior : 0]; })) };
-    case 'rubric': return { ratings: Object.fromEntries(activity.criteria.map(criterion => { const prior = object(value.ratings)[criterion.id]; return [criterion.id, typeof prior === 'number' && Number.isInteger(prior) && prior >= 0 && prior < criterion.levels.length ? prior : -1]; })) };
-    case 'diagram': return { placements: Object.fromEntries(activity.labels.map(label => { const prior = object(value.placements)[label.id]; return [label.id, typeof prior === 'string' && activity.targets.some(target => target.id === prior) ? prior : '']; })) };
-  }
-}
 
 export default function StructuredBoard({ activity, notebook, progress, sources, artwork, savedResponse, onSave, onComplete, onCommit, onRetrySave, ageGroup = 'adult', theme = 'islands', scaffoldId }: StructuredBoardProps) {
   const [response, setResponse] = useState<ActivityResponse>(() => restoredResponse(activity, savedResponse));
@@ -181,7 +160,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
     currentResponse.current = next;
     gameActionFeedback(cue,teachingScaffold.id,ageGroup);
     if(cue)setActionVisual(previous=>({event:(previous?.event??0)+1,kind:cue}));
-    const supported = asterAssisted.current || hintUsed || postResultAssistance.current || ('caregiverSupport' in next && next.caregiverSupport === true) || ('sourceConsulted' in next && next.sourceConsulted === true);
+    const supported = ('revealedIds' in next && next.revealedIds.length > 0) || asterAssisted.current || hintUsed || postResultAssistance.current || ('caregiverSupport' in next && next.caregiverSupport === true) || ('sourceConsulted' in next && next.sourceConsulted === true);
     if (supported) setHintUsed(true);
     setResponse(next); setResult(null); persist(next, { checked: false, ...draft, hintUsed: supported });
   }
@@ -252,6 +231,7 @@ export default function StructuredBoard({ activity, notebook, progress, sources,
   const palette = WORLD_PALETTES[theme] ?? WORLD_PALETTES.islands;
   const arenaPrimary=(activity.kind==='sequence'||activity.kind==='classification')&&activity.items.length<=24;
   const workControls=<>
+    {activity.kind === 'recall' && 'revealedIds' in response && <RecallBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'completion' && 'slotTokens' in response && <CompletionBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'data' && 'evidenceRows' in response && <DataBoard activity={activity} response={response} onChange={change}/>}
     {activity.kind === 'media' && 'activeCheckpointId' in response && <MediaBoard activity={activity} response={response} sources={sources} onChange={change}/>}

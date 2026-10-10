@@ -7,6 +7,35 @@ import { childPlayFixtures, childPlaySources, pretendPlayFixture, puppetStoryFix
 const check = (a: ChildPlayActivity) => validateChildPlayFields(a as unknown as Record<string, unknown>);
 function play(activity:ChildPlayActivity, ids:string[], initial=initialChildPlayResponse(activity)):ChildPlayResponse { let response=initial; for(const id of ids){const result=advanceChildPlay(activity,response,id);if(!result.success)throw new Error(result.error);response=result.response;}return response; }
 describe('source-backed child role play',()=>{
+  it('keeps complete models portable across native object-key order without ignoring content or array order',()=>{
+    const reorder=(value:unknown):unknown=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([key,entry])=>[key,reorder(entry)])):value;
+    for(const activity of childPlayFixtures){
+      const native=reorder(activity) as ChildPlayActivity;
+      const actionId=activity===puppetStoryFixture?'ada-asks':'prepare-apple';
+      const response=play(activity,[actionId]);
+      expect(childPlayFingerprint(native)).toBe(response.fingerprint);
+      expect(initialChildPlayResponse(native,JSON.parse(JSON.stringify(response))).actionIds).toEqual([actionId]);
+      expect(replayChildPlay(native,response).phase).toBe('active');
+      const sourceChanged=structuredClone(native);sourceChanged.sourceRefs[0].evidence+=' changed';
+      expect(childPlayFingerprint(sourceChanged)).not.toBe(response.fingerprint);
+      expect(initialChildPlayResponse(sourceChanged,response).actionIds).toEqual([]);
+      const arrayChanged=structuredClone(native);arrayChanged.actions.reverse();
+      expect(childPlayFingerprint(arrayChanged)).not.toBe(response.fingerprint);
+      expect(initialChildPlayResponse(native,{...response,actionIds:['unknown-action']}).actionIds).toEqual([]);
+      expect(replayChildPlay(native,{...response,actionIds:['unknown-action']}).phase).toBe('invalid');
+    }
+  });
+  it('migrates a matching legacy save while validating every move and rejecting edited models',()=>{
+    const legacy=(activity:ChildPlayActivity)=>{let hash=2166136261;const text=JSON.stringify(activity);for(let i=0;i<text.length;i++)hash=Math.imul(hash^text.charCodeAt(i),16777619);return(hash>>>0).toString(16).padStart(8,'0');};
+    const response={...play(puppetStoryFixture,['ada-asks']),fingerprint:legacy(puppetStoryFixture)};
+    expect(replayChildPlay(puppetStoryFixture,response).phase).toBe('active');
+    const migrated=initialChildPlayResponse(puppetStoryFixture,response);
+    expect(migrated.actionIds).toEqual(['ada-asks']);expect(migrated.fingerprint).toMatch(/^v2-/);
+    expect(initialChildPlayResponse(puppetStoryFixture,{...response,actionIds:['bo-shares']}).actionIds).toEqual([]);
+    const edited=structuredClone(puppetStoryFixture);edited.sourceRefs[0].evidence+=' changed';
+    expect(initialChildPlayResponse(edited,response).actionIds).toEqual([]);
+    expect(replayChildPlay(edited,response).phase).toBe('invalid');
+  });
   it('exports live progress immediately after real moves without a reload or JSON cleanup',()=>{for(const [activity,actionId] of [[puppetStoryFixture,'ada-asks'],[pretendPlayFixture,'prepare-apple']] as const){const original={...initialChildPlayResponse(activity),notice:'An earlier notice'};const next=advanceChildPlay(activity,original,actionId);if(!next.success)throw new Error(next.error);expect(original.notice).toBe('An earlier notice');expect(Object.hasOwn(next.response,'notice')).toBe(false);const progress={...emptyProgress('live-child-notebook'),structured:{[activity.id]:{response:structuredClone(next.response),completed:false,score:0,maxScore:activity.objectives.length,attempts:0,updatedAt:'2026-10-04T00:00:00.000Z'}}};const restored=parseProgress(serializeProgress(progress));expect(restored.structured?.[activity.id].response).toEqual(next.response);expect(initialChildPlayResponse(activity,restored.structured?.[activity.id].response).actionIds).toEqual([actionId]);}});
 
   it('has two genuinely distinct, reachable modes with exact source evidence',()=>{for(const fixture of childPlayFixtures){expect(check(fixture)).toEqual([]);expect(validateChildPlaySources(fixture,childPlaySources)).toEqual([]);}});

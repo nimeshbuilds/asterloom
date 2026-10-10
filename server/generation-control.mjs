@@ -1,6 +1,7 @@
-import {normalizeAIUsage} from './ai-usage.mjs';
+import {normalizeAIUsage,safeActualModels} from './ai-usage.mjs';
 
 const ERRORS={
+ PROVIDER_CONTEXT_LIMIT:[422,'This source window is too large for the selected local model. Reduce the selected material or choose a model with more context; no source text was truncated.',false],
  PROVIDER_TIMEOUT:[504,'The AI did not finish within this request’s time limit. Asterloom canceled the local request. Continue from your saved stage.',true],
  PROVIDER_CANCELED:[499,'The AI request was canceled. Saved stages are kept.',false],
  PROVIDER_TRUNCATED:[502,'The AI reached its output limit before completing this stage. Use a smaller mission request; saved stages are kept.',true],
@@ -13,13 +14,13 @@ const ERRORS={
  PROVIDER_INVALID_RESPONSE:[502,'The AI returned an unreadable or incomplete response. Saved stages are kept.',true],
  PROVIDER_REFUSAL:[422,'The provider declined this request. Review the supplied material or choose another supported model.',false],
 };
-export function generationError(code,{usage,finishReason}={}){const [status,message,retryable]=ERRORS[code]||ERRORS.PROVIDER_INVALID_RESPONSE;return Object.assign(new Error(message),{status,code:ERRORS[code]?code:'PROVIDER_INVALID_RESPONSE',publicMessage:true,retryable,truncated:code==='PROVIDER_TRUNCATED',...(finishReason?{finishReason}:{}),...(usage?{aiUsage:usage}:{})});}
+export function generationError(code,{usage,finishReason,actualModels}={}){const [status,message,retryable]=ERRORS[code]||ERRORS.PROVIDER_INVALID_RESPONSE;return Object.assign(new Error(message),{status,code:ERRORS[code]?code:'PROVIDER_INVALID_RESPONSE',publicMessage:true,retryable,truncated:code==='PROVIDER_TRUNCATED',...(finishReason?{finishReason}:{}),...(usage?{aiUsage:usage}:{}),...(safeActualModels(actualModels).length?{actualModels:safeActualModels(actualModels)}:{})});}
 export function generationFailure(error,provider=''){
  if(ERRORS[error?.code])return error;
  let code=error?.status===409?'PROVIDER_BUSY':error?.status===504?'PROVIDER_TIMEOUT':error?.name==='AbortError'?'PROVIDER_CANCELED':error?.status===401?'PROVIDER_AUTH_REQUIRED':'PROVIDER_UNAVAILABLE';
  // Only inspect app-authored messages. Raw provider diagnostics never become public.
  if(error?.publicMessage===true){if(/sign in|sign-in|connect your|connect.*account|not authenticated/i.test(error.message))code='PROVIDER_AUTH_REQUIRED';else if(/model.*not available|choose.*model|select.*model/i.test(error.message))code='PROVIDER_MODEL_UNAVAILABLE';else if(/timed out/i.test(error.message))code='PROVIDER_TIMEOUT';else if(/canceled/i.test(error.message))code='PROVIDER_CANCELED';else if(/output limit|response limit|exceeded.*output/i.test(error.message))code='PROVIDER_TRUNCATED';}
- return generationError(code,{usage:error?.aiUsage||normalizeAIUsage(provider,null)});
+ return generationError(code,{usage:error?.aiUsage||normalizeAIUsage(provider,null),actualModels:error?.actualModels});
 }
 export function providerHttpFailure(provider,status,result){
  const specific=typeof result?.error?.code==='string'?result.error.code:'';
@@ -40,6 +41,6 @@ export async function withGenerationControl(input,request,response,work){
  const disconnected=()=>{if(!response.writableEnded)controller.abort(generationError('PROVIDER_CANCELED'));};
  request.once('aborted',disconnected);response.once('close',disconnected);
  try{if(request.aborted||response.destroyed)disconnected();controller.signal.throwIfAborted();const result=await work({signal:controller.signal,timeoutMs});if(controller.signal.aborted){controller.signal.reason.aiUsage=result.usage;throw controller.signal.reason;}return result;}
- catch(error){if(controller.signal.aborted){const aborted=controller.signal.reason;aborted.aiUsage=error.aiUsage||normalizeAIUsage(input.provider,null);throw aborted;}if(error.status===400)throw error;throw generationFailure(error,input.provider);}
+ catch(error){if(controller.signal.aborted){const aborted=controller.signal.reason;aborted.aiUsage=error.aiUsage||normalizeAIUsage(input.provider,null);aborted.actualModels=safeActualModels(error.actualModels);throw aborted;}if(error.status===400)throw error;throw generationFailure(error,input.provider);}
  finally{clearTimeout(timer);request.off('aborted',disconnected);response.off('close',disconnected);}
 }

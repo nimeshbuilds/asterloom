@@ -39,7 +39,7 @@ supported(['resource-allocation', 'plan-and-budget-expedition', 'cloud-cost-cont
 supported(['diagram-reconstruction'], ['diagram'], 'Place labels on reviewed targets. A source image can sit behind the targets, and the text equivalent remains available.');
 supported(['review-studio'], ['rubric'], 'Review a prepared sample using an explicit rubric, or reflect without an automatic correctness grade.');
 supported(['zero-trust-access-lab', 'ai-safety-response-lab', 'clinical-reasoning-casebook'], ['decision'], 'Apply an explicit bounded policy to a supplied case. This runs a prepared decision rule; it does not simulate a live system or establish professional competence.');
-registry.set('recall-escape-mission', { scaffoldId: 'recall-escape-mission', activityKinds: [], engineReady: true, mode: 'source-practice', runtimeHint: 'Source-recall practice uses reviewed or extractive question cards and clearly identifies source recall. It does not substitute for a simulation or application case.' });
+supported(['recall-escape-mission'], ['recall'], 'Recall source-backed terms to open mission locks, with explicit reveals recorded as supported practice. Accepted answers are prepared from exact source text.');
 
 supported(['definition-building', 'missing-step-completion', 'database-query-lab'], ['completion'], 'Complete reviewed worked context or a prepared query using validated slots and accepted alternatives. Query completion uses authored fixtures; it does not execute arbitrary SQL.');
 supported(['constrained-action-planning', 'version-control-recovery', 'product-tradeoff-council', 'fault-diagnosis', 'repair-challenge', 'branching-decisions', 'role-missions', 'scenario-internship', 'incident-response-command', 'kubernetes-recovery-room', 'debugger-detective'], ['scenario'], 'Investigate a reviewed finite scenario with guarded actions, resource costs, revealed observations and linked consequences. Outcomes are authored source-backed fixtures; no live cloud, code execution or AI system is simulated beyond those explicit rules.');
@@ -131,9 +131,9 @@ export function resolveScaffoldRuntime(scaffoldId: string, notebook: Pick<Notebo
   if (!scaffold.ages.includes(notebook.ageGroup)) return { ...base, reason: `This recipe is not configured for the notebook’s age setting. Choose a compatible recipe or adjust the audience in the studio. ${definition.runtimeHint}` };
   if (!definition.engineReady) return { ...base, reason: definition.runtimeHint };
   const sources=Array.isArray(notebook.sources)?notebook.sources:[];
-  if (definition.mode === 'source-practice') {
+  if (definition.mode === 'source-practice' || scaffoldId === 'recall-escape-mission' && !(notebook.activities ?? []).some(activity => activity.kind === 'recall' && activity.scaffoldIds?.includes(scaffoldId))) {
     const ready = notebook.cards.filter(card => canScoreRecallCard(card,sources)&&isReadyLearningSource(sources.find(source=>source.id===card.sourceId),sources)).length;
-    return { ...base, available: ready > 0, requiresAuthorBinding: false, reason: ready ? `${ready} source-recall ${ready === 1 ? 'card is' : 'cards are'} ready. Draft questions stay out of scored sessions.` : notebook.cards.length ? 'These recall questions need ready source material, current exact evidence and author review of pending drafts before scored play.' : 'Add source-recall cards before starting this practice mode.' };
+    return { ...base, mode: 'source-practice', available: ready > 0, requiresAuthorBinding: false, reason: ready ? `${ready} source-recall ${ready === 1 ? 'card is' : 'cards are'} ready. Draft questions stay out of scored sessions.` : notebook.cards.length ? 'These recall questions need ready source material, current exact evidence and author review of pending drafts before scored play.' : 'Add source-recall cards before starting this practice mode.' };
   }
   const bound = (notebook.activities ?? []).filter(activity => activity.scaffoldIds?.includes(scaffoldId) && definition.activityKinds.includes(activity.kind) && fitsSpecificContract(scaffoldId, activity));
   const grounded=bound.filter(activity=>hasCurrentActivityEvidence(activity,sources));

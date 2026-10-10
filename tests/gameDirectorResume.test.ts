@@ -24,7 +24,7 @@ describe('creation resumes real mission work without a paid retry loop',()=>{
   }));
   const result=await prepareGameExperience(notebook(),{}, {...options,ai:{config:{provider:'chatgpt',model:'gpt-6.1-sol',apiKey:''},consent:'create-game'}});
   expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','direction','write','check','overview']);
-  for(const r of requests){expect(r.outputSchema).toMatchObject({type:'object',additionalProperties:false});expect(r.prompt).toContain('use null for absence');}
+  for(const r of requests){expect(r.outputSchema).toMatchObject({type:'object',additionalProperties:false});expect(r.prompt).toContain('use null for absence');expect(r.prompt).toContain(`STRUCTURED REQUIRED ROOT KEYS: ${JSON.stringify(r.outputSchema.required)}.`);}
   expect(result.notebook.gameDesign!.receipts.every(r=>r.validation==='accepted')).toBe(true);
   expect(parsePackage(serializePackage(result.notebook)).gameDesign!.receipts).toEqual(result.notebook.gameDesign!.receipts);
  });

@@ -6,6 +6,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {packager} from '@electron/packager';
 import {build} from 'esbuild';
+import {createHash} from 'node:crypto';
 import {prepareTorRuntime} from '../desktop/prepare-tor.mjs';
 import {prepareNativeDependencies,installNativeDependencies} from '../desktop/native-dependencies.mjs';
 import {prepareMediaRuntime} from './prepare-media-runtime.mjs';
@@ -21,6 +22,12 @@ const electronVersion=JSON.parse(await fs.readFile(path.join(ROOT,'node_modules'
 await fs.access(path.join(ROOT,'dist','index.html'));
 await fs.mkdir(path.join(ROOT,'desktop','generated'),{recursive:true});
 await build({entryPoints:[path.join(ROOT,'src','lib','package.ts')],bundle:true,platform:'node',target:'es2022',format:'esm',outfile:path.join(ROOT,'desktop','generated','package-validation.mjs')});
+await build({entryPoints:[path.join(ROOT,'scripts','godot-factory','bridge','engine.ts')],bundle:true,platform:'node',target:'es2022',format:'esm',outfile:path.join(ROOT,'desktop','generated','godot-factory-validation.mjs')});
+// The native executable can be reused when only source contracts change, but
+// its assessment bridge must always match this studio's notebook validators.
+const factoryAssessment=path.join(ROOT,'desktop','generated','godot-factory-assessment.mjs');
+await build({entryPoints:[path.join(ROOT,'scripts','godot-factory','bridge','cli.ts')],bundle:true,platform:'node',target:'node22',format:'esm',outfile:factoryAssessment});
+const factoryAssessmentSha256=createHash('sha256').update(await fs.readFile(factoryAssessment)).digest('hex');
 const out=path.join(ROOT,'release','desktop');await fs.mkdir(out,{recursive:true});
 const builds=[];
 async function ensureTor(target){
@@ -31,10 +38,19 @@ async function ensureTor(target){
 }
 async function packageTarget(target,destination){
   const nativeDependency=await prepareNativeDependencies(ROOT,target),tor=await ensureTor(target),media=await prepareMediaRuntime(target);
-  const icon=path.join(ROOT,'public','assets','brand',target.platform==='darwin'?'icon.icns':'icon.ico');
+  const nativeFactory=path.join(ROOT,'desktop','vendor','godot-factory',target.platform);
+  const nativeExecutable=target.platform==='darwin'?path.join(nativeFactory,'Asterloom Native Factory.app','Contents','MacOS','Asterloom Native Factory'):path.join(nativeFactory,'Asterloom Native Factory.exe');
+  try{await fs.access(nativeExecutable);await fs.access(path.join(nativeFactory,'assessment.mjs'));}
+  catch{throw new Error('Build the native Godot player for '+target.platform+' before packaging this studio. The native player is a required release resource.');}
+  const icon=path.join(ROOT,'public' ,'assets','brand',target.platform==='darwin'?'icon.icns':'icon.ico');
   console.log(`Preparing the ${target.platform==='darwin'?'Mac':'Windows'} runtime (${target.arch})…`);
   const result=await packager({dir:ROOT,name:'Asterloom',executableName:'Asterloom',appBundleId:'com.asterloom.studio',appVersion:manifest.version,buildVersion:manifest.version,electronVersion,...target,out:destination,overwrite:true,prune:true,asar:false,icon,appCopyright:'Asterloom',afterPrune:[async({buildPath})=>installNativeDependencies(buildPath,nativeDependency)],ignore:[/^\/node_modules\/(?:\.vite|\.cache|\.vite-temp)(?:\/|$)/,/^\/(?:release|deliverables|\.qa|\.git|test-results|playwright-report|tests|docs|src|scripts)(?:\/|$)/,/^\/server\/\.data(?:\/|$)/,/^\/desktop\/(?:vendor|dev-resources|(?:download-tor|prepare-tor|native-dependencies|universal|testing|signing|sign-worker)\.mjs|.*\.test\.mjs)(?:\/|$)/,/^\/(?:build_product_plan\.py|.*\.log|\.env.*|package-lock\.json|tsconfig.*|vite\.config.*|playwright\.config.*)$/],afterCopy:[async({buildPath})=>{
     const file=path.join(buildPath,'package.json'),current=JSON.parse(await fs.readFile(file,'utf8'));current.main='desktop/main.mjs';await fs.writeFile(file,JSON.stringify(current,null,2));
+    await fs.cp(nativeFactory,path.join(buildPath,'desktop','vendor','godot-factory','runtime'),{recursive:true});
+    const factoryDirectory=path.join(buildPath,'desktop','vendor','godot-factory','runtime');
+    await fs.copyFile(factoryAssessment,path.join(factoryDirectory,'assessment.mjs'));
+    const factoryBuildFile=path.join(factoryDirectory,'build.json'),factoryBuild=JSON.parse(await fs.readFile(factoryBuildFile,'utf8'));
+    await fs.writeFile(factoryBuildFile,JSON.stringify({...factoryBuild,assessmentSha256:factoryAssessmentSha256},null,2)+'\n');
     await fs.cp(media,path.join(buildPath,'desktop','vendor','media','runtime'),{recursive:true,filter:filename=>path.basename(filename)!=='BUILD.json'});
     await fs.cp(path.join(ROOT,'desktop','vendor','media','sources'),path.join(buildPath,'desktop','vendor','media','sources'),{recursive:true});
     await fs.cp(tor,path.join(buildPath,'desktop','vendor','tor','runtime'),{recursive:true});
@@ -45,7 +61,7 @@ async function packageTarget(target,destination){
 }
 async function recordBuild(info){
   const distribution=JSON.parse(await fs.readFile(path.join(ROOT,'desktop','distribution.json'),'utf8'));
-  const record={...info,distributionMode:distribution.mode,version:manifest.version,electronVersion,signing:info.platform==='darwin'?'development-ad-hoc':'development-unsigned',notarized:false,generatedAt:new Date().toISOString(),included:['Electron and Node runtime','complete studio and offline game runtime','PDF, DOCX, PPTX, XLSX and EPUB extraction libraries','native PDF canvas binding','verified Tor runtime and source notices','FFmpeg 9.0.2 LGPL decoder and whisper.cpp 1.9.4 with exact corresponding sources','streaming original media store and recording archives','local Tesseract OCR runtime and English, Spanish, French, German recognition data'],optionalNotBundled:['Whisper speech models: verified managed first-use download, then offline reuse','Official Codex, Claude Code and Grok Build engines: verified managed installation when the user selects a connection']};
+  const record={...info,distributionMode:distribution.mode,version:manifest.version,electronVersion,signing:info.platform==='darwin'?'development-ad-hoc':'development-unsigned',notarized:false,generatedAt:new Date().toISOString(),included:['Electron and Node runtime','complete studio and offline native Godot game player with deterministic local assessment','PDF, DOCX, PPTX, XLSX and EPUB extraction libraries','native PDF canvas binding','verified Tor runtime and source notices','FFmpeg 9.0.2 LGPL decoder and whisper.cpp 1.9.4 with exact corresponding sources','streaming original media store and recording archives','local Tesseract OCR runtime and English, Spanish, French, German recognition data'],optionalNotBundled:['Whisper speech models: verified managed first-use download, then offline reuse','Official Codex, Claude Code and Grok Build engines: verified managed installation when the user selects a connection','Pinned Ollama runtime and local model candidates: explicit managed setup per app profile; quality qualification is separate from readiness']};
   await fs.copyFile(path.join(ROOT,'LICENSE'),path.join(info.directory,'ASTERLOOM-LICENSE.txt'));
   await fs.writeFile(path.join(info.directory,'ASTERLOOM-RELEASE.json'),JSON.stringify(record,null,2));builds.push(record);console.log(`Created ${info.directory}`);
 }

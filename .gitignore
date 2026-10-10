@@ -21,3 +21,8 @@ public/retrieval/
 public/ocr/
 
 /node_modules
+
+# Generated native assessment bundle and Godot import cache
+scripts/godot-factory/bridge/assessment.mjs
+scripts/godot-factory/project/.godot/
+scripts/godot-factory/project/export_presets.cfg

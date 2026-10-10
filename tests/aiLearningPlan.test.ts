@@ -4,7 +4,8 @@ import {isCurrentEvidence} from '../src/lib/evidence';
 import {validateAILearningMissionDraft,validateAILearningPlan,reconcileAILearningPlan,currentAILearningMission,AI_TEACHING_VERIFICATION_NOTE,type AILearningMission} from '../src/lib/aiLearningPlan';
 import {buildLearningBriefing,initialLessonState,completeLesson,completeGuidedLesson,restartLesson,validateLessonState,lessonAllowsGuidedStart,lessonQuestSupport,lessonReady,lessonContextReady,lessonTeachingChunkIds,beginLessonRehearsal,beginLessonPractice,lessonRequiresWalkthrough} from '../src/lib/learningBriefing';
 import {emptyProgress} from '../src/lib/storage';
-import {parseProgress,serializeProgress} from '../src/lib/package';
+import {parseProgress,serializeProgress,parsePackage,serializePackage} from '../src/lib/package';
+import {recallAuthoringFixture} from './gameDraftAuthoring.fixture';
 import {SCAFFOLDS} from '../src/data/scaffolds';
 import type {StructuredActivity} from '../src/lib/structuredEngine';
 
@@ -21,6 +22,19 @@ function fixture(ageGroup='adult'){
 }
 function generated(){const f=fixture(),mission=validateAILearningMissionDraft(f.draft,f.context);const notebook={...f.notebook,aiLearningPlan:{version:1 as const,missions:[mission]}};return{...f,mission,notebook};}
 describe('source-cited digestible AI teaching',()=>{
+ it('round-trips one concise chunk for a short source while rejecting empty or ungrounded teaching',()=>{
+  const f=recallAuthoringFixture(),citations=[{sourceId:f.source.id,evidence:f.prose}],context={activity:f.activity,ageGroup:f.ageGroup,sources:[f.source],sourceWindow:{sourceId:f.source.id,start:0,end:f.source.text.length}};
+  const draft={title:'Queue and worker',objective:'Recall which term names the waiting jobs and which names the process.',conceptExplanation:{text:'A queue holds waiting jobs. A worker runs those jobs.',citations},chunks:[{id:'distinction',title:'List and process',text:'Remember the distinction: queue names the list, and worker names the process.',citations}],guidedApplication:{prompt:'Write the term matching each definition.',steps:['Read each definition and enter its source term.']}};
+  const mission=validateAILearningMissionDraft(draft,context),notebook=createNotebook({sources:[f.source],activities:[f.activity],ageGroup:f.ageGroup,aiLearningPlan:{version:1,missions:[mission]}});
+  expect(mission.chunks).toHaveLength(1);expect(mission.reviewStatus).toBe('needs-review');
+  const restored=parsePackage(serializePackage(notebook));expect(restored.aiLearningPlan).toEqual(notebook.aiLearningPlan);expect(validateAILearningPlan(restored.aiLearningPlan,restored)).toEqual(notebook.aiLearningPlan);
+  expect(()=>validateAILearningMissionDraft({...draft,chunks:[]},context)).toThrow(/1–5/);
+  expect(()=>validateAILearningPlan({version:1,missions:[{...mission,chunks:[]}]},notebook)).toThrow(/1–5/);
+  expect(()=>validateAILearningMissionDraft({...draft,conceptExplanation:undefined},context)).toThrow();
+  expect(()=>validateAILearningMissionDraft({...draft,guidedApplication:undefined},context)).toThrow();
+  expect(()=>validateAILearningMissionDraft({...draft,chunks:[{...draft.chunks[0],citations:[]}]},context)).toThrow();
+  expect(()=>validateAILearningMissionDraft({...draft,chunks:[{...draft.chunks[0],citations:[{sourceId:f.source.id,evidence:'A queue runs jobs immediately.'}]}]},context)).toThrow(/exact substring/);
+ });
  it('binds generated explanations to exact page citations, actual mission, audience and unapproved review state',()=>{
   const {notebook,mission,activity}=generated();expect(mission.reviewStatus).toBe('needs-review');expect(mission.guidedApplication.activityId).toBe(activity.id);expect(mission.conceptExplanation.citations[0].locator.kind).toBe('page');expect(mission.conceptExplanation.citations[0].locator.label).toContain('Page 2');
   const references=[...mission.conceptExplanation.citations,...mission.chunks.flatMap(chunk=>chunk.citations),...mission.workedExample!.steps.flatMap(step=>step.citations)];expect(references.every(ref=>isCurrentEvidence(ref,notebook.sources))).toBe(true);expect(validateAILearningPlan(JSON.parse(JSON.stringify(notebook.aiLearningPlan)),notebook)).toEqual(notebook.aiLearningPlan);expect(currentAILearningMission(notebook,activity)).toEqual(mission);expect(AI_TEACHING_VERIFICATION_NOTE).toContain('do not automatically prove');

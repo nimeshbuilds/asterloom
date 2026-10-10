@@ -6,11 +6,11 @@ import {buildLessonActionGuide} from '../src/lib/lessonStory';
 import {GAME_TEMPLATE_SKILL_VERSION,TEMPLATE_SKILL_INSTRUCTION,templateSkillCatalog,templateSkillSummary,templateSkillFor,compactTemplateSkills} from '../src/lib/gameTemplateSkills';
 
 describe('application-authored game template skills',()=>{
- it('covers all75 templates and every supported audience without enabling the25 unsupported writer contracts',()=>{
+ it('covers all75 templates and every supported audience through real bounded writer contracts',()=>{
   const catalog=templateSkillCatalog(),coverage=gameRecipeCoverage();
   expect(catalog).toHaveLength(75);expect(new Set(catalog.map(skill=>skill.scaffoldId)).size).toBe(75);
-  expect(catalog.filter(skill=>skill.ageModes.some(mode=>mode.authoring==='ai-writable'))).toHaveLength(50);
-  expect(catalog.filter(skill=>skill.ageModes.every(mode=>mode.authoring==='prepared-content-only'))).toHaveLength(25);
+  expect(catalog.filter(skill=>skill.ageModes.some(mode=>mode.authoring==='ai-writable'))).toHaveLength(75);
+  expect(catalog.filter(skill=>skill.ageModes.every(mode=>mode.authoring==='prepared-content-only'))).toHaveLength(0);
   for(const skill of catalog){
    const scaffold=SCAFFOLDS.find(scaffold=>scaffold.id===skill.scaffoldId)!;
    expect(skill.version).toBe(GAME_TEMPLATE_SKILL_VERSION);expect(skill.ages).toEqual(scaffold.ages);
@@ -41,7 +41,7 @@ describe('application-authored game template skills',()=>{
   expect(templateSkillFor('process-reconstruction','adult')).not.toHaveProperty('actualControls');
   expect(()=>templateSkillFor('process-reconstruction','adult',{kind:'dependency'})).toThrow(/does not match/);
   const special=templateSkillFor('secure-code-review','adult',{kind:'explanation',codeReview:{}});
-  expect(special.authoring).toBe('prepared-content-only');expect(special.support.requiredCapabilities).toContain('explanation:code-review');expect(special.actualControls!.id).toBe('code-review');expect(special.support.authoringRule).toContain('does not implement');
+  expect(special.authoring).toBe('ai-writable');expect(special.support.requiredCapabilities).toContain('explanation:code-review');expect(special.actualControls!.id).toBe('code-review');expect(special.support.authoringRule).toContain('bounded writer schema');
  });
  it('keeps young-child skills caregiver-supported and does not promise independent mastery or compulsory engagement',()=>{
   const skill=templateSkillFor('puppet-stories','3-5');
@@ -57,7 +57,7 @@ describe('application-authored game template skills',()=>{
   expect(JSON.stringify(compiled)).not.toContain('playTrackIds');expect(JSON.stringify(compiled)).not.toContain('storyContext.setting');
  });
  it('rejects a broadened shortlist and returns isolated metadata rather than shared mutable authored definitions',()=>{
-  expect(()=>compactTemplateSkills([],'adult')).toThrow(/shortlist/);expect(()=>compactTemplateSkills(['process-reconstruction','process-reconstruction'],'adult')).toThrow(/shortlist/);expect(()=>compactTemplateSkills(['secure-code-review'],'adult')).toThrow(/prepared-content-only/);
+  expect(()=>compactTemplateSkills([],'adult')).toThrow(/shortlist/);expect(()=>compactTemplateSkills(['process-reconstruction','process-reconstruction'],'adult')).toThrow(/shortlist/);expect(()=>compactTemplateSkills(['puppet-stories'],'adult')).toThrow(/audience/);
   const first=templateSkillFor('process-reconstruction','adult');first.sourceFit.requires.push('Mutated requirement');first.feedbackRules.push('Mutated feedback');first.support.activityKinds.push('media');
   const second=templateSkillFor('process-reconstruction','adult');expect(second.sourceFit.requires).not.toContain('Mutated requirement');expect(second.feedbackRules).not.toContain('Mutated feedback');expect(second.support.activityKinds).not.toContain('media');
   expect(TEMPLATE_SKILL_INSTRUCTION).toContain('does not add response fields');expect(TEMPLATE_SKILL_INSTRUCTION).toContain('untrusted reference data');
