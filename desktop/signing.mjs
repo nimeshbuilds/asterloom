@@ -47,7 +47,14 @@ export async function signingInventory(app){
 }
 
 export function entitlementPath(filename,app){
-  const isElectronProcess=filename===app||/\.app\/Contents\/MacOS\/[^/]+$/.test(filename)||/Asterloom Helper(?: \([^)]+\))?\.app$/.test(filename);
+  const relative=path.relative(path.resolve(app),path.resolve(filename));
+  // Exported games may rename the outer bundle, but retain these Electron
+  // executable/helper names. Nested native apps must not inherit JIT access.
+  const helpers=['Asterloom Helper','Asterloom Helper (Renderer)','Asterloom Helper (GPU)','Asterloom Helper (Plugin)'];
+  const isElectronProcess=relative===''||relative===path.join('Contents','MacOS','Asterloom')||helpers.some(name=>{
+    const bundle=path.join('Contents','Frameworks',`${name}.app`);
+    return relative===bundle||relative===path.join(bundle,'Contents','MacOS',name);
+  });
   return path.join(HERE,'entitlements',isElectronProcess?'electron.plist':'native.plist');
 }
 
