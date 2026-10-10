@@ -23,7 +23,7 @@ export type GameLaunch=
  |{kind:'materials'};
 export interface GameSummary {title:string;description:string;sourceCount:number;chapterCount:number;activityCount:number;recallCount:number;reviewRequiredCount:number}
 export type PreparationStage='local'|'selecting'|'drafting'|'validating'|'ready'|'blocked';
-export interface PreparationProgress {stage:PreparationStage;message:string;completedUnits?:number;totalUnits?:number;completedSteps?:number;totalSteps?:number;percent?:number;currentBatch?:number;totalBatches?:number;currentPhase?:'plan'|'write'|'check'|'finish';completedMissions?:number;plannedMissions?:number}
+export interface PreparationProgress {stage:PreparationStage;message:string;completedUnits?:number;totalUnits?:number;completedSteps?:number;totalSteps?:number;percent?:number;currentBatch?:number;totalBatches?:number;currentPhase?:'direction'|'plan'|'write'|'check'|'finish';completedMissions?:number;plannedMissions?:number}
 export interface GameAIResult {status:'not-requested'|'draft-added'|'kept-existing'|'unavailable'|'insufficient-source'|'declined'|'failed'|'canceled'|'paused';message:string;requestCount:number;activityId?:string;activityIds?:string[];disclosedSourceIds:string[]}
 export type GameCreationStatus='ready'|'needs-connection'|'needs-source'|'failed'|'canceled'|'paused'|'incomplete';
 export interface GameExperience {creationStatus:GameCreationStatus;suggestedTheme?:string;notebook:Notebook;launch:GameLaunch;summary:GameSummary;warnings:string[];ai:GameAIResult}

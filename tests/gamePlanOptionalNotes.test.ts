@@ -71,12 +71,12 @@ describe('fresh planning keeps optional summaries separate from mission evidence
    return{ok:true,json:async()=>({text:JSON.stringify(response),usage:directorFixtureUsage})};
   }));
   const result=await prepareGameExperience(notebook,{},options);
-  expect(result.creationStatus,result.ai.message).toBe('ready');expect(calls.map(call=>call.stage)).toEqual(['plan','write','check','overview']);
+  expect(result.creationStatus,result.ai.message).toBe('ready');expect(calls.map(call=>call.stage)).toEqual(['plan','direction','write','check','overview']);
   expect(result.notebook.aiLearningPlan!.missions).toHaveLength(1);expect(result.notebook.gameDesign!.batches[0].overviewNotes).toBeUndefined();
   expect(result.notebook.sources).toEqual(notebook.sources);
   const design=result.notebook.gameDesign!,teaching=design.batches[0].drafts![0].teaching;
   expect(calls.at(-1)!.data.units[0].savedSummary).toEqual(teaching.conceptExplanation);
-  expect(summarizeAIUsage(design.receipts)).toMatchObject({requests:4,input:{value:400},output:{value:240}});
+  expect(summarizeAIUsage(design.receipts)).toMatchObject({requests:5,input:{value:500},output:{value:300}});
   const restored=parsePackage(serializePackage(result.notebook));expect(restored.gameDesign).toEqual(design);expect(restored.aiLearningPlan).toEqual(result.notebook.aiLearningPlan);
  });
 });

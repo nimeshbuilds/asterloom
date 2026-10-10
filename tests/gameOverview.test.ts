@@ -21,9 +21,9 @@ describe('whole-game introductions without repeated source creation',()=>{
   const parsed=parsePackage(serializePackage(result.notebook));expect(parsed.gameDesign!.overview).toEqual(result.notebook.gameDesign!.overview);expect(gameOverviewView(parsed).origin).toBe('generated');expect(serializePackage(parsed)).not.toContain(config.apiKey);
  });
  it('pauses before introduction, then resumes only that request after portable restore',async()=>{
-  const mock=provider(),first=await prepareGameExperience(notebook(),{}, {...options,maxRequests:3});expect(first.creationStatus).toBe('incomplete');expect(mock.calls.map(c=>c.stage)).toEqual(['plan','write','check']);expect(first.notebook.gameDesign!.overview!.nodes[0].status).toBe('pending');
-  const second=await prepareGameExperience(parsePackage(serializePackage(first.notebook)),{},options);expect(second.creationStatus,second.ai.message).toBe('ready');expect(mock.calls.map(c=>c.stage)).toEqual(['plan','write','check','overview']);
-  const before=JSON.stringify(second.notebook),again=await prepareGameExperience(second.notebook,{}, {aiPolicy:'required'});expect(again.ai.requestCount).toBe(0);expect(mock.calls).toHaveLength(4);expect(again.notebook.gameDesign!.overview).toEqual(second.notebook.gameDesign!.overview);expect(JSON.stringify(second.notebook)).toBe(before);
+  const mock=provider(),first=await prepareGameExperience(notebook(),{}, {...options,maxRequests:4});expect(first.creationStatus).toBe('incomplete');expect(mock.calls.map(c=>c.stage)).toEqual(['plan','direction','write','check']);expect(first.notebook.gameDesign!.overview!.nodes[0].status).toBe('pending');
+  const second=await prepareGameExperience(parsePackage(serializePackage(first.notebook)),{},options);expect(second.creationStatus,second.ai.message).toBe('ready');expect(mock.calls.map(c=>c.stage)).toEqual(['plan','direction','write','check','overview']);
+  const before=JSON.stringify(second.notebook),again=await prepareGameExperience(second.notebook,{}, {aiPolicy:'required'});expect(again.ai.requestCount).toBe(0);expect(mock.calls).toHaveLength(5);expect(again.notebook.gameDesign!.overview).toEqual(second.notebook.gameDesign!.overview);expect(JSON.stringify(second.notebook)).toBe(before);
  });
  it('resumes an overview without mislabeling a neighboring teaching definition as primary-unit evidence',async()=>{
   const source=createSource('# Matching labels\nA match means the parcel label and the record have exactly the same words.\n\n# Parcel procedure\n1. Read the parcel label.\n2. Compare the label with the record.\n3. Move the parcel only when the words match.','Workshop instructions'),input=createNotebook({sources:[source]});
@@ -33,15 +33,15 @@ describe('whole-game introductions without repeated source creation',()=>{
    if(stage==='write'){expect(data.missions[0].unit.excerpt).not.toContain(definition);const window=data.missions[0].teachingContextWindow;expect(window.excerpt??window.beforeUnit+data.missions[0].unit.excerpt+window.afterUnit).toContain(definition);result.missions[0].teaching.conceptExplanation={text:'Matching requires exactly the same words on the label and record.',citations:[{sourceId:source.id,evidence:definition}]};}
    return result;
   });
-  const first=await prepareGameExperience(input,{}, {...options,maxRequests:3});expect(first.creationStatus,first.ai.message).toBe('incomplete');expect(mock.calls.map(call=>call.stage)).toEqual(['plan','write','check']);
+  const first=await prepareGameExperience(input,{}, {...options,maxRequests:4});expect(first.creationStatus,first.ai.message).toBe('incomplete');expect(mock.calls.map(call=>call.stage)).toEqual(['plan','direction','write','check']);
   const saved=parsePackage(serializePackage(first.notebook)),draft=saved.gameDesign!.batches[0].drafts![0];expect(draft.activity.sourceRefs.every(ref=>!ref.evidence.includes(definition))).toBe(true);expect(draft.teaching.conceptExplanation.citations[0].quote).toBe(definition);expect(mock.calls.find(call=>call.stage==='check')!.data.evidencePool.some((ref:any)=>ref.text.includes(definition))).toBe(true);
-  const resumed=await prepareGameExperience(saved,{},options);expect(resumed.creationStatus,resumed.ai.message).toBe('ready');expect(mock.calls.map(call=>call.stage)).toEqual(['plan','write','check','overview']);
+  const resumed=await prepareGameExperience(saved,{},options);expect(resumed.creationStatus,resumed.ai.message).toBe('ready');expect(mock.calls.map(call=>call.stage)).toEqual(['plan','direction','write','check','overview']);
   const overview=mock.calls.at(-1)!.data,primary=overview.units.find((unit:any)=>unit.mission);expect(primary.excerpt).toContain('1. Read the parcel label.');expect(primary.savedSummary).toBeUndefined();expect(primary.excerpt).not.toContain(definition);expect(overview.units.some((unit:any)=>unit.excerpt?.includes(definition))).toBe(true);
-  expect(resumed.notebook.sources).toEqual(input.sources);expect(resumed.notebook.gameDesign!.receipts.slice(0,3)).toEqual(saved.gameDesign!.receipts);expect(parsePackage(serializePackage(resumed.notebook)).gameDesign!.overview).toEqual(resumed.notebook.gameDesign!.overview);
+  expect(resumed.notebook.sources).toEqual(input.sources);expect(resumed.notebook.gameDesign!.receipts.slice(0,4)).toEqual(saved.gameDesign!.receipts);expect(parsePackage(serializePackage(resumed.notebook)).gameDesign!.overview).toEqual(resumed.notebook.gameDesign!.overview);
  });
  it('does not send an overview until its request receipt can be saved',async()=>{
   const mock=provider();const result=await prepareGameExperience(notebook(),{}, {...options,onCheckpoint:async design=>!design.receipts.some(receipt=>receipt.stage==='overview'&&receipt.status==='started')});
-  expect(result.creationStatus).toBe('failed');expect(mock.calls.map(c=>c.stage)).toEqual(['plan','write','check']);expect(result.notebook.gameDesign!.receipts).toHaveLength(3);expect(result.notebook.gameDesign!.overview!.nodes[0].status).toBe('pending');
+  expect(result.creationStatus).toBe('failed');expect(mock.calls.map(c=>c.stage)).toEqual(['plan','direction','write','check']);expect(result.notebook.gameDesign!.receipts).toHaveLength(4);expect(result.notebook.gameDesign!.overview!.nodes[0].status).toBe('pending');
  });
  it('bounds invalid overview repair without discarding missions or presenting invented prose',async()=>{
   const mock=provider((stage,_data,result)=>{if(stage==='overview')result.introduction.citations=[{unitId:'invented',evidence:'A fabricated summary.'}];return result;});
@@ -49,7 +49,7 @@ describe('whole-game introductions without repeated source creation',()=>{
   expect(result.notebook.gameDesign!.receipts.filter(r=>r.stage==='overview')).toHaveLength(2);expect(parsePackage(serializePackage(result.notebook)).gameDesign!.overview).toEqual(result.notebook.gameDesign!.overview);
  });
  it('preserves old ready games and gives an honest useful offline preview without automatic spending',async()=>{
-  const mock=provider(),built=await prepareGameExperience(notebook(3),{},options),legacy=structuredClone(built.notebook);delete legacy.gameDesign!.overview;for(const batch of legacy.gameDesign!.batches)delete batch.overviewNotes;
+  const mock=provider(),built=await prepareGameExperience(notebook(3),{},options),legacy=structuredClone(built.notebook);delete legacy.gameDesign!.overview;delete legacy.gameDesign!.directionPolicy;delete legacy.gameDesign!.creativeDirection;for(const batch of legacy.gameDesign!.batches)delete batch.overviewNotes;
   const before=JSON.stringify(legacy),oldReceipts=structuredClone(legacy.gameDesign!.receipts);mock.fetch.mockClear();
   const view=gameOverviewView(legacy);expect(view.origin).toBe('saved-lessons');expect(view.missionCount).toBe(3);expect(view.lessonTitles).toHaveLength(3);expect(view.content!.keyIdeas).toHaveLength(3);
   expect(JSON.stringify(legacy)).toBe(before);expect(mock.fetch).not.toHaveBeenCalled();const result=await prepareGameExperience(legacy,{}, {aiPolicy:'required'});expect(result.creationStatus).toBe('ready');expect(result.ai.requestCount).toBe(0);expect(result.notebook.gameDesign!.overview).toBeUndefined();expect(result.notebook.gameDesign!.batches).toEqual(legacy.gameDesign!.batches);expect(result.notebook.gameDesign!.receipts).toEqual(oldReceipts);

@@ -4,7 +4,7 @@ import {planningExpressions} from './gamePlanningCatalog';
  * Use only closed objects, explicit required keys and nested nullable alternatives;
  * optional nulls are removed at the new-provider-reply boundary below, never on save.
  */
-export type GameDirectorSchemaStage='plan'|'write'|'check'|'overview';
+export type GameDirectorSchemaStage='direction'|'plan'|'write'|'check'|'overview';
 export type GameDirectorOutputSchema=Record<string,unknown>;
 type Data=Record<string,unknown>;
 const object=(value:unknown):value is Data=>!!value&&typeof value==='object'&&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
@@ -25,6 +25,17 @@ const ageBounds=(age:unknown)=>age==='3-5'?{text:180,chunks:3,overview:180,ideas
 const draftCitation=(sourceIds:unknown[])=>closed({sourceId:enumeration(sourceIds),evidence:text(1200)});
 const unitCitation=(unitIds:unknown[])=>closed({unitId:enumeration(unitIds),evidence:text(1200)});
 const claim=(citation:GameDirectorOutputSchema,max:number,maxCitations=2)=>closed({text:text(max),citations:array(citation,1,maxCitations)});
+
+function directionSchema(input:Data){
+ const choices=rows(input.choices),audioChoices=choices.map(choice=>dataOrEmpty(choice.audioChoices));
+ // A missing catalog must not turn an allowlist into unrestricted free text.
+ const disclosedEnum=(values:unknown[])=>{const allowed=strings(values);if(!allowed.length)throw Error('Story and sound selection requires a nonempty disclosed catalog.');return enumeration(allowed);};
+ const audioIds=(key:string)=>audioChoices.flatMap(choice=>Array.isArray(choice[key])?choice[key]:[]);
+ const nativeIds=strings(choices.flatMap(choice=>Array.isArray(choice.nativeTemplateIds)?choice.nativeTemplateIds:[])).filter(id=>['signalwright-workshop','restoration-field-station','archive-investigation'].includes(id));
+ // Cross-field compatibility still requires the direction validator: a valid
+ // catalog ID alone does not make a sound or native world fit the chosen game.
+ return closed({primaryScaffoldId:disclosedEnum(choices.map(choice=>choice.scaffoldId)),title:text(120),premise:text(600),throughline:text(600),fitReason:text(500),audioDirection:closed({version:literal(1),playTrackId:disclosedEnum(audioIds('playTrackIds')),studyTrackId:disclosedEnum(audioIds('studyTrackIds')),effectProfileId:disclosedEnum(audioIds('effectProfileIds')),effects:enumeration(['standard','quiet','off'])}),nativeTemplateId:nativeIds.length?nullable(enumeration(nativeIds)):{type:'null'}});
+}
 
 function planSchema(input:Data){
  const units=rows(input.units),choices=rows(input.choices),unitIds=units.map(unit=>unit.unitId),eligible=units.filter(unit=>unit.missionEligible===true),assets=strings(units.flatMap(unit=>Array.isArray(unit.sourceAssetIds)?unit.sourceAssetIds:[])),expressions=planningExpressions(input);
@@ -76,7 +87,13 @@ function activitySchema(kind:string,sourceId:unknown):GameDirectorOutputSchema|u
 function writeSchema(input:Data):GameDirectorOutputSchema|undefined{
  const missions=rows(input.missions);if(missions.length!==1)return;
  const mission=missions[0],plan=dataOrEmpty(mission.plan),unit=dataOrEmpty(mission.unit),activity=activitySchema(String(plan.kind),unit.sourceId);if(!activity)return;
- const audio=dataOrEmpty(mission.audioChoices),audioDirection=closed({version:literal(1),playTrackId:enumeration(rows(audio.playTracks).map(track=>track.id)),studyTrackId:enumeration(rows(audio.studyTracks).map(track=>track.id)),effectProfileId:enumeration(rows(audio.effectProfiles).map(profile=>profile.id)),effects:enumeration(['standard','quiet','off'])});
+ const audio=dataOrEmpty(mission.audioChoices),direction=dataOrEmpty(input.creativeDirection),shared=dataOrEmpty(direction.audioDirection);
+ // Already chosen primary sound needs copying, not another creative decision.
+ // Constrain supported structured-output providers to that exact saved choice;
+ // the ordinary writer and stored-design validators enforce the same invariant.
+ const useShared=direction.primaryScaffoldId===plan.scaffoldId&&shared.version===1;
+ const audioField=(key:string,catalog:string)=>useShared&&typeof shared[key]==='string'?literal(shared[key] as string):enumeration(rows(audio[catalog]).map(track=>track.id));
+ const audioDirection=closed({version:literal(1),playTrackId:audioField('playTrackId','playTracks'),studyTrackId:audioField('studyTrackId','studyTracks'),effectProfileId:audioField('effectProfileId','effectProfiles'),effects:useShared&&typeof shared.effects==='string'?literal(shared.effects):enumeration(['standard','quiet','off'])});
  return closed({missions:nullable(array(closed({missionId:enumeration([plan.id]),activity,teaching:teachingSchema(input,mission),audioDirection}),1,1)),cannotBuild:nullable(text(500))});
 }
 
@@ -84,7 +101,7 @@ function writeSchema(input:Data):GameDirectorOutputSchema|undefined{
  * Undefined deliberately means keep the existing validated JSON generation path.
  */
 export function getGameDirectorOutputSchema(stage:GameDirectorSchemaStage,referenceData:unknown):GameDirectorOutputSchema|undefined{
- const input=data(referenceData),schema=stage==='plan'?planSchema(input):stage==='check'?checkSchema(input):stage==='overview'?overviewSchema(input):writeSchema(input);
+ const input=data(referenceData),schema=stage==='direction'?directionSchema(input):stage==='plan'?planSchema(input):stage==='check'?checkSchema(input):stage==='overview'?overviewSchema(input):writeSchema(input);
  if(schema&&new TextEncoder().encode(JSON.stringify(schema)).byteLength>64*1024)return;
  return schema;
 }
@@ -101,7 +118,8 @@ function exclusiveResult(value:Data,refusal:string,success:string[]){
  */
 export function normalizeGameDirectorStructuredReply(stage:GameDirectorSchemaStage,reply:unknown):Record<string,unknown>{
  const value=structuredClone(data(reply));
- if(stage==='plan'){
+ if(stage==='direction')omitNull(value,'nativeTemplateId');
+ else if(stage==='plan'){
   omitNull(value,'overviewNotes');
   for(const mission of rows(value.missions)){omitNull(mission,'asterDirection');if(object(mission.asterDirection))for(const moment of MOMENTS)omitNull(mission.asterDirection,moment);}
  }else if(stage==='write'){

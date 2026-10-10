@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import {SCAFFOLDS} from '../../../src/data/scaffolds';
 import type {Notebook} from '../../../src/types';
 import type {StructuredActivity} from '../../../src/lib/structuredEngine';
+import type {GameCreativeDirection} from '../../../src/lib/gameCreativeDirection';
 
 export const TEMPLATE_IDS=['signalwright-workshop','restoration-field-station','archive-investigation'] as const;
 export type PilotTemplateId=typeof TEMPLATE_IDS[number];
@@ -58,9 +59,13 @@ function themed(value:string):PilotTemplateId|undefined{
  if(terms.some(term=>['ecology','ecological','ecosystem','restoration','biology','environment','garden','forest','nature'].includes(term)))return'restoration-field-station';
  if(terms.some(term=>['archive','history','historical','chronology','evidence','investigation','library'].includes(term)))return'archive-investigation';
 }
-/** Presentation preference only; metadata never changes the lesson, answer model or source. */
-export function selectPilotTemplate(notebook:Notebook,activities:StructuredActivity[],explicit?:string):PilotTemplate{
+/** Presentation preference only; metadata never changes the lesson, answer model or source.
+ * `validatedDirection` is supplied only after the complete package/game-design
+ * boundary validates it against the current sources. Never read an unchecked
+ * direction directly from notebook metadata here. */
+export function selectPilotTemplate(notebook:Notebook,activities:StructuredActivity[],explicit?:string,validatedDirection?:Pick<GameCreativeDirection,'nativeTemplateId'>):PilotTemplate{
  if(explicit!==undefined)return pilotTemplate(explicit);
+ if(validatedDirection?.nativeTemplateId!==undefined)return pilotTemplate(validatedDirection.nativeTemplateId);
  const theme=themed(notebook.theme);
  if(notebook.themeSelection==='manual'&&theme)return pilotTemplate(theme);
  const selected=activities.flatMap(activity=>activity.scaffoldIds??[]);

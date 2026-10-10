@@ -71,7 +71,10 @@ export function convertLearnpack(text:string,selection:PilotSelection):MissionPa
  const activities:PilotActivity[]=[];
  if(selection.sequenceId)activities.push(selectedActivity(notebook,'sequence',selection.sequenceId));
  if(selection.dependencyId)activities.push(selectedActivity(notebook,'dependency',selection.dependencyId));
- const template=selectPilotTemplate(notebook,activities,selection.templateId);
+ // parsePackage has already run the full validateGameDesign boundary, including
+ // current source/input identity. A stale design becomes unfinished and fails
+ // the ready check above; never trust a raw exported creativeDirection value.
+ const template=selectPilotTemplate(notebook,activities,selection.templateId,notebook.gameDesign?.creativeDirection);
  const teaching=activities.map(activity=>{
   const mission=currentAILearningMission(notebook,activity);
   if(!mission)throw new Error(`The selected ${activity.kind} activity needs a current prepared lesson; the converter does not invent one.`);

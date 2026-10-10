@@ -44,6 +44,24 @@ function fixture(ageGroup='adult'){
 }
 
 describe('bounded director structured response schemas',()=>{
+ it('constrains whole-game story and sound selection to its disclosed catalog',()=>{
+  const input={choices:[{scaffoldId:'procedure-forge',audioChoices:{playTrackIds:['copper-workshop'],studyTrackIds:['quiet-workshop'],effectProfileIds:['workshop']},nativeTemplateIds:['signalwright-workshop']},{scaffoldId:'evidence-trail',audioChoices:{playTrackIds:['archive-night'],studyTrackIds:['reading-room'],effectProfileIds:['archive']},nativeTemplateIds:['archive-investigation']}]};
+  const reply={primaryScaffoldId:'procedure-forge',title:'Restore the workshop',premise:'A fictional workshop awaits your careful repairs.',throughline:'Learn each procedure, practice a repair, then explain your completed work.',fitReason:'The supplied procedures support an ordered repair journey.',audioDirection:{version:1,playTrackId:'copper-workshop',studyTrackId:'quiet-workshop',effectProfileId:'workshop',effects:'standard'},nativeTemplateId:'signalwright-workshop'};
+  const schema=getGameDirectorOutputSchema('direction',input)!;assertStrictSubset(schema);expect(accepts(schema,reply)).toBe(true);expect(new TextEncoder().encode(JSON.stringify(schema)).byteLength).toBeLessThan(65536);
+  for(const mutate of [(v:any)=>v.primaryScaffoldId='unprovided-scaffold',(v:any)=>v.audioDirection.playTrackId='unprovided-track',(v:any)=>v.audioDirection.studyTrackId='copper-workshop',(v:any)=>v.audioDirection.effectProfileId='unprovided-effects',(v:any)=>v.audioDirection.effects='loud',(v:any)=>v.audioDirection.version=2,(v:any)=>v.nativeTemplateId='restoration-field-station',(v:any)=>v.nativeTemplateId='unimplemented-world',(v:any)=>v.title='x'.repeat(121),(v:any)=>v.premise='x'.repeat(601),(v:any)=>v.throughline='x'.repeat(601),(v:any)=>v.fitReason='x'.repeat(501),(v:any)=>v.script='execute me',(v:any)=>v.audioDirection.file='https://example.com/music.ogg',(v:any)=>delete v.throughline]){
+   const invalid=structuredClone(reply);mutate(invalid);expect(accepts(schema,invalid)).toBe(false);
+  }
+  const absent={...reply,nativeTemplateId:null};expect(accepts(schema,absent)).toBe(true);expect(normalizeGameDirectorStructuredReply('direction',absent)).toEqual(replyWithoutNative());expect(absent).toHaveProperty('nativeTemplateId',null);
+  function replyWithoutNative(){const {nativeTemplateId:_native,...value}=reply;return value;}
+ });
+ it('keeps direction catalogs closed when native play is unsupported and only omits documented null absence',()=>{
+  const input={choices:[{scaffoldId:'picture-garden',audioChoices:{playTrackIds:['garden-play'],studyTrackIds:['garden-study'],effectProfileIds:['garden']},nativeTemplateIds:[]}]};
+  const reply={primaryScaffoldId:'picture-garden',title:'Explore the garden',premise:'A fictional garden for finding the supplied pictures.',throughline:'Explore the pictures and practice supported connections.',fitReason:'The available pictures support gentle discovery.',audioDirection:{version:1,playTrackId:'garden-play',studyTrackId:'garden-study',effectProfileId:'garden',effects:'quiet'},nativeTemplateId:null};
+  const schema=getGameDirectorOutputSchema('direction',input)!;assertStrictSubset(schema);expect(accepts(schema,reply)).toBe(true);expect(accepts(schema,{...reply,nativeTemplateId:'restoration-field-station'})).toBe(false);
+  const normalized=normalizeGameDirectorStructuredReply('direction',{...reply,unsupported:null,audioDirection:{...reply.audioDirection,unsupported:null}}),{nativeTemplateId:_native,...withoutNative}=reply;
+  expect(normalized).toStrictEqual({...withoutNative,unsupported:null,audioDirection:{...reply.audioDirection,unsupported:null}});expect(normalized).not.toHaveProperty('nativeTemplateId');
+  for(const invalid of [{choices:[]},{choices:[{scaffoldId:'picture-garden',audioChoices:{},nativeTemplateIds:[]}]}])expect(()=>getGameDirectorOutputSchema('direction',invalid)).toThrow(/nonempty disclosed catalog/);
+ });
  it('accepts the real source-bound plan contract, with nullable presentation optional fields only',()=>{
   const f=fixture(),schema=getGameDirectorOutputSchema('plan',f.planData)!;expect(accepts(schema,f.wirePlan)).toBe(true);
   const original=structuredClone(f.wirePlan),normalized=normalizeGameDirectorStructuredReply('plan',f.wirePlan);

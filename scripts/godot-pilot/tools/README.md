@@ -87,13 +87,27 @@ members and an 18-pixel minimum text budget. These are presentation requirements
 the native interface must implement them. This catalog does not certify controller
 or screen-reader accessibility.
 
-`--template` takes only a shipped ID. Without it, an explicitly chosen matching
-notebook theme wins, then the selected scaffolds' shipped domain/skill metadata,
+`--template` takes only a shipped ID and remains the explicit override. Without
+it, a saved creative direction's `nativeTemplateId` wins after the complete
+package and game-design validator checks it against the current source inputs.
+Invalid saved direction is rejected at that boundary; a source-stale design
+becomes unfinished and must be recreated before conversion. A saved direction
+without a native template keeps the legacy selection below.
+
+For legacy selection, an explicitly chosen matching notebook theme wins, then
+the selected scaffolds' shipped domain/skill metadata,
 then a matching automatic theme, then Signalwright. Ties between scaffold matches
 are resolved by template ID. Source text, source titles, arbitrary instructions
 and AI-supplied resource names never select executable content. Selection changes
 the new pack's presentation identity; it does not rewrite source facts, lessons,
 citations, task rules or assessment status.
+
+Only the compatible native template ID crosses this bridge. Production music
+IDs, AI-written story text, arbitrary asset paths and renderer capabilities are
+not copied into the native presentation selector. Each native profile still
+uses its own authored cast, fictional briefing, phase-aware three-recording
+playlist and action cues. The retained `teaching` is not rewritten to impersonate
+that native setting, and source facts never become decorative story claims.
 
 The only content slots are `lessons`, `sequence.items`, `dependency.nodes` and
 `activityEvidence`. These are fixed identifiers for existing validated pack data,
@@ -111,8 +125,38 @@ Run the additional contract checks from the repository root:
 
 ```sh
 node --import tsx --test scripts/godot-pilot/tools/template-catalog.test.ts
+node --import tsx --test scripts/godot-pilot/tools/creative-direction.test.ts
 "$GODOT" --headless --path scripts/godot-pilot/project --script "$PWD/scripts/godot-pilot/tools/template_catalog_test.gd"
 ```
+
+## Per-template AI authoring skills
+
+Each native profile now has a complete `SKILL.md` in
+`scripts/godot-pilot/templates/<template-id>/`. The skills describe its existing
+world, crew, phase beats, source requirements, lighting, procedural animation,
+music entrances, sound cues and content boundaries. They preserve the differences
+between the service-wall workshop, planted field station and paper/brass archive.
+They do not pretend that these presentations implement three different engines.
+
+The portable companion, `src/data/nativeTemplateSkills.json`, has `shared`
+runtime contracts and three `templates` entries. Each entry has `id`, `version`,
+`skillFile`, `design`, and `compact`. Creation prompts may use
+`templates.map(entry => entry.compact)` without importing Node tools or disclosing
+local paths. The compact descriptors explicitly separate AI-filled source learning
+content from engine-owned controls, scenes, cast, animation, audio and persistence.
+The complete skills remain readable for authoring and review.
+
+Runtime manifests are authoritative. Update the corresponding skill and portable
+contract when changing a template; run the parity checks before accepting it:
+
+```sh
+node --import tsx --test scripts/godot-pilot/tools/native-template-skills.test.ts
+```
+
+These checks compare the three profiles, cast, palette, lights, phase order,
+pose/event IDs, musical roots, phase playlists, cue IDs, recording hashes/licenses
+and portrait availability against the actual shipped files. They verify contract
+alignment, not learner outcomes or subjective entertainment quality.
 
 ## Deliberate prototype limits
 
