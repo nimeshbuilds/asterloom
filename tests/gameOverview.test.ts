@@ -30,7 +30,7 @@ describe('whole-game introductions without repeated source creation',()=>{
   const definition='A match means the parcel label and the record have exactly the same words.';
   const mock=provider((stage,data,result)=>{
    if(stage==='plan'){const selected=data.units.find((unit:any)=>unit.excerpt.includes('1. Read'));result.missions=result.missions.filter((mission:any)=>mission.unitId===selected.unitId);result.study=data.units.filter((unit:any)=>unit.unitId!==selected.unitId).map((unit:any)=>({unitId:unit.unitId,reason:'This definition prepares the procedure.'}));delete result.overviewNotes;}
-   if(stage==='write'){expect(data.missions[0].unit.excerpt).not.toContain(definition);expect(data.missions[0].teachingContextWindow.excerpt).toContain(definition);result.missions[0].teaching.conceptExplanation={text:'Matching requires exactly the same words on the label and record.',citations:[{sourceId:source.id,evidence:definition}]};}
+   if(stage==='write'){expect(data.missions[0].unit.excerpt).not.toContain(definition);const window=data.missions[0].teachingContextWindow;expect(window.excerpt??window.beforeUnit+data.missions[0].unit.excerpt+window.afterUnit).toContain(definition);result.missions[0].teaching.conceptExplanation={text:'Matching requires exactly the same words on the label and record.',citations:[{sourceId:source.id,evidence:definition}]};}
    return result;
   });
   const first=await prepareGameExperience(input,{}, {...options,maxRequests:3});expect(first.creationStatus,first.ai.message).toBe('incomplete');expect(mock.calls.map(call=>call.stage)).toEqual(['plan','write','check']);

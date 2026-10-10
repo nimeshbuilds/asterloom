@@ -80,7 +80,7 @@ describe('new writer disclosure and legacy ready compatibility',()=>{
    const request=JSON.parse(init.body),stage=request.prompt.match(/STAGE: (\w+)/)[1],data=JSON.parse(request.prompt.split('REFERENCE DATA (JSON):\n')[1]);calls.push({stage,data});
    let reply=directorFixtureResponse(stage,data);
    if(stage==='plan'){reply.missions=reply.missions.filter((item:any)=>item.unitId===f.unit.id);reply.study=[{unitId:f.units[0].id,reason:'The definition supports the following procedure lesson.'}];}
-   if(stage==='write'){expect(data.missions[0].teachingContextWindow).toEqual(teachingContextWindow(f.unit,f.units,f.notebook));reply.missions[0].activity={...f.activity,id:'assistant-draft'};reply.missions[0].teaching=f.draft;}
+   if(stage==='write'){const wire=data.missions[0].teachingContextWindow;expect({sourceId:wire.sourceId,start:wire.start,end:wire.end,excerpt:wire.excerpt??wire.beforeUnit+data.missions[0].unit.excerpt+wire.afterUnit}).toEqual(teachingContextWindow(f.unit,f.units,f.notebook));reply.missions[0].activity={...f.activity,id:'assistant-draft'};reply.missions[0].teaching=f.draft;}
    return{ok:true,json:async()=>({text:JSON.stringify(reply),usage:directorFixtureUsage})};
   }));
   const result=await runGameDirector(f.notebook,options);expect(result.status,result.message).toBe('ready');

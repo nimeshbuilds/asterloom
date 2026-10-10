@@ -28,3 +28,69 @@ test('HTTP-owned abort stops the active Codex turn, retains measured usage and f
 test('stopping a Codex child escalates only if its owned process ignores termination',async()=>{const child=mockProcess(()=>{}),signals=[];child.kill=signal=>{signals.push(signal);if(signal==='SIGKILL')child.emit('exit',null,signal);return true;};const rpc=new CodexRpc(child);rpc.stop();assert.deepEqual(signals,['SIGTERM']);await new Promise(resolve=>setTimeout(resolve,1100));assert.deepEqual(signals,['SIGTERM','SIGKILL']);rpc.stop();assert.equal(signals.length,2);});
 
 test('Codex keeps the generation slot reserved until its bounded thread cleanup finishes',async t=>{let finishCleanup,cleanupStarted;const ready=new Promise(resolve=>{cleanupStarted=resolve;});const x=await setup(t,{handler:(m,c)=>{if(m.method==='thread/unsubscribe'){finishCleanup=()=>c.reply(m.id,{});cleanupStarted();return true;}}});await x.connection.status();x.setLogin(true);const answer=x.connection.generate({prompt:'source',model:'m'});await new Promise(r=>setImmediate(r));x.child.notify('item/completed',{threadId:'thread-one',item:{id:'a',type:'agentMessage',text:'{}'}});x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed'}});await ready;await assert.rejects(x.connection.generate({prompt:'overlap',model:'m'}),e=>e.status===409);finishCleanup();assert.equal((await answer).text,'{}');});
+
+test('verified turn outputSchema is forwarded once, snapshotted and never converted to unsupported token fields',async t=>{
+ const x=await setup(t);await x.connection.status();x.setLogin(true);
+ const schema={type:'object',properties:{title:{type:'string'}},required:['title'],additionalProperties:false};
+ const expected=structuredClone(schema),answer=x.connection.generate({prompt:'Return a JSON title.',model:'fresh-model',jsonMode:true,maxOutputTokens:4000,outputSchema:schema});
+ schema.properties.title.type='number';await new Promise(resolve=>setImmediate(resolve));
+ const turns=x.messages.filter(message=>message.method==='turn/start');assert.equal(turns.length,1);assert.deepEqual(turns[0].params.outputSchema,expected);
+ assert.equal('maxOutputTokens' in turns[0].params,false);assert.equal('max_output_tokens' in turns[0].params,false);assert.equal('jsonMode' in turns[0].params,false);
+ x.child.notify('item/completed',{threadId:'thread-one',turnId:'turn-one',item:{id:'final',type:'agentMessage',phase:'final_answer',text:'{"title":"Ready"}'}});
+ x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed'}});assert.equal((await answer).text,'{"title":"Ready"}');
+});
+
+test('invalid or excessive output schemas fail before starting any engine or paid turn',async t=>{
+ const deep={};let at=deep;for(let n=0;n<34;n++){at.properties={};at=at.properties;}
+ const cycle={};cycle.self=cycle;
+ const invalid=[null,[],true,'schema',{description:'x'.repeat(65537)},deep,cycle,{enum:Array.from({length:4097},()=>0)},{$ref:'https://private.example/schema'},{$dynamicRef:'file:///private/schema'},{minimum:Infinity},{nested:undefined},{created:new Date()}];
+ const x=await setup(t);
+ for(const outputSchema of invalid)await assert.rejects(x.connection.generate({prompt:'source',model:'m',outputSchema}),error=>error.code==='INVALID_REQUEST'&&error.status===400);
+ assert.equal(x.child,undefined);assert.deepEqual(x.messages,[]);
+});
+
+test('one explicit final answer takes precedence over commentary and phase-unknown narration',async t=>{
+ const x=await setup(t);await x.connection.status();x.setLogin(true);const answer=x.connection.generate({prompt:'source',model:'m'});await new Promise(resolve=>setImmediate(resolve));
+ for(const item of [{id:'comment',phase:'commentary',text:'I am preparing the answer.'},{id:'legacy',text:'Here is a plan, followed by the final JSON.'},{id:'final',phase:'final_answer',text:'{"missions":[],"study":[]}'}])x.child.notify('item/completed',{threadId:'thread-one',turnId:'turn-one',item:{type:'agentMessage',...item}});
+ x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed'}});assert.equal((await answer).text,'{"missions":[],"study":[]}');
+});
+
+test('one phase-unknown legacy reply remains compatible and commentary is excluded',async t=>{
+ const x=await setup(t);await x.connection.status();x.setLogin(true);const answer=x.connection.generate({prompt:'source',model:'m'});await new Promise(resolve=>setImmediate(resolve));
+ x.child.notify('item/completed',{threadId:'thread-one',item:{id:'comment',type:'agentMessage',phase:'commentary',text:'Preparing.'}});
+ x.child.notify('item/completed',{threadId:'thread-one',item:{id:'legacy',type:'agentMessage',phase:null,text:'  {"ready":true}  '}});
+ x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed'}});assert.equal((await answer).text,'{"ready":true}');
+});
+
+for(const [label,items]of [
+ ['multiple legacy replies',[{id:'a',text:'{"private":"first"}'},{id:'b',text:'{"private":"second"}'}]],
+ ['multiple explicit finals',[{id:'a',phase:'final_answer',text:'{"private":"first"}'},{id:'b',phase:'final_answer',text:'{"private":"second"}'}]],
+ ['an empty explicit final after a legacy answer',[{id:'a',text:'{"private":"unfinished"}'},{id:'b',phase:'final_answer',text:'  '}]],
+ ['only commentary',[{id:'a',phase:'commentary',text:'private unfinished explanation'}]],
+ ['an unknown future phase',[{id:'a',phase:'other_phase',text:'private unfinished explanation'}]],
+])test(`Codex rejects ${label} without concatenation or losing measured usage`,async t=>{
+ const x=await setup(t);await x.connection.status();x.setLogin(true);const answer=x.connection.generate({prompt:'source',model:'m'});
+ const rejected=assert.rejects(answer,error=>error.code==='PROVIDER_INVALID_RESPONSE'&&error.aiUsage.inputTokens===80&&error.aiUsage.outputTokens===24&&!error.message.includes('private'));
+ await new Promise(resolve=>setImmediate(resolve));
+ x.child.notify('thread/tokenUsage/updated',{threadId:'thread-one',turnId:'turn-one',tokenUsage:{total:{inputTokens:80,outputTokens:24,totalTokens:104}}});
+ for(const item of items)x.child.notify('item/completed',{threadId:'thread-one',turnId:'turn-one',item:{type:'agentMessage',...item}});
+ x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed'}});await rejected;assert.equal(x.messages.filter(message=>message.method==='turn/start').length,1);
+});
+
+test('completed-turn items supply a missing final notification and duplicate ids stay one reply',async t=>{
+ for(const streamed of [false,true]){
+  const x=await setup(t);await x.connection.status();x.setLogin(true);const answer=x.connection.generate({prompt:'source',model:'m'});await new Promise(resolve=>setImmediate(resolve));
+  if(streamed)x.child.notify('item/completed',{threadId:'thread-one',turnId:'turn-one',item:{id:'final',type:'agentMessage',phase:'final_answer',text:'{"state":"earlier"}'}});
+  x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed',items:[{id:'u',type:'userMessage',content:[]},{id:'comment',type:'agentMessage',phase:'commentary',text:'Preparing.'},{id:'final',type:'agentMessage',...(streamed?{}:{phase:'final_answer'}),text:'{"state":"complete"}'}]}});
+  assert.equal((await answer).text,'{"state":"complete"}');
+ }
+});
+
+test('messages and usage from another turn cannot corrupt the selected turn',async t=>{
+ const x=await setup(t);await x.connection.status();x.setLogin(true);const answer=x.connection.generate({prompt:'source',model:'m'});await new Promise(resolve=>setImmediate(resolve));
+ x.child.notify('thread/tokenUsage/updated',{threadId:'thread-one',turnId:'different-turn',tokenUsage:{total:{inputTokens:999,outputTokens:999}}});
+ x.child.notify('item/completed',{threadId:'thread-one',turnId:'different-turn',item:{id:'other',type:'agentMessage',phase:'final_answer',text:'not the selected answer'}});
+ x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'different-turn',status:'completed',items:[{id:'other',type:'agentMessage',phase:'final_answer',text:'wrong'}]}});
+ x.child.notify('item/completed',{threadId:'thread-one',turnId:'turn-one',item:{id:'final',type:'agentMessage',phase:'final_answer',text:'{}'}});
+ x.child.notify('turn/completed',{threadId:'thread-one',turn:{id:'turn-one',status:'completed'}});const result=await answer;assert.equal(result.text,'{}');assert.equal(result.usage,null);
+});

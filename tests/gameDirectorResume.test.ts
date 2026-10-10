@@ -13,6 +13,45 @@ const reply=(value:any)=>({ok:true,json:async()=>({text:JSON.stringify(value),us
 afterEach(()=>{vi.unstubAllGlobals();vi.useRealTimers();});
 
 describe('creation resumes real mission work without a paid retry loop',()=>{
+ it('requests Codex structured output at each supported stage and normalizes only optional null fields',async()=>{
+  const requests:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{
+   const r=request(body);requests.push(r);const value=directorFixtureResponse(r.stage,r.data);
+   if(r.stage==='plan')for(const mission of value.missions)mission.asterDirection=null;
+   if(r.stage==='write'){value.cannotBuild=null;for(const mission of value.missions){mission.teaching.workedExample=null;mission.teaching.storyFrame=null;}}
+   if(r.stage==='overview')value.cannotSummarize=null;
+   return reply(value);
+  }));
+  const result=await prepareGameExperience(notebook(),{}, {...options,ai:{config:{provider:'chatgpt',model:'gpt-6.1-sol',apiKey:''},consent:'create-game'}});
+  expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','write','check','overview']);
+  for(const r of requests){expect(r.outputSchema).toMatchObject({type:'object',additionalProperties:false});expect(r.prompt).toContain('use null for absence');}
+  expect(result.notebook.gameDesign!.receipts.every(r=>r.validation==='accepted')).toBe(true);
+  expect(parsePackage(serializePackage(result.notebook)).gameDesign!.receipts).toEqual(result.notebook.gameDesign!.receipts);
+ });
+ it('repairs an ambiguous adapter final once, retaining its measured usage and saved work',async()=>{
+  let calls=0;const requests:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{
+   const r=request(body);requests.push(r);
+   if(++calls===1)return{ok:false,status:502,json:async()=>({code:'PROVIDER_INVALID_RESPONSE',usage})};
+   return reply(directorFixtureResponse(r.stage,r.data));
+  }));
+  const result=await prepareGameExperience(notebook(),{},options);
+  expect(result.creationStatus,result.ai.message).toBe('ready');expect(requests.map(r=>r.stage)).toEqual(['plan','plan','write','check','overview']);
+  expect(requests[1].prompt).toContain('one unambiguous final answer');expect(requests[0].outputSchema).toBeUndefined();
+  expect(result.notebook.gameDesign!.receipts[0]).toMatchObject({status:'failed',validation:'rejected',usage});
+  expect(result.notebook.gameDesign!.receipts.slice(1).every(r=>r.validation==='accepted')).toBe(true);
+ });
+ it('does not invent a plan from partial JSON, and resumes the saved stage with precise format feedback',async()=>{
+  let fail=true;const requests:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{
+   const r=request(body);requests.push(r);
+   return fail?{ok:true,json:async()=>({text:'{"missions":[',usage})}:reply(directorFixtureResponse(r.stage,r.data));
+  }));
+  const first=await prepareGameExperience(notebook(),{},options);
+  expect(first.creationStatus).toBe('failed');expect(first.ai.requestCount).toBe(2);expect(first.ai.message).toContain('unfinished JSON');
+  expect(first.notebook.gameDesign!.batches[0].status).toBe('pending');expect(first.notebook.gameDesign!.receipts.every(r=>r.validation==='rejected')).toBe(true);
+  const saved=parsePackage(serializePackage(first.notebook));fail=false;
+  const resumed=await prepareGameExperience(saved,{},options);
+  expect(resumed.creationStatus,resumed.ai.message).toBe('ready');expect(requests[2].prompt).toContain('unfinished JSON');
+  expect(resumed.notebook.gameDesign!.receipts.slice(0,2)).toEqual(saved.gameDesign!.receipts);
+ });
  it('allows a slow complete mission beyond the old120-second deadline and sends a bounded server deadline',async()=>{
   vi.useFakeTimers();let entered!:()=>void,release!:(value:any)=>void,settled=false;const started=new Promise<void>(resolve=>{entered=resolve;});const requests:any[]=[];
   vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const r=request(body);requests.push(r);if(r.stage==='write'){entered();return new Promise(resolve=>{release=resolve;});}return reply(directorFixtureResponse(r.stage,r.data));}));

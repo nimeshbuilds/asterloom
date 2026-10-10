@@ -86,7 +86,7 @@ describe('lossless compact source checking',()=>{
   expect(writingPrompt).toContain('this AI output always remains needs-review');expect(writingPrompt).toContain('does not prohibit an accurately cited source claim about peer-reviewed research');
   expect(JSON.stringify(data).length).toBeLessThan(JSON.stringify({missions:original}).length*0.9);
   expect(data.evidencePool.every((entry:any)=>original.some(mission=>mission.activity.sourceRefs.some(reference=>reference.sourceId===entry.sourceId&&reference.evidence.includes(entry.text))||mission.teaching.sourceWindows.some(reference=>reference.sourceId===entry.sourceId&&reference.quote.includes(entry.text))))).toBe(true);
-  const disclosed=JSON.parse(writingPrompt.split('REFERENCE DATA (JSON):\n')[1]).missions;expect(disclosed.every((mission:any)=>mission.teachingContextWindow.excerpt.includes(mission.unit.excerpt))).toBe(true);
+  const disclosed=JSON.parse(writingPrompt.split('REFERENCE DATA (JSON):\n')[1]).missions;expect(disclosed.every((mission:any)=>(mission.teachingContextWindow.excerpt??mission.teachingContextWindow.beforeUnit+mission.unit.excerpt+mission.teachingContextWindow.afterUnit).includes(mission.unit.excerpt))).toBe(true);
   expect(data.evidencePool.every((entry:any)=>input.sources.some(source=>source.id===entry.sourceId&&source.text.includes(entry.text)))).toBe(true);
  });
  it('keeps identical quoted wording from different sources as distinct evidence entries',async()=>{

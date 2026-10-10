@@ -15,6 +15,8 @@ export interface AIUsageReceipt {
  finishedAt?:string;
  /** Monotonic dispatch-to-response/interruption time, excluding local saves. */
  durationMs?:number;
+ /** Local format/source validation is separate from successful transport. */
+ validation?:'accepted'|'rejected';
 }
 const metrics=['inputTokens','outputTokens','cachedInputTokens','cacheWriteTokens','reasoningTokens','totalTokens'] as const;
 export const unavailableAIUsage=():AITokenUsage=>({status:'unavailable',inputTokens:null,outputTokens:null,cachedInputTokens:null,cacheWriteTokens:null,reasoningTokens:null,totalTokens:null});
@@ -38,12 +40,13 @@ export function validateAIUsageReceipts(value:unknown):AIUsageReceipt[] {
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Invalid AI creation receipt.');
   const r=raw as Record<string,unknown>,id=field(r.id);
   if(ids.has(id))throw new Error('Repeated AI receipt identifier.');ids.add(id);
-  if(!['started','completed','failed','canceled'].includes(String(r.status)))throw new Error('Invalid AI request state.');
+  if(typeof r.status!=='string'||!['started','completed','failed','canceled'].includes(r.status))throw new Error('Invalid AI request state.');
   const startedAt=field(r.startedAt,40);if(!Number.isFinite(Date.parse(startedAt)))throw new Error('Invalid AI request time.');
   if(r.finishedAt!==undefined&&(typeof r.finishedAt!=='string'||r.finishedAt.length>40||!Number.isFinite(Date.parse(r.finishedAt))||r.status==='started'))throw new Error('Invalid AI request completion time.');
   if(r.durationMs!==undefined&&(!count(r.durationMs)||r.finishedAt===undefined))throw new Error('Invalid AI request duration.');
+  if(r.validation!==undefined&&(typeof r.validation!=='string'||!['accepted','rejected'].includes(r.validation)||r.status==='started'||r.status==='canceled'||r.validation==='accepted'&&r.status!=='completed'))throw new Error('Invalid AI response validation state.');
   if(r.actualModels!==undefined&&(!Array.isArray(r.actualModels)||r.actualModels.length>20))throw new Error('Invalid model report.');
-  return {id,stage:field(r.stage,100),...(r.batchId!==undefined?{batchId:field(r.batchId)}:{}),provider:field(r.provider,40),model:field(r.model),...(Array.isArray(r.actualModels)?{actualModels:r.actualModels.map(v=>field(v))}:{}),startedAt,status:r.status as AIUsageReceipt['status'],usage:validateAITokenUsage(r.usage),...(r.finishedAt===undefined?{}:{finishedAt:r.finishedAt as string}),...(r.durationMs===undefined?{}:{durationMs:r.durationMs as number})};
+  return {id,stage:field(r.stage,100),...(r.batchId!==undefined?{batchId:field(r.batchId)}:{}),provider:field(r.provider,40),model:field(r.model),...(Array.isArray(r.actualModels)?{actualModels:r.actualModels.map(v=>field(v))}:{}),startedAt,status:r.status as AIUsageReceipt['status'],usage:validateAITokenUsage(r.usage),...(r.finishedAt===undefined?{}:{finishedAt:r.finishedAt as string}),...(r.durationMs===undefined?{}:{durationMs:r.durationMs as number}),...(r.validation===undefined?{}:{validation:r.validation as AIUsageReceipt['validation']})};
  });
 }
 /** Replace one immutable request's latest receipt without counting it twice. */

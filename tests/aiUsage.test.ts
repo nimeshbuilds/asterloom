@@ -13,6 +13,13 @@ describe('honest AI usage ledger',()=>{
   expect(validateAIUsageReceipts([old])[0]).not.toHaveProperty('finishedAt');
   expect(validateAIUsageReceipts([old])[0]).not.toHaveProperty('durationMs');
  });
+ it('separates local validation from transport and preserves unknown historical validation',()=>{
+  const accepted=receipt('accepted',{validation:'accepted'}),rejected=receipt('rejected',{validation:'rejected'}),transportRejected=receipt('adapter',{status:'failed',validation:'rejected'}),legacy=receipt('legacy');
+  expect(validateAIUsageReceipts([accepted,rejected,transportRejected,legacy])).toEqual([accepted,rejected,transportRejected,legacy]);
+  expect(summarizeAIUsage([accepted,rejected]).input.value).toBe(200);
+  for(const patch of [{status:'started',validation:'accepted'},{status:'canceled',validation:'rejected'},{status:'failed',validation:'accepted'},{validation:'guaranteed'},{validation:['accepted']},{validation:{toString:()=> 'accepted'}}])expect(()=>validateAIUsageReceipts([{...legacy,...patch}])).toThrow(/validation state/);
+  expect(()=>validateAIUsageReceipts([{...legacy,status:['completed']}])).toThrow(/request state/);
+ });
  it('rejects invented or unfinished request durations',()=>{
   for(const patch of [{durationMs:2},{finishedAt:'invalid',durationMs:2},{status:'started',finishedAt:'2026-10-04T10:00:02Z'},...[-1,NaN,Infinity,0.5,Number.MAX_SAFE_INTEGER+1].map(durationMs=>({finishedAt:'2026-10-04T10:00:02Z',durationMs}))])expect(()=>validateAIUsageReceipts([{...receipt('a'),...patch}])).toThrow();
  });
