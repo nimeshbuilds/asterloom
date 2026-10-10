@@ -1,7 +1,7 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {prepareGameExperience} from '../src/lib/prepareGameExperience';
 import {prepareAutomaticLearning} from '../src/lib/automaticLearning';
-import {gameCheckingPrompt,runGameDirector} from '../src/lib/gameDirector';
+import {gameCheckingPrompt,gameRuntimeControlPresentation,runGameDirector} from '../src/lib/gameDirector';
 import {gameRecipeMetadata} from '../src/lib/gameDraftAdapters';
 import {scaffoldStoryContext} from '../src/lib/scaffoldStoryContext';
 import {emptyGameDesign,gameDesignProgress,type GameDesignBatch} from '../src/lib/gameDesign';
@@ -64,7 +64,7 @@ function unpooledMissions(batch:GameDesignBatch){return(batch.drafts??[]).map(dr
  const citations=[...draft.activity.sourceRefs.map(reference=>({sourceId:reference.sourceId,evidence:reference.evidence})),...draft.teaching.sourceWindows.map(reference=>({sourceId:reference.sourceId,evidence:reference.quote}))];
  const exactEvidence=citations.filter((reference,index)=>!citations.some((other,otherIndex)=>index!==otherIndex&&other.sourceId===reference.sourceId&&other.evidence.includes(reference.evidence)&&(other.evidence.length>reference.evidence.length||otherIndex<index)));
  const plan=batch.missions!.find(mission=>mission.id===draft.missionId)!;
- return{missionId:draft.missionId,plan,recipe:gameRecipeMetadata(plan.scaffoldId),storyContext:scaffoldStoryContext(plan.scaffoldId,draft.teaching.ageGroup,draft.activity),activity:draft.activity,teaching:draft.teaching,exactEvidence};
+ return{missionId:draft.missionId,plan,recipe:gameRecipeMetadata(plan.scaffoldId),storyContext:scaffoldStoryContext(plan.scaffoldId,draft.teaching.ageGroup,draft.activity),renderedControls:gameRuntimeControlPresentation(draft.activity),activity:draft.activity,teaching:draft.teaching,exactEvidence};
 });}
 function decode(value:any,evidencePool:{id:string;sourceId:string;text:string}[]):any{
  if(Array.isArray(value))return value.map(item=>decode(item,evidencePool));
