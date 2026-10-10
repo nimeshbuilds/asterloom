@@ -385,6 +385,7 @@ test('desktop studio preserves full player features and launches a separate nati
     await application.evaluate(({shell},{expected,destination})=>{shell.trashItem=async filename=>{if(filename!==expected)throw new Error('The test only permits its registered archive');await process.getBuiltinModule('fs').promises.rename(filename,destination);};},{expected:await fs.realpath(deleteArchive),destination:trashArchive});
     await page.getByRole('button',{name:'Your games',exact:true}).click();
     await page.getByRole('button',{name:'Open A remixed native game',exact:true}).click();
+    await page.locator('.adventure-home-more>summary').click();
     await page.getByRole('button',{name:'Delete game',exact:true}).click();
     let deletionDialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Delete this game?',exact:true})});
     await deletionDialog.getByRole('button',{name:'Keep game',exact:true}).click();assert.ok(await readSaved());await fs.access(localRecording);await fs.access(deleteArchive);
