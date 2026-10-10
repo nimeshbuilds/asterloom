@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {access,mkdir,readFile,writeFile} from 'node:fs/promises';
+import {access,mkdir,mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -33,7 +33,12 @@ async function run(name,executable,args,environment={}) {
 }
 await run('reference-contracts',process.execPath,[tsx,'scripts/factory-benchmark/offline.ts','--output',output]);
 const nativeResults=path.join(output,'native-report.json');
-await run('packaged-native-all75',player,['--headless','--',`--node=${binary}`,`--engine=${engine}`,`--qa-manifest=${path.join(output,'native-manifest.json')}`,`--qa-output=${nativeResults}`],{ELECTRON_RUN_AS_NODE:'1'});
+// Assessment requests must never appear in the user's legacy Godot storage:
+// a simultaneous desktop deletion correctly refuses unknown shared files.
+const scratch=await mkdtemp(path.join(output,'.runtime-state-'));
+try{
+  await run('packaged-native-all75',player,['--headless','--',`--node=${binary}`,`--engine=${engine}`,`--save-dir=${scratch}`,`--qa-manifest=${path.join(output,'native-manifest.json')}`,`--qa-output=${nativeResults}`],{ELECTRON_RUN_AS_NODE:'1'});
+}finally{await rm(scratch,{recursive:true,force:true});}
 await run('native-reference-parity',process.execPath,[tsx,'scripts/factory-benchmark/offline.ts','--output',output,'--native-results',nativeResults,'--require-native']);
 const report=JSON.parse(await readFile(path.join(output,'report.json'),'utf8'));
 assert.equal(report.counts.expected,75);assert.equal(report.counts.nativeRendered,75);assert.equal(report.gates.nativeAutomatedSmoke,true);

@@ -392,7 +392,12 @@ test('desktop studio preserves full player features and launches a separate nati
     await page.getByRole('button',{name:'Delete game',exact:true}).click();deletionDialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Delete this game?',exact:true})});
     await deletionDialog.locator('.delete-exports label').filter({hasText:'delete-native-archive.learnzip'}).getByRole('checkbox').check();
     await deletionDialog.getByRole('button',{name:'Delete game',exact:true}).click();await deletionDialog.waitFor({state:'hidden'});
-    await assert.rejects(()=>fs.access(localRecording),{code:'ENOENT'});await assert.rejects(()=>fs.access(deleteArchive),{code:'ENOENT'});await fs.access(trashArchive);assert.deepEqual(await fs.readFile(originalUpload),wav);
+    const cleanupWarnings=await page.locator('.notice').filter({has:page.getByRole('button',{name:'Retry cleanup',exact:true})}).allTextContents();
+    assert.deepEqual(cleanupWarnings,[],'Notebook deletion reported unfinished local file cleanup');
+    assert.equal(await readSaved(),undefined,'The deleted notebook must be absent before its file cleanup is checked');
+    await assert.rejects(()=>fs.access(localRecording),{code:'ENOENT'},'The private recording must be removed');
+    await assert.rejects(()=>fs.access(deleteArchive),{code:'ENOENT'},'The selected archive must leave its original location');
+    await fs.access(trashArchive);assert.deepEqual(await fs.readFile(originalUpload),wav);
     await application.close();application=await launch(exportedExecutable(remixedPath));page=await application.firstWindow();
     await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
     assert.equal(await readSaved(),undefined,'Deleted embedded notebooks must not return after a real native restart');
