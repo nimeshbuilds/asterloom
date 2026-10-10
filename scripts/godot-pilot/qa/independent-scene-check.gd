@@ -12,6 +12,7 @@ func check(condition: bool, label: String) -> void:
 		push_error("Independent scene check failed: " + label)
 
 func run_check() -> void:
+	root.size = Vector2i(1440,900)
 	var directory := ""
 	var package_path := ""
 	for argument in OS.get_cmdline_user_args():
@@ -45,6 +46,7 @@ func run_check() -> void:
 	check(scene.audio.is_muted() and scene.audio.debug_snapshot().started_events == 0, "scene_starts_silent")
 	# The other pilot play harness covers normal visible lesson/quest input.
 	# Here establish a real saved quest, then probe failed assistance/result saves.
+	scene._footer_action() # Acknowledge the new briefing through the visible action.
 	for lesson in pack.lessons:
 		scene.model.finish_idea()
 	scene.model.finish_guided()

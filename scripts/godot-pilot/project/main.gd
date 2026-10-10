@@ -1,10 +1,18 @@
 extends Node3D
 
+const TemplateCatalog = preload("res://scripts/template_catalog.gd")
+const WorldPresentation = preload("res://presentation/WorldPresentation.gd")
 const Model = preload("res://scripts/learning_model.gd")
 const Audio = preload("res://audio/AsterloomAudio.gd")
 const TEAL := Color("69ead2")
 const GOLD := Color("ffc57b")
 const INK := Color("101d2c")
+var profile: Dictionary = {}
+var presentation: Node3D
+var briefing_open := false
+var debrief_open := false
+var speaker := "aster"
+var reflection_draft := ""
 var model = Model.new()
 var audio: Node
 var camera: Camera3D
@@ -22,6 +30,8 @@ var score_label: Label
 var footer: Label
 var source_dialog: AcceptDialog
 var source_text: RichTextLabel
+var dialog_portrait: TextureRect
+var dialog_crew_caption: Label
 var station := "learn"
 var held := ""
 var from_node := ""
@@ -47,6 +57,7 @@ var hovered_label := ""
 var reduced_button: CheckButton
 var sound_button: Button
 var controls_button: Button
+var navigation: HBoxContainer
 var direct_mode := false
 
 func _ready() -> void:
@@ -58,6 +69,10 @@ func _ready() -> void:
 	if input == null or input.get_length() > 4*1024*1024:
 		push_error("Mission package is missing or exceeds the 4 MiB pilot limit."); get_tree().quit(1); return
 	var data = JSON.parse_string(input.get_as_text()); input.close()
+	var resolved: Dictionary = TemplateCatalog.resolve_pack(data if data is Dictionary else {})
+	if not resolved.ok:
+		push_error(resolved.error); get_tree().quit(1); return
+	profile = resolved.profile
 	var custom_save := OS.get_environment("ASTERLOOM_PILOT_QA_SAVE")
 	if not data is Dictionary or not model.initialize(data, custom_save):
 		push_error("Pilot package could not be loaded: " + model.last_error)
@@ -65,12 +80,17 @@ func _ready() -> void:
 		return
 	_build_inputs()
 	_build_world()
+	presentation = WorldPresentation.new(); add_child(presentation); presentation.configure(profile); star.visible = false
+	reflection_draft = model.state.reflection
+	briefing_open = not model.state.briefingSeen
+	debrief_open = model.state.completions.size() == available_kinds().size()
 	_build_ui()
+	get_viewport().size_changed.connect(_on_viewport_resize)
 	audio = Audio.new()
 	if not custom_save.is_empty(): audio.settings_path = custom_save + ".audio.cfg"
 	audio.preference_save_failed.connect(func(_code: int): save_notice = "Sound changed for this session; its preference could not be saved."; _refresh_panel())
 	add_child(audio)
-	audio.configure("network", "adult")
+	audio.configure(profile.audioProfile, "adult")
 	_update_sound_label()
 	station = "learn" if not model.state.taught else ("sequence" if model.pack.has("sequence") else "dependency")
 	_refresh()
@@ -117,11 +137,11 @@ func _label3(parent: Node3D, text: String, pos: Vector3, color := Color.WHITE, s
 	parent.add_child(label); return label
 
 func _build_world() -> void:
-	var environment := WorldEnvironment.new(); var env := Environment.new(); env.background_mode = Environment.BG_COLOR; env.background_color = Color("071321"); env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color("89a8bb"); env.ambient_light_energy = 0.45; env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; environment.environment = env; add_child(environment)
-	var sun := DirectionalLight3D.new(); sun.rotation_degrees = Vector3(-55,-35,0); sun.light_color = Color("c3e6f4"); sun.light_energy = 0.85; sun.shadow_enabled = true; add_child(sun)
+	var environment := WorldEnvironment.new(); var env := Environment.new(); env.background_mode = Environment.BG_COLOR; env.background_color = Color(profile.palette.background); env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR; env.ambient_light_color = Color("89a8bb"); env.ambient_light_energy = profile.lighting.ambientEnergy; env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; environment.environment = env; add_child(environment)
+	var sun := DirectionalLight3D.new(); sun.rotation_degrees = Vector3(-55,-35,0); sun.light_color = Color(profile.lighting.keyColor); sun.light_energy = profile.lighting.keyEnergy; sun.shadow_enabled = true; add_child(sun)
 	var warm := OmniLight3D.new(); warm.position = Vector3(-7,5,2); warm.light_color = GOLD; warm.light_energy = 1.6; warm.omni_range = 13; add_child(warm)
 	var floor_mesh := _box(self,Vector3(0,-0.4,0),Vector3(25,0.8,18),Color("17252d"))
-	var floor_material := ShaderMaterial.new(); floor_material.shader = load("res://materials/workshop_floor.gdshader"); floor_mesh.material_override = floor_material
+	var floor_material := ShaderMaterial.new(); floor_material.shader = load("res://materials/workshop_floor.gdshader"); floor_material.set_shader_parameter("floor_tint", Color(profile.palette.floor)); floor_mesh.material_override = floor_material
 	_box(self,Vector3(0,-0.95,0),Vector3(26,0.5,19),Color("07121e"))
 	for x in [-11.4,11.4]: _box(self,Vector3(x,0.035,0),Vector3(0.035,0.025,16.5),Color("b69b72"))
 	for z in [-7.7,7.7]: _box(self,Vector3(0,0.035,z),Vector3(22.8,0.025,0.035),Color("b69b72"))
@@ -159,7 +179,7 @@ func true_dict() -> Dictionary: return {}
 func _build_ui() -> void:
 	var layer := CanvasLayer.new(); add_child(layer)
 	var root := Control.new(); root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_IGNORE; layer.add_child(root)
-	var theme := Theme.new(); theme.default_font_size = 17
+	var theme := Theme.new(); theme.default_font_size = 18
 	for name in ["normal","hover","pressed","focus","disabled"]:
 		var style := StyleBoxFlat.new(); style.bg_color = Color("243c50") if name == "normal" else Color("345469"); style.border_color = TEAL if name == "focus" else Color("436375"); style.set_border_width_all(2 if name == "focus" else 1); style.set_corner_radius_all(9); style.content_margin_left = 14; style.content_margin_right = 14; style.content_margin_top = 11; style.content_margin_bottom = 11; theme.set_stylebox(name,"Button",style)
 	theme.set_color("font_color","Label",Color("edf4f6")); theme.set_color("font_color","Button",Color("edf4f6")); root.theme = theme
@@ -167,12 +187,13 @@ func _build_ui() -> void:
 	var head_style := StyleBoxFlat.new(); head_style.bg_color = Color(0.03,0.07,0.12,1.0); head_style.content_margin_left = 24; head_style.content_margin_right = 24; head_style.content_margin_top = 14; head_style.content_margin_bottom = 14; header.add_theme_stylebox_override("panel",head_style)
 	var row := HBoxContainer.new(); row.add_theme_constant_override("separation",18); header.add_child(row)
 	var titles := VBoxContainer.new(); titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(titles)
-	var title := Label.new(); title.text = "SIGNALWRIGHT"; title.add_theme_font_size_override("font_size",27); title.add_theme_color_override("font_color",TEAL); titles.add_child(title)
+	var title := Label.new(); title.text = profile.name; title.clip_text = true; title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS; title.add_theme_font_size_override("font_size",27); title.add_theme_color_override("font_color",TEAL); titles.add_child(title)
 	heading = Label.new(); heading.text = model.pack.title; heading.clip_text = true; heading.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS; titles.add_child(heading)
 	score_label = Label.new(); row.add_child(score_label)
 	sound_button = _button("Sound off",_toggle_sound); sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; sound_button.custom_minimum_size.x = 140; row.add_child(sound_button)
 	reduced_button = CheckButton.new(); reduced_button.text = "Reduce motion"; reduced_button.button_pressed = bool(model.state.reduced_motion); reduced_button.toggled.connect(func(value: bool):
 		if not model.set_motion(value): _save_error(); return
+		presentation.set_reduced_motion(value)
 		if value:
 			if camera_tween: camera_tween.kill()
 			pulse.visible = false
@@ -180,14 +201,14 @@ func _build_ui() -> void:
 			_refresh_world() # Replaces any still-settling module with its static saved position.
 			camera_station = ""; _update_camera()
 	); row.add_child(reduced_button)
-	var navigation := HBoxContainer.new(); navigation.position = Vector2(24,114); navigation.size = Vector2(get_viewport().get_visible_rect().size.x-460,48); navigation.add_theme_constant_override("separation",8); root.add_child(navigation)
+	navigation = HBoxContainer.new(); navigation.position = Vector2(24,114); navigation.size = Vector2(get_viewport().get_visible_rect().size.x-460,48); navigation.add_theme_constant_override("separation",8); root.add_child(navigation)
 	for entry in [["learn","1 · Learn"],["sequence","2 · Handoff"],["dependency","3 · Connections"]]:
 		if entry[0] != "learn" and not model.pack.has(entry[0]): continue
 		var key: String = entry[0]; var caption: String = entry[1]
 		if get_viewport().get_visible_rect().size.x < 1100: caption = {"learn":"1 Learn","sequence":"2 Build","dependency":"3 Link"}[key]
-		navigation.add_child(_button(caption,func(): _set_station(key)))
+		var nav_button := _button(caption,func(): _set_station(key)); nav_button.set_meta("station",key); navigation.add_child(nav_button)
 	controls_button = _button("Seated controls",func(): direct_mode = not direct_mode; _refresh_panel()); navigation.add_child(controls_button)
-	navigation.add_child(_button("Credits",_show_credits))
+	navigation.add_child(_button("Brief",func(): briefing_open = true; debrief_open = false; _refresh()))
 	var dock := PanelContainer.new(); dock.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE); dock.offset_left = -426; dock.offset_right = -18; dock.offset_top = 114; dock.offset_bottom = -62; root.add_child(dock)
 	var dock_style := StyleBoxFlat.new(); dock_style.bg_color = Color(0.028,0.064,0.105,1.0); dock_style.border_color = Color("36596b"); dock_style.set_border_width_all(1); dock_style.set_corner_radius_all(16); dock_style.content_margin_left = 20; dock_style.content_margin_right = 20; dock_style.content_margin_top = 20; dock_style.content_margin_bottom = 18; dock.add_theme_stylebox_override("panel",dock_style)
 	panel_scroll = ScrollContainer.new(); panel_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; panel_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -195,21 +216,28 @@ func _build_ui() -> void:
 	check_button = _button("Check my build",_footer_action); dock_body.add_child(check_button); check_button.visible = false
 	panel = VBoxContainer.new(); panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; panel.add_theme_constant_override("separation",14); panel_scroll.add_child(panel)
 	status = Label.new(); status.position = Vector2(24,get_viewport().get_visible_rect().size.y-130); status.size = Vector2(get_viewport().get_visible_rect().size.x-476,90); status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; status.add_theme_font_size_override("font_size",18); root.add_child(status)
-	footer = Label.new(); footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE); footer.offset_left = 24; footer.offset_right = -24; footer.offset_top = -48; footer.offset_bottom = -8; footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; footer.add_theme_font_size_override("font_size",13); root.add_child(footer)
+	footer = Label.new(); footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE); footer.offset_left = 24; footer.offset_right = -24; footer.offset_top = -48; footer.offset_bottom = -8; footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; footer.add_theme_font_size_override("font_size",18); root.add_child(footer)
 	source_dialog = AcceptDialog.new(); source_dialog.title = "Exact source material"; source_dialog.size = Vector2i(820,600); root.add_child(source_dialog)
 	source_text = RichTextLabel.new(); source_text.bbcode_enabled = false; source_text.selection_enabled = true; source_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); source_text.offset_left = 18; source_text.offset_top = 18; source_text.offset_right = -18; source_text.offset_bottom = -62; source_text.add_theme_font_size_override("normal_font_size",20); source_dialog.add_child(source_text)
+	dialog_portrait = TextureRect.new(); dialog_portrait.position = Vector2(20,18); dialog_portrait.size = Vector2(120,136); dialog_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE; dialog_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED; dialog_portrait.visible = false; source_dialog.add_child(dialog_portrait)
+	dialog_crew_caption = Label.new(); dialog_crew_caption.position = Vector2(156,42); dialog_crew_caption.size = Vector2(600,90); dialog_crew_caption.add_theme_font_size_override("font_size",24); dialog_crew_caption.visible = false; source_dialog.add_child(dialog_crew_caption)
+	source_dialog.visibility_changed.connect(func():
+		if not source_dialog.visible:
+			dialog_portrait.visible = false; dialog_crew_caption.visible = false; source_text.offset_top = 18
+			for id in ["aster","builder","analyst"]: presentation.set_character_speaking(id,false)
+	)
 
 func _button(text: String, callback: Callable) -> Button:
 	var button := Button.new(); button.text = text; button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; button.size_flags_horizontal = Control.SIZE_EXPAND_FILL; button.pressed.connect(callback); button.focus_mode = Control.FOCUS_ALL; return button
 
 func _text(text: String, size := 18, color := Color("d8e4ed")) -> Label:
-	var label := Label.new(); label.text = text; label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; label.add_theme_font_size_override("font_size",size); label.add_theme_color_override("font_color",color); panel.add_child(label); return label
+	var label := Label.new(); label.text = text; label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; label.add_theme_font_size_override("font_size",maxi(18,size)); label.add_theme_color_override("font_color",color); panel.add_child(label); return label
 
 func _refresh() -> void:
 	var kinds: Array = available_kinds()
 	score_label.text = ("Experimental practice\n%d / %d models matched" % [model.state.completions.size(),kinds.size()]) if model.is_experimental() else ("%d workshop points\n%d / %d builds saved" % [int(model.state.xp),model.state.completions.size(),kinds.size()])
-	footer.text = "WASD / left stick: move  ·  E / A: interact  ·  Tab + Enter: controls  ·  H / Y: Aster  ·  Esc / B: cancel     |     NimeshBuilds · Experimental pilot"
-	_refresh_world(); _refresh_panel(); _update_camera()
+	footer.text = "WASD move · E interact · H Aster · Tab / Enter controls     |     NimeshBuilds · Experimental"
+	_refresh_world(); _refresh_panel(); _update_camera(); _sync_presentation()
 
 func _refresh_panel() -> void:
 	for child in panel.get_children(): child.queue_free(); panel.remove_child(child)
@@ -217,33 +245,37 @@ func _refresh_panel() -> void:
 	check_button.visible = model.state.taught and station != "learn"
 	check_button.text = "Check my build" if model.state.guided else "Begin my own build →"
 	check_button.disabled = false
-	controls_button.text = ("Scene" if direct_mode else "Controls") if get_viewport().get_visible_rect().size.x<1100 else ("Scene controls" if direct_mode else "Seated controls")
-	if station == "learn":
+	controls_button.text = ("Scene" if direct_mode else "Input") if get_viewport().get_visible_rect().size.x<1100 else ("Scene controls" if direct_mode else "Seated controls")
+	if briefing_open:
+		_briefing_panel()
+	elif debrief_open:
+		_debrief_panel()
+	elif station == "learn":
 		var index: int = mini(int(model.state.lesson),model.pack.lessons.size()-1)
 		var lesson: Dictionary = model.pack.lessons[index]
-		_text("ASTER / FIELD BRIEFING",14,TEAL)
+		_text("LEARN / "+profile.acts.learning.to_upper(),14,TEAL)
+		_character_card("aster", "planning")
 		_text(lesson.title,27)
 		_text(lesson.body,20)
 		_text("IDEA %d OF %d · grounded in your source" % [index+1,model.pack.lessons.size()],14,Color("9eb6c6"))
 		panel.add_child(_button("Read the exact passage",func(): _show_lesson_source(lesson)))
 		if not model.state.taught:
-			primary_button = _button("Next idea  →" if index < model.pack.lessons.size()-1 else "Try a guided build  →",func():
-				if not model.finish_idea(): _save_error(); return
-				if model.state.taught: station = "sequence" if model.pack.has("sequence") else "dependency"
-				audio.play_cue("aster"); _refresh()
-			); panel.add_child(primary_button)
+			check_button.visible = true
+			check_button.text = "Next idea →" if index < model.pack.lessons.size()-1 else "Try a guided build →"
+			primary_button = check_button
 		else:
 			var previous := _button("← Previous idea",func(): _review_idea(index-1)); previous.disabled = index == 0; panel.add_child(previous)
 			var next_idea := _button("Next idea →",func(): _review_idea(index+1)); next_idea.disabled = index >= model.pack.lessons.size()-1; panel.add_child(next_idea)
 			panel.add_child(_button("Revisit the first idea",func(): _review_idea(0)))
 			panel.add_child(_button("Return to the workstations  →",func(): _set_station("sequence" if model.pack.has("sequence") else "dependency")))
-		_text("The workshop is fictional. Its diagrams represent this source’s stated design, not a running cloud service.",14,Color("9eb6c6"))
+		_text("The setting and crew are fictional. Teaching and construction rules come from the supplied source.",14,Color("9eb6c6"))
 	elif not model.state.taught:
 		_text("A useful build begins with a clear idea",27)
 		_text("Read the prepared ideas with Aster. Then use them immediately at the workbench.",20)
 		panel.add_child(_button("Meet Aster  →",func(): _set_station("learn")))
 	elif not model.state.guided:
 		_text("GUIDED TRY / NO SCORE",14,GOLD)
+		_character_card("builder")
 		if model.pack.has("sequence"):
 			var guide: Array = _guided_order()
 			_text("Build one handoff",25)
@@ -263,6 +295,7 @@ func _refresh_panel() -> void:
 		# Feedback supports the next attempt; the saved result keeps its original attribution.
 		var shown_supported: bool = model.state.results.get(station,{}).get("supported",model.state.supported.get(station,false))
 		_text(("EXPERIMENTAL PRACTICE / " if model.is_experimental() else "QUEST / ") + ("SUPPORTED PRACTICE" if shown_supported else "YOUR OWN BUILD"),14,TEAL)
+		_character_card(speaker if not feedback.is_empty() else ("builder" if station == "sequence" else "analyst"), "quiet-celebration" if model.state.results.get(station,{}).get("correct",false) else "gentle-hint")
 		_text(model.pack[station].title,27)
 		if not feedback.is_empty():
 			_text(feedback,17,TEAL if model.state.results.get(station,{}).get("correct",false) else GOLD)
@@ -282,10 +315,18 @@ func _refresh_panel() -> void:
 		panel.add_child(_compact_button("How to build · full task instructions",_show_native_help))
 		panel.add_child(_compact_button("Original task notes",_show_task_notes))
 		panel.add_child(_compact_button("Ask Aster for a source hint",_help))
+		panel.add_child(_compact_button("Talk to Owen" if station == "sequence" else "Talk to Claire",func(): _talk_character("builder" if station == "sequence" else "analyst")))
 		panel.add_child(_compact_button("Inspect the source",func(): _show_source(true)))
 		_text("This compares your construction with an unreviewed generated model. It does not establish correctness or award mastery, XP, or host progress." if model.is_experimental() else "Points recognize completed workshop builds. This pilot does not certify mastery. Rechecking a saved build gives no extra points.",13,Color("9eb6c6"))
 	if not save_notice.is_empty(): _text(save_notice,17,GOLD)
-	status.text = "" if not feedback.is_empty() else ("Every module and connection comes from the source. The workshop is fictional." if model.state.guided else "Aster is ready at the violet briefing station.")
+	var stage_hint := {
+		"briefing":"Meet your crew and review the mission. Start when you are ready.",
+		"learning":"Read at your own pace. Scroll for the full idea; the exact passage is always available.",
+		"building":"Rehearse one construction with guidance. Then begin your own build.",
+		"challenge":"Choose a module or concept, then use the workbench. Ask your crew when you need a source hint.",
+		"debrief":"Your completed builds are saved. Review them or leave a note for your next visit."
+	}
+	status.text = "" if not feedback.is_empty() else stage_hint[_phase()]
 
 func _sequence_controls(guided: bool) -> void:
 	var ids: Array = _rack_ids()
@@ -402,7 +443,10 @@ func _set_station(value: String) -> void:
 		var next: Dictionary = model.state.duplicate(true)
 		for kind in available_kinds(): next.supported[kind] = true
 		if not model.commit(next): _save_error(); return
-	station = value; feedback = ""; save_notice = ""; from_node = ""; to_node = ""; _refresh_panel(); _update_camera()
+	if not model.state.briefingSeen: briefing_open = true; _refresh_panel(); return
+	briefing_open = false; debrief_open = false
+	for id in ["aster","builder","analyst"]: presentation.set_character_speaking(id,false)
+	station = value; feedback = ""; save_notice = ""; from_node = ""; to_node = ""; _refresh_panel(); _update_camera(); _sync_presentation()
 
 func _pick_piece(id: String) -> void:
 	if not model.state.taught: _set_station("learn"); return
@@ -414,7 +458,7 @@ func _place(slot: int) -> void:
 	if held.is_empty(): feedback = "Pick up a procedure module first."; _refresh_panel(); return
 	var placed_id := held
 	if model.place_piece(held,slot):
-		held = ""; feedback = ""; save_notice = ""; audio.play_cue("connect"); _refresh(); _emphasize_piece(placed_id)
+		held = ""; feedback = ""; save_notice = ""; audio.play_cue("connect"); _refresh(); _emphasize_piece(placed_id); presentation.react("placed",Vector3(-2,0.8,-2))
 	else: _save_error()
 
 func _choose_node(id: String) -> void:
@@ -428,7 +472,7 @@ func _choose_node(id: String) -> void:
 func _connect() -> void:
 	var connected_from := from_node; var connected_to := to_node
 	if model.connect_nodes(from_node,to_node,relation):
-		from_node = ""; to_node = ""; feedback = ""; audio.play_cue("connect"); _refresh(); _emphasize_connection(connected_from,connected_to)
+		from_node = ""; to_node = ""; feedback = ""; audio.play_cue("connect"); _refresh(); _emphasize_connection(connected_from,connected_to); presentation.react("connected",Vector3(7,1,0))
 	else: feedback = model.last_error if not model.last_error.is_empty() else "That connection is already in your model. Choose another link, or remove it below."; _refresh_panel()
 
 func _check_build() -> void:
@@ -436,10 +480,13 @@ func _check_build() -> void:
 	if not result.get("saved",false): feedback = result.get("message","Could not save this attempt."); _refresh_panel(); return
 	if result.correct:
 		feedback = ("MODEL MATCH SAVED · %d / %d\n%s\n%s" if model.is_experimental() else "BUILD SAVED · %d / %d\n%s\n%s") % [result.score,result.maxScore,model.pack[station].explanation,"+%d workshop points" % result.awarded if result.awarded>0 else "Experimental comparison only — no mastery or XP." if model.is_experimental() else "Already completed — no duplicate points."]
-		if result.first_completion: audio.play_cue("complete" if model.state.completions.size()==available_kinds().size() else "correct"); _reward()
+		if result.first_completion:
+			audio.play_cue("complete" if model.state.completions.size()==available_kinds().size() else "correct"); _reward()
+			presentation.react("mission_complete" if model.state.completions.size()==available_kinds().size() else "success", Vector3(-2,1,-2) if station == "sequence" else Vector3(7,1,0))
+			if model.state.completions.size()==available_kinds().size(): debrief_open = true
 	else:
 		feedback = "MODEL SAVED · %d / %d\n%s\nRevise the build, then try again. Feedback makes the next attempt supported practice." % [result.score,result.maxScore,"\n".join(result.details)]
-		audio.play_cue("retry")
+		audio.play_cue("retry"); presentation.react("retry",Vector3(-2,1,-2) if station == "sequence" else Vector3(7,1,0))
 	_refresh()
 
 func _reward() -> void:
@@ -449,10 +496,11 @@ func _reward() -> void:
 	var tween := create_tween(); tween.tween_property(pulse,"scale",Vector3(7,1,7),0.65).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT); tween.tween_callback(func(): pulse.visible = false)
 
 func _help() -> void:
+	speaker = "aster"
 	if station == "learn" or not model.state.guided: audio.play_cue("aster"); _set_station("learn"); return
 	if not model.mark_supported(station): _save_error(); return
 	feedback = "ASTER · " + model.pack[station].hint
-	audio.play_cue("aster"); _refresh_panel()
+	audio.play_cue("aster"); presentation.set_character_speaking("aster",true); _refresh_panel()
 
 func _show_source(support: bool, quote := "") -> void:
 	source_dialog.title = "Exact source material"
@@ -504,6 +552,7 @@ func _do_action(action: Dictionary) -> void:
 		"piece": _pick_piece(action.id)
 		"slot": _place(int(action.slot))
 		"node": _choose_node(action.id)
+		"character": _talk_character(action.id)
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(avatar): return
@@ -585,7 +634,7 @@ func _begin_quest() -> void:
 	for i in range(next.order.size()): next.order[i] = ""
 	next.edges = []; next.results = {}
 	if not model.commit(next): _save_error(); return
-	held = ""; from_node = ""; to_node = ""; feedback = ""; audio.play_cue("aster"); _refresh()
+	held = ""; from_node = ""; to_node = ""; feedback = ""; audio.play_cue("phase_complete"); _refresh()
 
 func _show_lesson_source(lesson: Dictionary) -> void:
 	var excerpts: Array[String] = []
@@ -679,6 +728,9 @@ func _qa_play() -> void:
 	if not _qa_require(not FileAccess.file_exists(proof_path),"proof output is fresh; preserve prior runs in a separate directory"): return
 	var initial_pack: Dictionary = model.pack.duplicate(true)
 	if not _qa_require(not model.state.taught,"QA starts before the lesson"): return
+	if briefing_open:
+		_footer_action()
+		if not _qa_require(model.state.briefingSeen and not briefing_open,"briefing saves before teaching starts"): return
 	if not await _qa_capture("01-teaching"): return
 	var lesson_steps := 0
 	while not model.state.taught:
@@ -776,7 +828,7 @@ func _link_name(edge: Dictionary) -> String:
 
 func _compact_button(text: String, callback: Callable) -> Button:
 	var button := _button(text,callback)
-	button.add_theme_font_size_override("font_size",16)
+	button.add_theme_font_size_override("font_size",18)
 	for state in ["normal","hover","pressed","focus","disabled"]:
 		var style := StyleBoxFlat.new(); style.bg_color = Color("1a3041") if state == "normal" else Color("2c4859")
 		style.border_color = TEAL if state == "focus" else Color("365565"); style.set_border_width_all(2 if state == "focus" else 1); style.set_corner_radius_all(7)
@@ -785,7 +837,14 @@ func _compact_button(text: String, callback: Callable) -> Button:
 	return button
 
 func _footer_action() -> void:
-	if model.state.guided: _check_build()
+	if briefing_open:
+		if not model.accept_briefing(model.state.guided): _save_error(); return
+		briefing_open = false; station = "learn"; audio.play_cue("mission_start"); _refresh()
+	elif station == "learn" and not model.state.taught:
+		if not model.finish_idea(): _save_error(); return
+		if model.state.taught: station = "sequence" if model.pack.has("sequence") else "dependency"
+		audio.play_cue("phase_complete" if model.state.taught else "aster"); _refresh()
+	elif model.state.guided: _check_build()
 	else: _begin_quest()
 
 func _show_native_help() -> void:
@@ -837,3 +896,95 @@ func _emphasize_connection(from_id: String,to_id: String) -> void:
 	var tween := marker.create_tween()
 	tween.tween_property(marker,"position",station_nodes[to_id]+Vector3(0,0.3,0),0.32).set_trans(Tween.TRANS_SINE)
 	tween.tween_callback(marker.queue_free)
+
+func _phase() -> String:
+	if briefing_open: return "briefing"
+	if debrief_open: return "debrief"
+	if station == "learn" or not model.state.taught: return "learning"
+	return "challenge" if model.state.guided else "building"
+
+func _sync_presentation() -> void:
+	if not is_instance_valid(presentation): return
+	presentation.set_reduced_motion(model.state.reduced_motion)
+	presentation.set_phase(_phase())
+	presentation.set_progress(model.state.completions.size(),available_kinds().size())
+	if is_instance_valid(audio): audio.set_phase(_phase())
+
+func _character_card(id: String, mood := "warm-smile") -> void:
+	var spec: Dictionary = profile.cast[0]
+	for candidate in profile.cast:
+		if candidate.id == id: spec = candidate
+	var row := HBoxContainer.new(); row.add_theme_constant_override("separation",14); panel.add_child(row)
+	var portrait := TextureRect.new(); portrait.custom_minimum_size = Vector2(64,76) if get_viewport().get_visible_rect().size.x<1100 and not briefing_open and not debrief_open else Vector2(100,128); portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE; portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED; portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var paths := {"aster":"res://assets/cast/aster-"+mood+".png","builder":"res://assets/cast/owen.png","analyst":"res://assets/cast/claire.png"}
+	portrait.texture = load(paths.get(id,paths.aster)); row.add_child(portrait)
+	var label := Label.new(); label.text = spec.name+"\n"+spec.role; label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; label.size_flags_horizontal = Control.SIZE_EXPAND_FILL; label.add_theme_font_size_override("font_size",18); row.add_child(label)
+
+func _briefing_panel() -> void:
+	_text("MISSION BRIEF / "+profile.acts.briefing.to_upper(),14,TEAL)
+	_character_card("aster")
+	_text(profile.briefing.title,25)
+	_text("Study with Aster, try a guided build, then put the ideas to work yourself.",18)
+	_text("Your source-led objectives",19,GOLD)
+	for kind in available_kinds(): _text("• "+model.pack[kind].title,18)
+	_text(profile.briefing.text,18)
+	_text("Progress saves after every completed action.",18)
+	panel.add_child(_button("Meet Owen and Claire",func(): _talk_character("builder")))
+	panel.add_child(_button("Music and asset credits",_show_credits))
+	check_button.visible = true; check_button.text = "Start learning →" if not model.state.briefingSeen else "Return to learning →"; primary_button = check_button
+
+func _debrief_panel() -> void:
+	check_button.visible = false
+	_text("EXPEDITION REVIEW / "+profile.acts.debrief.to_upper(),14,TEAL)
+	_character_card("aster","quiet-celebration")
+	_text("Your work is saved",27)
+	_text("You studied the material, rehearsed a construction, and completed the available models. Revisit any part at your own pace.",18)
+	for kind in available_kinds():
+		_text(model.pack[kind].title,20,GOLD)
+		_text(model.pack[kind].explanation,18)
+		var key: String = kind
+		panel.add_child(_button("Review this build",func(): _set_station(key)))
+	_text("A note to your future self",20,TEAL)
+	_text("Why does one ordering rule or connection matter? Check your explanation against the source.",18)
+	var note := TextEdit.new(); note.custom_minimum_size.y = 110; note.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY; note.text = reflection_draft; note.text_changed.connect(func(): reflection_draft = note.text); note.add_theme_font_size_override("font_size",18); panel.add_child(note)
+	panel.add_child(_button("Save my field note",func():
+		_save_field_note(note.text)
+	))
+	panel.add_child(_button("Read the source",func(): _show_source(false)))
+	_text("Reflection is personal practice; it is not automatically graded. "+("Generated models still need review." if model.is_experimental() else "Workshop points do not certify mastery."),14)
+
+func _talk_character(id: String) -> void:
+	speaker = id
+	if id == "aster": _help(); return
+	var relevant := "sequence" if id == "builder" else "dependency"
+	var name := "Owen" if id == "builder" else "Claire"
+	var text := name+" is part of this fictional crew. Aster teaches the supplied ideas; Owen supports construction; Claire helps inspect connections and evidence.\n\n"
+	text += "Saved progress: %d of %d builds.\n" % [model.state.completions.size(),available_kinds().size()]
+	if model.state.guided and model.pack.has(relevant):
+		if not model.mark_supported(relevant): _save_error(); return
+		text += "\n"+model.pack[relevant].title+"\n"+model.pack[relevant].hint
+	elif not model.state.taught: text += "Start with Aster’s prepared ideas. Then try one guided construction before your own challenge."
+	else: text += "Complete the guided try. Then start your own build with a clear workbench."
+	if not held.is_empty(): text += "\nYou are holding: "+model.label("sequence",held)
+	source_dialog.title = name+" · crew guidance"; source_text.text = text
+	dialog_portrait.texture = load("res://assets/cast/owen.png" if id == "builder" else "res://assets/cast/claire.png"); dialog_portrait.visible = true
+	dialog_crew_caption.text = name+"\nPrepared source guidance"; dialog_crew_caption.visible = true; source_text.offset_top = 164
+	source_dialog.popup_centered(Vector2i(820,600))
+	audio.play_cue("character"); presentation.set_character_speaking(id,true); _refresh_panel()
+
+func _save_field_note(value: String) -> void:
+	reflection_draft = value
+	if model.save_reflection(value):
+		save_notice = "Field note saved on this device."; audio.play_cue("phase_complete"); _refresh_panel()
+	else: _save_error()
+
+func _on_viewport_resize() -> void:
+	if not is_instance_valid(panel): return
+	var size := get_viewport().get_visible_rect().size
+	navigation.size = Vector2(size.x-460,48)
+	for button in navigation.get_children():
+		if button.has_meta("station"):
+			var key: String = button.get_meta("station")
+			button.text = {"learn":"1 Learn","sequence":"2 Build","dependency":"3 Link"}[key] if size.x<1100 else {"learn":"1 · Learn","sequence":"2 · Handoff","dependency":"3 · Connections"}[key]
+	status.position = Vector2(24,size.y-130); status.size = Vector2(size.x-476,90)
+	_refresh_panel(); camera_station = ""; _update_camera()

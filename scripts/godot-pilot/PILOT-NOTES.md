@@ -4,11 +4,11 @@ This is a separate, experimental Godot 4.7.2 desktop project. It does not replac
 
 ## The playable loop
 
-1. Learn one short source-cited idea at Aster's briefing station. Each retained teaching section is accessible, including on revisits.
+1. Meet Aster in a saved opening briefing, see the source-derived objectives, then learn one short source-cited idea at her station. Each retained teaching section is accessible, including on revisits.
 2. Try one guided construction: place two related sequence modules, or connect one directed relationship for a dependency-only pack.
 3. Construct the complete model at the workbench. Pick up physical modules and place them in numbered bays; at the adjacent station select a starting node, relationship, and target, then connect them.
 4. Check the model. A saved retry explains the actual violated ordering or relationship. Refine the construction and check again. Completion illuminates the construction with matched sound if sound was explicitly enabled.
-5. Reopen the same pack to continue its saved work. Opening another pack uses a different hash-derived save filename.
+5. Review the completed models with Aster and optionally save a personal field note. Reopen the same pack to continue its saved work. Opening another pack uses a different hash-derived save filename.
 
 The included original fixture (under the repository license) teaches a deliberately scoped durable-job design: stable IDs, pending state before enqueueing, completed results before acknowledgment, and the roles of queue, store, worker and result view. Its diagrams represent the stated design; the pilot does not execute a cloud service or establish real-world delivery guarantees.
 
@@ -41,7 +41,27 @@ All scene QA invocations set `ASTERLOOM_PILOT_QA_SAVE` to a fresh owned filename
 
 Headless `--script res://tests/scene_contract_test.gd` covers completed lesson revisits, failed-save protection, preservation of original task wording, and current native-control instructions. Run that assertion-based script in the debug editor, not a release player. Independent QA is in `qa/`; the converter has its own Node tests. Native export, signing, notarization, Windows execution, hardware-controller use and VoiceOver/NVDA acceptance are separate gates and are not established by these editor-runtime tests.
 
-For actual exported Mac players, `qa/native-check.py` runs the authored and converted public fixtures on both Universal architectures, then launches a new process for each to verify saved progress. It pins application files and screenshot bytes before accepting the result. The current final signed, notarized and stapled prototype passed all four runs (51 authored and 69 converted checks per architecture) and all four fresh-process reopens. The Windows x86-64 export was produced but remains unsigned and untested on Windows. Future builds need fresh native verification; no generated evidence or application binaries are stored with this source.
+For actual exported Mac players, `qa/native-check.py` runs the authored and converted public fixtures on both Universal architectures, then launches a new process for each to verify saved progress. It pins application files and screenshot bytes before accepting the result. The 0.1.0 release passed four native play runs and fresh-process reopens.
+The 0.2.0 adventure update requires its own release receipt and fresh native tests;
+prior artifacts do not establish coverage for changed code. Windows execution,
+hardware controllers and assistive-technology acceptance remain separate gates.
+
+## Authored cast, worlds and music
+
+The allowlisted presentation catalog contains three settings and a fixed cast:
+Aster, Owen and Claire. Their scene geometry is deliberately lightweight and
+articulated; the dialogue portraits are detailed illustrations, not rigged human
+models. Supporting portrait prompts and provenance live in `project/assets/cast`.
+The existing Aster portraits remain unchanged. Scene assets never assert source
+facts. Changing a presentation does not rewrite lessons, citations or rules.
+
+Five stages change light levels, character attention and music. Three CC0
+recordings crossfade between stage/profile playlists; nine deterministic cues
+cover placement, connection, retries, completion and crew interactions. Motion
+and sound have separate saved preferences. AI hosts are not connected in this
+pilot. Future optional connections must reuse grounded retrieval, real activity
+context, cancellation and measured usage through an authenticated studio broker.
+
 
 ## Product integration still required
 

@@ -82,13 +82,42 @@ process. Its output directory must not already exist:
 python3 scripts/godot-pilot/qa/native-check.py --app="/path/to/Asterloom Signalwright.app" --output="/new/output/native-check"
 ```
 
-The final prototype source was separately verified in a Developer ID signed,
-notarized and stapled Universal Mac export: all four native runs passed, with 51
-authored-fixture and 69 converted-fixture checks per architecture. Each fresh
-process restored the quest with byte-identical saved progress. The Windows x86-64
-cross-export succeeded; it has not been signed or run on Windows. Those checks
-apply to the verified prototype artifact, not to every future export. Re-run the
-native gate for a newly built application; generated evidence is kept outside Git.
+The previous 0.1.0 pilot was Developer ID signed, notarized and tested on both
+Universal architectures. Every new build requires fresh native verification.
+Version 0.2.0 adds the adventure presentation described below; its release
+verification receipt records the exact tested source and platform coverage.
+
+## Adventure presentation in 0.2.0
+
+Three trusted world profiles supply an operations workshop, restoration field
+station and evidence archive. They share the same two construction mechanics;
+they are three presentations, not three additional assessment systems. The
+converter selects from compatible authored metadata, or accepts an explicit
+allowlisted template ID. Neither a source nor AI can supply scene code or paths.
+
+Aster opens a mission briefing with source-derived activity objectives. Learners
+read the retained teaching, rehearse a small construction, attempt the full model,
+and review a saved debrief. Continue stays outside the scrolling reading panel.
+An optional personal reflection survives save failures and resumes on reopening.
+
+Aster keeps her existing portraits. Owen and Claire have original transparent
+portraits and clickable, articulated native scene characters. Crew guidance uses
+current progress, held items and the prepared source hints. It is offline prepared
+guidance, not general AI chat. Optional AI for any host requires a future explicit,
+authenticated studio connection; provider credentials must stay out of exported
+packs. The existing studio's retrieval and conversation pipeline is the intended
+answer authority, with source assistance recorded before showing an answer.
+
+Phase lighting, quiet reading music, two-voice crossfades, nine interaction cues,
+character poses and bounded action effects respond to real saved transitions.
+World restoration follows saved completion silently. Reduced motion suppresses
+ambient and transient motion; a restored game never replays earned celebrations.
+Three CC0 recordings are reused with different phase/profile ordering and gain;
+this is not a unique composed soundtrack per template.
+
+The new adventure-flow regression checks briefing persistence, fixed lesson
+controls, assistance attribution, reflection recovery, legacy saves and reward
+replay prevention. Presentation and audio have independent lifecycle tests.
 
 ## Proposed production architecture
 

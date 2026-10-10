@@ -5,9 +5,10 @@ import {sourceRevision,isCurrentEvidence} from '../../../src/lib/evidence';
 import {hasCurrentActivityEvidence} from '../../../src/lib/scaffoldRuntime';
 import type {SequenceActivity,DependencyActivity} from '../../../src/lib/structuredEngine';
 import type {EvidenceReference,Notebook,Source} from '../../../src/types';
+import {selectPilotTemplate,type PilotPresentation,type PilotTemplateId} from './template-catalog';
 
 export const PILOT_MAX_BYTES=4*1024*1024;
-export type PilotSelection={sequenceId?:string;dependencyId?:string};
+export type PilotSelection={sequenceId?:string;dependencyId?:string;templateId?:string};
 type PilotActivity=SequenceActivity|DependencyActivity;
 type PilotSource={id:string;title:string;text:string;revision:string};
 export interface PilotLesson {
@@ -16,13 +17,13 @@ export interface PilotLesson {
 }
 export interface MissionPack {
  format:'asterloom-godot-pilot';version:1;id:string;title:string;audience:'adult';
- fictionalSetting:'Signalwright Workshop';offsetEncoding:'utf-16';
+ fictionalSetting:string;offsetEncoding:'utf-16';presentation:PilotPresentation;
  source:PilotSource;sources:PilotSource[];lessons:PilotLesson[];
  sequence?:SequenceActivity;dependency?:DependencyActivity;
  teaching:AILearningMission[];
  activityEvidence:{activityId:string;citations:EvidenceReference[]}[];
  assessment:{mode:'experimental-practice';mastery:false;hostProgressWrites:false};
- provenance:{packageSha256:string;notebookId:string;notebookRevision:number;templateId:'signalwright-workshop';templateVersion:1;activityFingerprints:Record<string,string>};
+ provenance:{packageSha256:string;notebookId:string;notebookRevision:number;templateId:PilotTemplateId;templateVersion:1;activityFingerprints:Record<string,string>};
 }
 
 function selectedActivity(notebook:Notebook,kind:'sequence'|'dependency',id:string):PilotActivity {
@@ -61,7 +62,7 @@ function positionedEvidence(activity:PilotActivity,teaching:AILearningMission,so
 
 /** No inference, source rewriting, model approval, scoring, code generation or host writes. */
 export function convertLearnpack(text:string,selection:PilotSelection):MissionPack {
- if(Object.keys(selection).some(key=>key!=='sequenceId'&&key!=='dependencyId'))throw new Error('Unknown pilot selection option.');
+ if(Object.keys(selection).some(key=>!['sequenceId','dependencyId','templateId'].includes(key)))throw new Error('Unknown pilot selection option.');
  if(!selection.sequenceId&&!selection.dependencyId)throw new Error('Select an explicit sequence or dependency activity ID.');
  for(const id of Object.values(selection))if(typeof id!=='string'||!id.trim()||id.length>200)throw new Error('A selected activity ID is invalid.');
  const notebook=parsePackage(text);
@@ -70,6 +71,7 @@ export function convertLearnpack(text:string,selection:PilotSelection):MissionPa
  const activities:PilotActivity[]=[];
  if(selection.sequenceId)activities.push(selectedActivity(notebook,'sequence',selection.sequenceId));
  if(selection.dependencyId)activities.push(selectedActivity(notebook,'dependency',selection.dependencyId));
+ const template=selectPilotTemplate(notebook,activities,selection.templateId);
  const teaching=activities.map(activity=>{
   const mission=currentAILearningMission(notebook,activity);
   if(!mission)throw new Error(`The selected ${activity.kind} activity needs a current prepared lesson; the converter does not invent one.`);
@@ -83,8 +85,8 @@ export function convertLearnpack(text:string,selection:PilotSelection):MissionPa
  const sourceIds=new Set([...teaching.flatMap(mission=>mission.sourceWindows.map(ref=>ref.sourceId)),...activityEvidence.flatMap(item=>item.citations.map(ref=>ref.sourceId))]);
  const sources=notebook.sources.filter(source=>sourceIds.has(source.id)).map(source=>({id:source.id,title:source.title,text:source.text,revision:sourceRevision(source)}));
  const packageSha256=createHash('sha256').update(text,'utf8').digest('hex');
- const identity=createHash('sha256').update(JSON.stringify({packageSha256,activityIds:activities.map(activity=>activity.id),templateVersion:1})).digest('hex').slice(0,24);
- const pack:MissionPack={format:'asterloom-godot-pilot',version:1,id:`pilot-${identity}`,title:notebook.title,audience:'adult',fictionalSetting:'Signalwright Workshop',offsetEncoding:'utf-16',source:sources[0],sources,lessons,teaching:structuredClone(teaching),activityEvidence,assessment:{mode:'experimental-practice',mastery:false,hostProgressWrites:false},provenance:{packageSha256,notebookId:notebook.id,notebookRevision:notebook.revision,templateId:'signalwright-workshop',templateVersion:1,activityFingerprints:Object.fromEntries(activities.map(activity=>[activity.id,aiLearningActivityFingerprint(activity)]))}};
+ const identity=createHash('sha256').update(JSON.stringify({packageSha256,activityIds:activities.map(activity=>activity.id),templateId:template.id,templateVersion:1})).digest('hex').slice(0,24);
+ const pack:MissionPack={format:'asterloom-godot-pilot',version:1,id:`pilot-${identity}`,title:notebook.title,audience:'adult',fictionalSetting:template.name,offsetEncoding:'utf-16',presentation:{version:1,templateId:template.id},source:sources[0],sources,lessons,teaching:structuredClone(teaching),activityEvidence,assessment:{mode:'experimental-practice',mastery:false,hostProgressWrites:false},provenance:{packageSha256,notebookId:notebook.id,notebookRevision:notebook.revision,templateId:template.id,templateVersion:1,activityFingerprints:Object.fromEntries(activities.map(activity=>[activity.id,aiLearningActivityFingerprint(activity)]))}};
  for(const activity of activities){if(activity.kind==='sequence')pack.sequence=structuredClone(activity);else pack.dependency=structuredClone(activity);}
  if(Buffer.byteLength(JSON.stringify(pack,null,2)+'\n','utf8')>PILOT_MAX_BYTES)throw new Error('The complete pilot pack exceeds 4 MiB; nothing was truncated.');
  return pack;

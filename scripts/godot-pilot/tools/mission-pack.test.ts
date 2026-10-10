@@ -116,6 +116,9 @@ test('CLI writes one data file atomically, keeps input bytes, rejects existing f
   const run=(args:string[])=>spawnSync(process.execPath,['--import','tsx',cli,...args],{encoding:'utf8',timeout:30_000});
   let r=run(['--input',input,'--output',output,'--sequence',f.sequence.id,'--dependency',f.dependency.id]);assert.equal(r.status,0,r.stderr);
   assert.deepEqual(JSON.parse(await readFile(output,'utf8')),convertLearnpack(f.text,both));assert.equal(await readFile(input,'utf8'),f.text);
+  const archive=join(directory,'archive.json');r=run(['--input',input,'--output',archive,'--sequence',f.sequence.id,'--dependency',f.dependency.id,'--template','archive-investigation']);assert.equal(r.status,0,r.stderr);
+  const themed=JSON.parse(await readFile(archive,'utf8'));assert.deepEqual(themed.presentation,{version:1,templateId:'archive-investigation'});assert.deepEqual(themed.sources,JSON.parse(await readFile(output,'utf8')).sources);assert.deepEqual(themed.teaching,JSON.parse(await readFile(output,'utf8')).teaching);
+  const unsupported=join(directory,'unsupported.json');r=run(['--input',input,'--output',unsupported,'--sequence',f.sequence.id,'--template','res://unknown.gd']);assert.notEqual(r.status,0);assert.ok(!(await readdir(directory)).includes('unsupported.json'));
   const before=await readFile(output);r=run(['--input',input,'--output',output,'--sequence',f.sequence.id]);assert.notEqual(r.status,0);assert.deepEqual(await readFile(output),before);
   const alias=join(directory,'alias.json');await symlink(output,alias);r=run(['--input',input,'--output',alias,'--sequence',f.sequence.id]);assert.notEqual(r.status,0);assert.deepEqual(await readFile(output),before);
   const bad=join(directory,'bad.json');r=run(['--input',input,'--output',bad,'--sequence','absent']);assert.notEqual(r.status,0);assert.ok(!(await readdir(directory)).includes('bad.json'));

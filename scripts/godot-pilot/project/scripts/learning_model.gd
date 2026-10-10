@@ -93,7 +93,10 @@ func initialize(data: Dictionary, path: String = "") -> bool:
 	if FileAccess.file_exists(save_path):
 		var saved = JSON.parse_string(FileAccess.get_file_as_string(save_path))
 		if saved is Dictionary and saved.get("pack_hash") == pack_hash() and saved.get("state") is Dictionary:
-			var candidate: Dictionary = saved.state
+			var candidate: Dictionary = saved.state.duplicate(true)
+			# Legacy progress remains valid; reading it never rewrites the save.
+			if not candidate.has("briefingSeen"): candidate.briefingSeen = true
+			if not candidate.has("reflection"): candidate.reflection = ""
 			if valid_state(candidate): state = candidate
 	return true
 
@@ -128,11 +131,12 @@ func pack_hash() -> String:
 func fresh_state() -> Dictionary:
 	var slots: Array = []
 	for _item in pack.get("sequence", {}).get("items", []): slots.append("")
-	return {"lesson":0,"taught":false,"guided":false,"stage":"learn","order":slots,"edges":[],"supported":{"sequence":false,"dependency":false},"awards":{},"completions":[],"results":{},"attempts":{"sequence":0,"dependency":0},"xp":0,"reduced_motion":false,"revision":0}
+	return {"briefingSeen":false,"reflection":"","lesson":0,"taught":false,"guided":false,"stage":"learn","order":slots,"edges":[],"supported":{"sequence":false,"dependency":false},"awards":{},"completions":[],"results":{},"attempts":{"sequence":0,"dependency":0},"xp":0,"reduced_motion":false,"revision":0}
 
 func valid_state(s: Dictionary) -> bool:
 	for key in fresh_state():
 		if not s.has(key): return false
+	if not s.briefingSeen is bool or not s.reflection is String or s.reflection.length()>2000: return false
 	if not s.attempts is Dictionary: return false
 	if not s.order is Array or not s.edges is Array or not s.completions is Array or not s.awards is Dictionary or not s.results is Dictionary or not s.supported is Dictionary: return false
 	var completed: Array = []
@@ -310,3 +314,19 @@ func check(kind: String) -> Dictionary:
 	result.saved = true
 	result.awarded = awarded
 	return result
+
+func accept_briefing(revisit_teaching := false) -> bool:
+	var next := state.duplicate(true)
+	next.briefingSeen = true
+	if revisit_teaching and next.guided:
+		for kind in ["sequence","dependency"]:
+			if pack.has(kind): next.supported[kind] = true
+	return commit(next)
+
+func save_reflection(value: String) -> bool:
+	if value.length()>2000:
+		last_error = "Keep your field note under 2,000 characters."
+		return false
+	var next := state.duplicate(true)
+	next.reflection = value
+	return commit(next)
