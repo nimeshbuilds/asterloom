@@ -1,0 +1,8 @@
+project/.godot/
+project/export_presets.cfg
+test-output/
+__pycache__/
+*.app/
+*.exe
+*.pck
+*.zip

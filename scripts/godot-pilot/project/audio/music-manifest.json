@@ -1,0 +1,32 @@
+{
+  "recordings": [
+    {
+      "file": "music/a-brand-new-wisdom.ogg",
+      "bytes": 265389,
+      "sha256": "99d0095c328d598f5fb1bca9fbb4a518112bbf676dc662f0c0c6edfee88d788c",
+      "matchesBundledOriginal": true,
+      "creator": "hernandack",
+      "license": "CC0-1.0",
+      "source": "https://opengameart.org/content/short-loops-background-music-pack"
+    },
+    {
+      "file": "music/just-saying-tho.ogg",
+      "bytes": 397509,
+      "sha256": "687aa35987b89797af14735348c5b2f1b766ac0ba528dc001746aaf4ca1cc82f",
+      "matchesBundledOriginal": true,
+      "creator": "hernandack",
+      "license": "CC0-1.0",
+      "source": "https://opengameart.org/content/short-loops-background-music-pack"
+    },
+    {
+      "file": "music/winter-dust.ogg",
+      "bytes": 468597,
+      "sha256": "8c0da93d35ddfb3c8e4cc01ce4ba6611fb407eec4b6c23f17a691ad7dc0f1fe0",
+      "matchesBundledOriginal": true,
+      "creator": "hernandack",
+      "license": "CC0-1.0",
+      "source": "https://opengameart.org/content/short-loops-background-music-pack"
+    }
+  ],
+  "totalBytes": 1131495
+}
