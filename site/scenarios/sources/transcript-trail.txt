@@ -1,0 +1,27 @@
+THE SMALL EXHIBIT HANDOFF
+Original fictional transcript for Asterloom • NimeshBuilds
+This is a written transcript of an invented meeting, not a recording of real people. Timestamps provide source locations. It teaches dependencies, acceptance checks, and the difference between a suggestion and an agreed decision.
+
+[00:00] Rowan, coordinator: We have one tabletop exhibit to prepare. Our sequence is draft, review, print, and install. Each stage has a completion check. Finishing an action is not enough if its check has failed.
+
+[00:22] Claire, writer: I will draft three caption cards. Each card must have a title and exactly two sentences. The first sentence names the object. The second explains what the visitor should notice. The three objects are a painted tile, a folded map, and a wooden compass model.
+
+[00:49] Evan, reviewer: I will review the draft against the object list and the two-sentence rule. I can approve it only when all three cards pass both checks. If a card fails, I will name the problem and return it to Claire. We do not print a partly approved set.
+
+[01:13] Rowan: So a returned draft goes back to writing, then through review again. The title does not count as one of the two sentences. Is everyone clear that printing waits for approval of the complete set?
+
+[01:28] Claire: Yes. For example, a card titled “Folded map” could say, “This object is a map folded into four sections. Notice how the folds divide the route into smaller parts.” That has a title and two sentences, and it matches an object on our list.
+
+[01:55] Theo, printer: Once Evan approves the complete set, I print one copy of each card. I check that all three titles are readable and no words are clipped. A clipped card is a print failure, not a reason to change the approved wording. I reprint it and check again.
+
+[02:19] Claire: Could we use blue paper for every card? It might look good beside the map.
+
+[02:27] Rowan: That is a suggestion, not today's decision. We have not chosen a paper color. The agreed print checks are readable titles and unclipped words. No one should treat blue paper as a requirement from this meeting.
+
+[02:46] Evan: After all print checks pass, I can install the cards beside their matching objects. The last check is a one-to-one match: every object has its own correct card, and no card is beside the wrong object.
+
+[03:03] Rowan: Agreed. Claire writes, Evan reviews, Theo prints, and Evan installs. If the map card is placed beside the tile, correct the placement and repeat the installation check. If a printed word is clipped, return to printing. Fix the stage that owns the problem, then verify it before continuing.
+
+[03:29] Theo: I will report a stage as complete only after its checks pass. That will make our handoff clear: the next person knows what evidence supports moving forward.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

@@ -1,0 +1,320 @@
+[
+  {
+    "id": "first-adventure",
+    "title": "The Lantern Station Handbook",
+    "files": [
+      {
+        "name": "first-adventure.txt",
+        "title": "The Lantern Station Handbook",
+        "description": "A short dispatch handbook with three boats, explicit selection rules, and worked examples."
+      }
+    ],
+    "teachingGoal": "Learn to apply several constraints to a choice, use a tie-break rule, and pause when required information is missing.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "Which boat should carry a 1-kilogram parcel for Reed Island if it must stay dry?",
+        "answer": "Shelter. It visits Reed Island, supports up to 5 kilograms, and has a waterproof cover. Swift lacks the required cover."
+      },
+      {
+        "question": "Which boat should carry an ordinary 2-kilogram parcel to Reed Island?",
+        "answer": "Swift. Both Swift and Shelter qualify, but Swift has the smallest sufficient weight limit. Exactly 2 kilograms is within Swift's limit."
+      },
+      {
+        "question": "What should happen to a parcel addressed to Mist Island?",
+        "answer": "Hold it for a supervisor. No listed boat visits Mist Island, so the source does not support assigning a route."
+      }
+    ],
+    "notes": [
+      "Original fictional training material; not shipping advice.",
+      "The intended demonstration is a first source-to-game creation flow. The generated scaffold, story, and interface can vary.",
+      "A correct lesson should explain destination, weight, and dry requirements before asking learners to dispatch parcels."
+    ]
+  },
+  {
+    "id": "access-desk",
+    "title": "The Cedar Workshop Access Desk",
+    "files": [
+      {
+        "name": "access-desk.txt",
+        "title": "The Cedar Workshop Access Desk",
+        "description": "A fictional role-and-approval policy with least-permission decisions and incomplete-request cases."
+      }
+    ],
+    "teachingGoal": "Match a stated task to the smallest sufficient permission set and check the corresponding authorization independently.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "What role and approval does Maya need to edit a draft card?",
+        "answer": "Maker is the smallest sufficient role. Her complete request needs the project owner's approval."
+      },
+      {
+        "question": "Can Maya use her draft-editing approval to publish the corrected card?",
+        "answer": "No. Publishing requires Steward and a new approval from the archive owner for that task."
+      },
+      {
+        "question": "What three details must a request contain before the desk can grant access?",
+        "answer": "The person's name, a concrete description of the task, and an end date. The applicable owner's approval is also required."
+      }
+    ],
+    "notes": [
+      "Original fictional policy; not a real organization's security procedure.",
+      "The distinction between role suitability and approval is essential; neither check replaces the other.",
+      "A generated activity may classify requests or present decisions, but exact UI or template selection is not guaranteed."
+    ]
+  },
+  {
+    "id": "systems-relay",
+    "title": "The Riverglass Message Relay",
+    "files": [
+      {
+        "name": "systems-relay.txt",
+        "title": "The Riverglass Message Relay",
+        "description": "A simplified system model with four component responsibilities and a timestamped stale-cache investigation."
+      }
+    ],
+    "teachingGoal": "Connect a symptom to the responsible component and verify a repair against the original observation.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "Which component converts Bird Gallery into room code B7?",
+        "answer": "The resolver. The router sends coded requests, the archive stores current official messages, and the cache stores temporary copies."
+      },
+      {
+        "question": "Why does the visitor at 10:05 still see 'closes at 4' after the archive changed at 10:03?",
+        "answer": "The B7 cache copy created at 10:00 has a 10-minute lifetime and has not expired. An archive update does not immediately update an existing cache copy."
+      },
+      {
+        "question": "What does clearing B7's cache entry change, and what stays intact?",
+        "answer": "It removes the temporary B7 copy so the next successful request reads the current archive message. It does not delete B7 from the archive."
+      }
+    ],
+    "notes": [
+      "Original simplified model; component rules apply to the fictional relay, not every real network.",
+      "A useful explanation should connect the timestamps to cache expiry instead of merely naming the cache.",
+      "The expected lesson is diagnosis and cause-and-effect reasoning; a specific systems game scaffold is not guaranteed."
+    ]
+  },
+  {
+    "id": "evidence-desk",
+    "title": "The North Window Exhibit Record",
+    "files": [
+      {
+        "name": "evidence-desk.txt",
+        "title": "The North Window Exhibit Record",
+        "description": "Three fictional observations for comparing counts, percentages, unsupported causes, and missing evidence."
+      }
+    ],
+    "teachingGoal": "Choose the right measure, explain the scope of evidence, and distinguish a supported answer from an unknown.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "Which sign had the highest proportion of stopped visitors who followed the arrow?",
+        "answer": "Green: 8 of 10 stopped visitors, or 80 percent. Blue had 75 percent and Amber had 60 percent."
+      },
+      {
+        "question": "Which sign had the largest number of followers, and does that establish that its color caused more learning?",
+        "answer": "Blue and Amber tied at 9 followers. This does not establish a learning effect: learning was not measured, the signs appeared at different times, and comparable conditions were not established."
+      },
+      {
+        "question": "How much did the Green sign cost to print?",
+        "answer": "The source does not say. Printing costs are explicitly listed as missing information, so no amount can be supported from this record."
+      }
+    ],
+    "notes": [
+      "Original fictional observations; not a real study or a general claim about behavior.",
+      "This kit is suitable for comparing Aster's local source lookup with optional AI explanations. Local lookup may return relevant passages rather than calculate a conversational answer.",
+      "An honest unknown on the printing-cost question is a successful evidence boundary, not a requirement to invent an answer."
+    ]
+  },
+  {
+    "id": "supply-run",
+    "title": "The Pine Trail Supply Challenge",
+    "files": [
+      {
+        "name": "supply-run.txt",
+        "title": "The Pine Trail Supply Challenge",
+        "description": "An exact-number planning puzzle with essential kits, optional bonuses, a coin budget, and a time budget."
+      }
+    ],
+    "teachingGoal": "Satisfy mandatory requirements first, add independent resource totals, and compare feasible optional choices.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "What does one water kit, one food kit, and one blanket kit cost in total?",
+        "answer": "9 coins and 5 turns. Those three kits completely supply both explorers, leaving 3 coins and 3 turns."
+      },
+      {
+        "question": "Which feasible bonus earns the most points after buying the essentials?",
+        "answer": "The signal earns 5 points. Including essentials, it costs 12 coins and 7 turns, staying within the limits of 12 coins and 8 turns."
+      },
+      {
+        "question": "Why can the team not add both field notes and marker repair after the essentials?",
+        "answer": "Those two bonuses together cost 4 coins, but only 3 coins remain. Their combined time fits the remaining 3 turns, but the coin limit still rules the pair out."
+      }
+    ],
+    "notes": [
+      "Original tabletop rules, not outdoor safety or provisioning advice.",
+      "Kits cannot be split and each purchase is allowed at most once; those constraints must survive generation.",
+      "The highest-scoring result is fully determined by the source, while its visual or gameplay presentation can vary."
+    ]
+  },
+  {
+    "id": "young-explorers",
+    "title": "The Pocket Garden Explorers",
+    "files": [
+      {
+        "name": "young-explorers.txt",
+        "title": "The Pocket Garden Explorers",
+        "description": "A clear, concrete two-property sorting exercise for readers around ages 8–10 using invented seeds and beds."
+      }
+    ],
+    "teachingGoal": "Match two properties, notice how one changed property affects a decision, and recognize when no option fits.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "Where does Glowbud belong before any screen is added, and why?",
+        "answer": "Sunny Bed, because Glowbud needs bright light and dry soil, and Sunny Bed has both."
+      },
+      {
+        "question": "Where should Duskdot go before the screen changes Sunny Bed?",
+        "answer": "The waiting shelf. Duskdot needs low light and dry soil, and none of the three original beds has that combination."
+      },
+      {
+        "question": "Which seed fits Sunny Bed while its screen is in place?",
+        "answer": "Duskdot. The screen changes Sunny Bed to low light while the soil stays dry. Glowbud no longer fits because it needs bright light."
+      }
+    ],
+    "notes": [
+      "Original invented plants and needs; not gardening advice.",
+      "An adult can choose the child's age group in Asterloom and review generated reading level and instructions before play.",
+      "Age selection should not be presented as a guarantee that an AI-generated game is suitable without review."
+    ]
+  },
+  {
+    "id": "two-sources",
+    "title": "The Maple Library Rule Update",
+    "files": [
+      {
+        "name": "two-sources-handbook.txt",
+        "title": "The Maple Library Lending Handbook · Version 1",
+        "description": "The original fictional lending policy, effective 1 September. Add this source first."
+      },
+      {
+        "name": "two-sources-update.txt",
+        "title": "The Maple Library Lending Update · Version 2",
+        "description": "An explicit 1 October update changing exactly two rules and preserving the others. Add this source when rebuilding."
+      }
+    ],
+    "teachingGoal": "Reconcile a scoped update with an earlier source, preserve unchanged facts, and apply the correct rule for an effective date.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "On 5 October, may a standard member who already has 3 books borrow one more?",
+        "answer": "Yes. Version 2 replaces the former 3-book limit with a 4-book limit on and after 1 October."
+      },
+      {
+        "question": "Does Version 2 change the youth member's book limit or allow youth map-set loans?",
+        "answer": "No. Youth members may still hold at most 2 books, and they still may not borrow map sets. Those Version 1 rules were not replaced."
+      },
+      {
+        "question": "What loan periods apply to map sets checked out on 28 September and 5 October?",
+        "answer": "The 28 September loan keeps its original 7-day period. The 5 October loan uses the new 10-day period. The update does not retroactively extend existing loans."
+      }
+    ],
+    "notes": [
+      "Original fictional library rules; not a real library policy.",
+      "Begin with Version 1 alone if demonstrating an existing game; add Version 2 before starting an AI rebuild.",
+      "Both sources should remain available after the update so learners can trace which facts changed and which stayed the same.",
+      "Do not claim that an existing game's lessons update automatically when a source is added; recreate or rebuild the lessons with AI."
+    ]
+  },
+  {
+    "id": "transcript-trail",
+    "title": "The Small Exhibit Handoff",
+    "files": [
+      {
+        "name": "transcript-trail.txt",
+        "title": "The Small Exhibit Handoff · Written Transcript",
+        "description": "An original timestamped meeting transcript containing roles, dependencies, checks, an example, and an unaccepted suggestion."
+      }
+    ],
+    "teachingGoal": "Extract the agreed process from conversation, distinguish suggestions from decisions, and send a failed check back to its responsible stage.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "What is the agreed stage order and who owns each stage?",
+        "answer": "Draft: Claire. Review: Evan. Print: Theo. Install: Evan. Each next stage waits for the preceding stage's completion checks to pass."
+      },
+      {
+        "question": "Is blue paper a requirement?",
+        "answer": "No. Claire suggests blue paper at 02:19, but Rowan explicitly says at 02:27 that paper color has not been chosen."
+      },
+      {
+        "question": "What should happen if a printed card has a clipped word?",
+        "answer": "Return to printing: Theo reprints the card and repeats the print check. The transcript says not to change the approved wording to fix this print failure."
+      }
+    ],
+    "notes": [
+      "This downloadable file is an original written TXT transcript. It does not include an audio or video recording.",
+      "Timestamps support locating evidence but do not imply a playable media attachment.",
+      "Users can apply the same learning-source approach to their own authorized transcript; transcription of an uploaded recording may involve additional dependencies."
+    ]
+  },
+  {
+    "id": "offline-expedition",
+    "title": "The Three-Stop Coastal Survey",
+    "files": [
+      {
+        "name": "offline-expedition.txt",
+        "title": "The Three-Stop Coastal Survey",
+        "description": "Three connected investigations that can support a multi-part game and a clear save-and-resume check."
+      }
+    ],
+    "teachingGoal": "Apply a tie-break, resolve uncertainty with a bounded second reading, and leave an evidence-backed record for continuation.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "Which original channel should the cart use at Pebble Gate?",
+        "answer": "Channel 1. Channels 1 and 3 are open, and the rule chooses the lowest-numbered open channel."
+      },
+      {
+        "question": "What should happen if Mirror Pool shows amber and then amber again?",
+        "answer": "Report that the result remains uncertain. Do not continue or keep taking readings until a favorable one appears."
+      },
+      {
+        "question": "Which flag wins at Wind Post and why?",
+        "answer": "East. East and West tie for the greatest count at 7, and East comes first alphabetically among the tied flags."
+      }
+    ],
+    "notes": [
+      "Original fictional survey rules; not a coastal or outdoor safety guide.",
+      "Creation requires an AI connection; the completed game can be used to check local play after disconnecting AI or going offline.",
+      "The source provides three distinct learning segments, but the number and names of generated missions can vary.",
+      "Use the main desktop player's saved progress for the continuity check; do not imply progress sync between different player implementations."
+    ]
+  },
+  {
+    "id": "pass-it-on",
+    "title": "The Paper Bridge Design Lab",
+    "files": [
+      {
+        "name": "pass-it-on.txt",
+        "title": "The Paper Bridge Design Lab",
+        "description": "A design catalog and two briefs that make a source-grounded game understandable, shareable, and easy to adapt."
+      }
+    ],
+    "teachingGoal": "Compare alternatives against multiple constraints and preserve assumptions so another learner can understand or revise a decision.",
+    "expectedEvidenceChecks": [
+      {
+        "question": "Which design fits the original 12-centimeter gap, 3-counter load, and 5-credit budget?",
+        "answer": "Folded Deck. Its 15-centimeter span and 4-counter capacity meet the requirements, and its cost of 4 credits is within budget."
+      },
+      {
+        "question": "What changes if the gap becomes 18 centimeters and the budget becomes 6 credits?",
+        "answer": "Arch Deck becomes the valid choice. Folded Deck is too short, while Arch Deck spans 20 centimeters, supports 5 counters, and costs 6 credits."
+      },
+      {
+        "question": "What if the gap is 18 centimeters but the budget stays at 5 credits?",
+        "answer": "No listed design fits. Flat Deck and Folded Deck are too short, and Arch Deck costs more than the budget."
+      }
+    ],
+    "notes": [
+      "Original fictional model properties; not engineering advice for a real bridge.",
+      "The intended demonstration is exporting one completed notebook, opening it as a recipient, and optionally adapting its sources in the full app with AI.",
+      "Keep the catalog unchanged when trying the alternate brief so the effect of changed requirements remains visible.",
+      "Share only material you have rights to distribute and retain the Asterloom license in the exported package."
+    ]
+  }
+]

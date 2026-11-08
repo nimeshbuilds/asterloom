@@ -1,0 +1,32 @@
+THE THREE-STOP COASTAL SURVEY
+Original fictional learning material for Asterloom • NimeshBuilds
+
+Three investigations, one field record
+
+The Coastal Survey is a fictional observation exercise with three stops: Pebble Gate, Mirror Pool, and Wind Post. Each stop teaches a different reasoning step. The investigator records the observation, its meaning under the local rule, and the next action. These rules belong to an invented game world, not a real coastal safety guide.
+
+Stop one: Pebble Gate
+
+Pebble Gate has three numbered channels. Channel 1 is marked open, Channel 2 is marked blocked, and Channel 3 is marked open. The survey cart must use the lowest-numbered open channel. “Lowest-numbered” is a tie-breaking rule: it matters only when more than one channel is open. A blocked channel must never be selected just because its number is small.
+
+With the recorded signs, Channel 1 is correct. If Channel 1 becomes blocked while Channels 2 and 3 keep their recorded states, Channel 3 becomes correct. Record which signs you saw; the route depends on the current observation, not on a remembered answer from an earlier visit.
+
+Stop two: Mirror Pool
+
+Mirror Pool has a depth marker with green, amber, and red bands. Green means continue the survey. Amber means take a second reading. Red means stop this part of the survey and report the observation. An amber reading is uncertainty that needs another measurement; it is not permission to continue yet.
+
+The second reading replaces the first for the immediate decision. If the first reading is amber and the second is green, continue and record both readings. If the second is amber again, report that the result remains uncertain. If the second is red, stop and report it. Do not keep taking readings until one happens to look favorable.
+
+Stop three: Wind Post
+
+Wind Post stores three flags with recorded counts: North has 4 marks, East has 7 marks, and West has 7 marks. Choose the flag with the greatest count. If counts tie, choose the tied flag that comes first alphabetically. East and West tie at 7, so East wins the tie-break. North does not enter the tie-break because its count is smaller.
+
+A complete field record
+
+For the original observations, a concise record says: “Pebble Gate: Channel 1, the lowest open channel. Mirror Pool: amber then green, so continue after the second reading. Wind Post: East, tied for the greatest count and first alphabetically among the tied flags.”
+
+Keeping your place
+
+After each stop, write which stop is complete and which observation supported its decision. A later investigator should be able to resume at the next unfinished stop without guessing. A recorded result is useful only when it preserves the relevant evidence; a bare “done” does not explain what happened or why.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

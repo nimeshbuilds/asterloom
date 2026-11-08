@@ -1,0 +1,33 @@
+THE MAPLE LIBRARY LENDING HANDBOOK
+Version 1 • Effective 1 September in this fictional exercise
+Original fictional learning material for Asterloom • NimeshBuilds
+
+Read a rule in its context
+
+Maple Library lends illustrated books and map sets to its members. This handbook is a small policy-reading exercise. Its dates and rules are invented, and it is not the policy of any real library. A later, explicitly identified update may replace particular rules. Rules not replaced by an update remain in effect.
+
+The original lending rules
+
+A standard member may borrow at most 3 books at one time. Each book is due 14 days after checkout. A map set counts as a separate item, not as a book. A standard member may borrow at most 1 map set at one time, and that map set is due 7 days after checkout.
+
+A youth member may borrow at most 2 books at one time. Each youth book is due 14 days after checkout. Youth members cannot borrow map sets. These limits describe the total items currently held, not the number of visits a member makes. Visiting twice in one day does not double the limit.
+
+Renewal and availability
+
+A book can be renewed once, adding 7 days to its due date, if no other member has reserved it. A second renewal is not allowed. Map sets cannot be renewed. A reserved book may still be returned normally; a reservation only prevents renewal under these rules.
+
+Missing information
+
+Before approving a new loan, the desk needs the member type, the type and number of items requested, and the items the member already holds. Before approving a renewal, it also needs the item's renewal count and reservation status. Without those facts, the desk cannot reliably apply the rule.
+
+A worked example under Version 1
+
+A standard member already has 2 books and asks for 1 more. The total would be 3, so the request fits the book limit. If that member asks for 2 more instead, the total would be 4 and would exceed the limit. The member's map set, if any, does not reduce the book limit because it has its own separate limit.
+
+A youth member with 1 book may borrow 1 additional book. A youth member's request for a map set is not permitted. A standard member's unreserved book with no prior renewals may receive one 7-day renewal.
+
+Reading multiple sources
+
+When an update names a rule it replaces, use the replacement after its effective date. Do not mix old and new versions of that same rule. Keep unrelated rules, such as renewal conditions, unless the update changes them too. State the effective version when explaining a decision, so another reader can follow which rule you used.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

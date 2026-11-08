@@ -1,0 +1,30 @@
+THE PAPER BRIDGE DESIGN LAB
+Original fictional learning material for Asterloom • NimeshBuilds
+
+A design another learner can understand
+
+Paper Bridge is a fictional planning lab. You choose a bridge design for a small model display, explain the choice, and leave enough information for someone else to explore a different requirement. The capacities below are invented properties of named model pieces. They are not engineering claims or instructions for a real bridge.
+
+The design catalog
+
+Flat Deck spans 10 centimeters, supports 2 counters, and costs 2 credits. Folded Deck spans 15 centimeters, supports 4 counters, and costs 4 credits. Arch Deck spans 20 centimeters, supports 5 counters, and costs 6 credits. Each design can span a shorter gap than its listed maximum, and each can carry fewer counters than its capacity. You must choose one complete design; designs cannot be joined together or partly purchased.
+
+The original brief
+
+The display has a gap of 12 centimeters. The bridge must support 3 counters. The budget is 5 credits. A valid design must satisfy all three constraints: enough span, enough capacity, and a cost within budget. If multiple designs are valid, choose the cheapest. If no design is valid, report which constraints prevent a solution instead of changing the catalog.
+
+A worked selection
+
+Flat Deck costs only 2 credits, but its 10-centimeter span cannot cross the 12-centimeter gap and its 2-counter capacity is too low. Folded Deck spans 15 centimeters and supports 4 counters, so it meets both requirements. Its cost of 4 credits fits the 5-credit budget. Arch Deck meets the span and capacity requirements but costs 6 credits, exceeding the budget. Folded Deck is the only valid choice for the original brief, leaving 1 credit unspent.
+
+A different brief
+
+Suppose another learner changes the gap to 18 centimeters, keeps the 3-counter requirement, and raises the budget to 6 credits. The catalog stays unchanged. Folded Deck is now too short. Arch Deck spans 20 centimeters, supports 5 counters, and fits the new budget exactly. Arch Deck is the valid choice.
+
+If the new budget stayed at 5 credits instead, no listed design would work: the two cheaper designs would be too short, while Arch Deck would be too expensive. That is a meaningful result, not a failure to pick a favorite design.
+
+Explain a revision clearly
+
+A useful handoff separates fixed facts from changed requirements. State the catalog, the new gap, the load, and the budget. Then compare every candidate against every constraint. Keep the original brief alongside the revised one so another person can see why the conclusion changed. A shared answer becomes a reusable lesson when its evidence and assumptions travel with it.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

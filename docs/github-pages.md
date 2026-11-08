@@ -16,6 +16,20 @@ Open `http://127.0.0.1:4317/`. Check desktop and mobile layouts, gallery keyboar
 
 Only original or approved artwork and synthetic sample material belong on the public site. Asset provenance is in `site/assets/provenance.json`; local fonts retain their license notices. Never copy uploaded learner sources or app data into `site/`.
 
+## Guided scenarios
+
+The `/scenarios/` hub links to ten standalone desktop walkthroughs. Each includes original fictional source material, exact preview controls, expected outcomes, source-based answer checks, and a ZIP with the sources, a text walkthrough, and the license. These are starter materials, not prebuilt games. Creating a game still requires the desktop application and an AI connection.
+
+Edit guide content in `scripts/site-scenarios.json` and sample materials in `site/scenarios/sources/`. Keep `source-manifest.json` consistent with the sources and evidence checks. Regenerate the committed static pages, downloads, homepage cards, and sitemap with:
+
+```sh
+node scripts/build-site-scenarios.mjs
+```
+
+The generator uses the repository's existing `fflate` dependency. GitHub Pages serves the generated files directly and needs no build runtime. Do not edit the generated guide HTML or ZIPs by hand. Shared presentation and interactions live in `site/scenarios/scenarios.css` and `site/scenarios/scenarios.js`.
+
+Check all ten guides, individual and combined ZIP contents, source copy/fallback, filters, keyboard access, responsive layouts, and no-JavaScript reading/downloads. Checkmarks are stored only in the visitor's browser, separately for each guide; they are not desktop game progress. Blocked or malformed storage must not break the walkthrough. Confirm controls against the published release when updating instructions, and distinguish that code audit from actually generating and playing the sample games.
+
 ## Publish an update
 
 Commit the reviewed site changes in this repository first. Split only that directory into a separate history:

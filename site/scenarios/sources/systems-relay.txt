@@ -1,0 +1,30 @@
+THE RIVERGLASS MESSAGE RELAY
+Original fictional learning material for Asterloom • NimeshBuilds
+
+A small system with visible causes
+
+Riverglass Museum sends visitor messages through a model communication system. The model has four components: a resolver, a router, a cache, and an archive. The exercise teaches how to distinguish a component's job from a symptom. It simplifies real systems on purpose; its rules apply only to this fictional relay.
+
+The resolver converts a room name into a room code. For example, “Bird Gallery” becomes B7. The router sends a coded message to its destination room. The archive holds the current official message for each room code. The cache keeps a temporary copy of a recently retrieved message so a repeat request can be answered quickly.
+
+The normal path
+
+A visitor asks for the Bird Gallery message. First the resolver supplies B7. The router sends the B7 request toward the archive. If the cache has an unexpired B7 copy, the relay uses that copy instead of reading the archive. Otherwise, it reads the archive, returns the message, and stores a fresh cache copy.
+
+A cache copy expires after 10 minutes. Changing the archive does not immediately change a copy already in the cache. Clearing the B7 cache entry removes only that temporary copy. It does not delete B7 from the archive. After a clear, the next successful request reads the current archive message and starts a new 10-minute cache period.
+
+Read the symptom carefully
+
+If the relay reports “unknown room name,” test the resolver's name-to-code mapping. If the room code is correct but the request is sent to another room, inspect the router. If the destination is correct and the displayed message is older than the archive's message, inspect the cache. If both the displayed message and the archive's message contain the same wrong wording, correct the archive.
+
+A worked investigation
+
+At 10:00, the cache stores B7's message: “Bird Gallery closes at 4.” At 10:03, the archive is updated to “Bird Gallery closes at 5.” At 10:05, a visitor still sees “closes at 4.” The room name resolves to B7 and the router reaches B7 correctly. The old cache entry has not expired, so the cache explains the stale result.
+
+Clearing B7's cache entry at 10:05 makes the next successful request read “closes at 5” from the archive. Changing the resolver would not address the observed problem, because it already supplies the correct code.
+
+A disciplined repair
+
+Inspect one observable fact at a time: the requested name, the resolved code, the destination, then the message and its age. After a repair, repeat the original request. A different test can miss the original failure. Record what changed and what stayed correct, so the next investigator can follow the cause rather than merely repeat a lucky action.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.
