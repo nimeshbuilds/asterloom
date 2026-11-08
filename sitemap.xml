@@ -1,2 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://nimeshbuilds.github.io/asterloom/</loc></url></urlset>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://nimeshbuilds.github.io/asterloom/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/first-adventure/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/access-desk/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/systems-relay/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/evidence-desk/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/supply-run/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/young-explorers/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/two-sources/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/transcript-trail/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/offline-expedition/</loc></url>
+  <url><loc>https://nimeshbuilds.github.io/asterloom/scenarios/pass-it-on/</loc></url>
+</urlset>

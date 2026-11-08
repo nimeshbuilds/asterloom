@@ -1,0 +1,31 @@
+THE MAPLE LIBRARY LENDING UPDATE
+Version 2 • Effective 1 October in this fictional exercise
+Original fictional learning material for Asterloom • NimeshBuilds
+
+The scope of this update
+
+This document updates the Maple Library Lending Handbook, Version 1. It replaces exactly two rules from that handbook on and after 1 October: the number of books a standard member may hold, and the loan period for a map set. All other Version 1 rules remain in effect. These are fictional rules for practicing how to reconcile two sources.
+
+The two replacements
+
+First, a standard member may now borrow at most 4 books at one time. This replaces the former limit of 3 books. Second, a newly checked-out map set is now due 10 days after checkout. This replaces the former map-set loan period of 7 days. The new map-set period applies to map sets checked out on or after 1 October; existing loans keep their original due dates.
+
+What stays the same
+
+Standard books are still due 14 days after checkout. A standard member may still hold only 1 map set at a time. A map set still counts separately from books. Youth members may still hold at most 2 books and may not borrow map sets. A youth book still has a 14-day loan period.
+
+The renewal rules are also unchanged. An unreserved book may be renewed once for an additional 7 days. A book already renewed once may not be renewed again. Map sets cannot be renewed, even though their initial loan period is now longer.
+
+A worked comparison
+
+On 5 October, a standard member already has 3 books and asks to borrow 1 more. Under the current rule, the total of 4 is allowed. If someone applies the old 3-book limit, their answer is out of date. If the same member already has 4 books, another book would bring the total to 5, so that request is not allowed.
+
+A map set checked out on 5 October has a 10-day loan period. A map set checked out on 28 September keeps the 7-day period that applied at its checkout. The update does not retroactively extend that existing loan.
+
+A reliable explanation
+
+An answer about a current standard member's limit should identify Version 2's replacement rule. An answer about a youth member's limit may rely on Version 1, because that rule was not changed. A later document is not a reason to discard every earlier fact; compare its stated scope carefully.
+
+If the question does not say when a map set was checked out, ask for the date before choosing between the 7-day and 10-day periods. The correct rule depends on that missing detail.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

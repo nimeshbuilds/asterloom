@@ -1,0 +1,30 @@
+THE LANTERN STATION HANDBOOK
+Original fictional learning material for Asterloom • NimeshBuilds
+
+Your first shift
+
+Lantern Station sends small parcels to three nearby islands. A good dispatcher does more than work quickly: they read the parcel record, choose a suitable route, and explain why it fits. This handbook teaches the station's rules. These are invented rules for a learning exercise, not shipping advice.
+
+Every parcel record contains three fields: destination, weight, and whether the contents must stay dry. A destination is where a parcel should arrive. Weight tells you which boat can carry it. The dry marker tells you whether the parcel needs a covered boat. Read all three fields before choosing a route; a destination match alone is not enough.
+
+Meet the boats
+
+The Swift visits Reed Island. It carries parcels weighing at most 2 kilograms and has no cover. The Shelter also visits Reed Island. It carries parcels weighing at most 5 kilograms and has a waterproof cover. The Beacon visits Stone Island. It carries parcels weighing at most 4 kilograms and has a waterproof cover. No listed boat visits Mist Island.
+
+The phrase “at most” includes the limit itself. A parcel weighing exactly 2 kilograms is within the Swift's weight limit. A parcel weighing 2.1 kilograms is not. A covered boat may carry either dry-marked or ordinary parcels. An uncovered boat may carry only ordinary parcels.
+
+How to decide
+
+First, keep only boats that visit the correct island. Next, remove any boat whose weight limit is too low. Finally, remove uncovered boats if the parcel has a dry marker. If several boats remain, choose the one with the smallest sufficient weight limit. If none remain, hold the parcel for a supervisor; do not invent a route or erase a requirement.
+
+A worked dispatch
+
+A parcel for Reed Island weighs 1 kilogram and has a dry marker. Swift matches the destination and weight, but fails the dry requirement. Shelter passes all three checks, so Shelter is the correct route. The explanation should mention the cover, because that is the fact that distinguishes the two boats.
+
+Now consider an ordinary 2-kilogram parcel for Reed Island. Both boats meet the requirements, but Swift has the smaller sufficient limit. An ordinary 3-kilogram parcel for Stone Island belongs on Beacon. A parcel for Mist Island stays at the station because no listed boat serves that destination.
+
+A useful habit
+
+A confident explanation names both the decision and its evidence. “Shelter, because the parcel must stay dry” is more useful than “Shelter feels safer.” When a record is missing its weight, ask for that information before dispatching. Missing information is a reason to pause, not a reason to guess.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

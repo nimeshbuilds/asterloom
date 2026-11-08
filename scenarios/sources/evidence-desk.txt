@@ -1,0 +1,30 @@
+THE NORTH WINDOW EXHIBIT RECORD
+Original fictional learning material for Asterloom • NimeshBuilds
+
+What this record can tell us
+
+North Window Gallery tested three signs for the same fictional exhibit. This record contains the observations from one afternoon. It teaches the difference between reporting a measurement, comparing measurements, and claiming a cause. It does not describe a real study or make a general claim about how all people behave.
+
+The three observations
+
+The Blue sign was used from 1:00 to 1:30. Twelve visitors stopped to read it. Of those twelve, nine followed the arrow to the exhibit. The Green sign was used from 1:30 to 2:00. Ten visitors stopped to read it, and eight of them followed the arrow. The Amber sign was used from 2:00 to 2:30. Fifteen visitors stopped to read it, and nine of them followed the arrow.
+
+“Stopped” means the visitor paused in front of the sign for at least three seconds. “Followed” means that a stopped visitor then entered the exhibit corridor. Staff counted each person only once within a sign's half-hour period. The record contains no measurement of whether a visitor enjoyed the exhibit or remembered its content.
+
+Counts and proportions answer different questions
+
+Blue and Amber each had nine followers, so they tied for the largest number of followers. Green had eight followers. To compare the proportion of stopped visitors who followed, divide followers by stopped visitors. Blue's proportion is 9 divided by 12, or 75 percent. Green's is 8 divided by 10, or 80 percent. Amber's is 9 divided by 15, or 60 percent.
+
+A worked interpretation
+
+“Green had the highest follow-through proportion among the visitors who stopped” is supported by these measurements. “Green attracted the most readers” is not: Amber had fifteen stopped visitors, more than either other sign. “Green caused visitors to learn more” is also unsupported, because learning was not measured.
+
+Limits of the evidence
+
+The signs appeared at different times. The record does not say whether visitor groups, corridor traffic, or other conditions were comparable. These observations therefore do not establish that sign color caused the differences. They describe what happened in these three periods.
+
+The record does not include the signs' wording, printing costs, visitor ages, or results from other days. A question about any of those details cannot be answered from this source. An honest response names the missing detail instead of inventing it. More confident wording does not replace missing evidence.
+
+A useful comparison states the measure and its scope: “Green: 80 percent of stopped visitors in its observed half hour.” This is more precise than “Green was best.” Before recommending a sign for another setting, collect comparable observations and decide what outcome matters: stopping, following, enjoyment, or learning.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

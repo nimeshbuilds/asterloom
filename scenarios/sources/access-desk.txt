@@ -1,0 +1,30 @@
+THE CEDAR WORKSHOP ACCESS DESK
+Original fictional learning material for Asterloom • NimeshBuilds
+
+The smallest useful permission
+
+Cedar Workshop keeps design cards in a fictional archive. The archive has three roles: Reader, Maker, and Steward. The access desk gives each person the least powerful role that permits their assigned task. This exercise teaches how to compare a requirement against a permission set. These invented rules are not a real organization's security policy.
+
+A Reader can view published design cards. A Reader cannot change drafts, publish cards, or manage access. A Maker can view published cards and edit draft cards. A Maker cannot publish a draft or manage access. A Steward can view published cards, edit drafts, publish cards, and grant or remove roles.
+
+More power is not automatically better. If a visitor only needs to read a published card, Reader is enough. Giving that visitor Steward would allow unrelated changes. The workshop calls this unnecessary access. A role should be chosen from the stated work, not from how experienced or friendly the visitor seems.
+
+Two checks before a grant
+
+The access request must name the person, describe the task, and include an end date. Without any one of these three details, the desk marks the request incomplete. It does not grant access yet. A complete request for Reader or Maker needs approval from the project owner. A complete request for Steward needs approval from the archive owner instead.
+
+An approval is valid only for the task and end date written in that request. A new task that needs a stronger role requires a new approval. Access ends after the recorded end date. Renewing it requires another complete request; the desk does not silently extend it.
+
+A worked decision
+
+Maya needs to correct a measurement in a draft card until 14 June. Her request names her, describes that edit, gives the end date, and includes the project owner's approval. Reader cannot edit drafts. Maker can, and Steward adds permissions she does not need. The desk grants Maker through 14 June.
+
+If Maya later needs to publish the corrected card, her earlier approval is insufficient. Publishing requires Steward, and Steward requires the archive owner's approval. The desk records the new task rather than treating an edit approval as a publishing approval.
+
+Other cases
+
+Theo wants to view a published chair design for a personal project. With a complete request and project-owner approval, Reader is sufficient. Iris needs to remove another person's access, so only Steward covers the task. A request saying “give Alex whatever is needed” is incomplete because it does not describe a concrete task or an end date.
+
+An evidence-based explanation has two parts: the permission needed for the task, and the approval needed for that role. Separating these checks helps the desk notice both excessive access and missing authorization.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.
