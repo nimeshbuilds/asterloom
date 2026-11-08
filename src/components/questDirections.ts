@@ -12,7 +12,7 @@ export function questDirections(activity:StructuredActivity,objective?:string){
  const detail=objective&&instruction!==goal?instruction:undefined;
  const detailCollapsed=!!detail&&simple&&activity.reviewStatus==='needs-review';
  const guide=buildLessonActionGuide(activity);
- const action=activity.kind==='dependency'?'Choose a starting concept on the map, choose a relationship, then choose the target concept. Use Connect concepts to add the link.':guide.act;
+ const action=activity.kind==='scenario'?'Select a station to inspect its action and cost. Take an action, observe what changes, then choose your next move.':activity.kind==='dependency'?'Choose a starting concept on the map, choose a relationship, then choose the target concept. Use Connect concepts to add the link.':guide.act;
  const finish=activity.kind==='sequence'?'Aim for an order supported by the source.':activity.kind==='classification'?'Check every item against the source’s group rules. An item may belong to more than one group.':activity.kind==='dependency'?'Build the connections described by the source; the arrow goes from your starting concept to the target.':undefined;
  return{goal,detail,detailCollapsed,action,finish};
 }

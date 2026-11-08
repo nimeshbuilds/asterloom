@@ -248,11 +248,11 @@ export function beginLessonRehearsal(plan:LearningPlan,saved?:unknown):LessonSta
   const first=plan.rehearsal.slots[0];
   return{...state,missionAccepted:true,stage:'practice',rehearsal:state.rehearsal??{answers:{[first.id]:first.acceptedTileIds[0]},revealed:[first.id],selectedTileId:'',checked:false}};
 }
-/** AI teaching supplies the source explanation. Its authored worked example
- * remains required; an additional mechanically extracted tour repeats it.
- * Source-only lessons retain their full source walkthrough. */
-export function lessonRequiresWalkthrough(plan:LearningPlan):boolean {
-  return !plan.teaching||!!plan.teaching.workedExample;
+/** Actual examples and procedures remain part of guided teaching. The generic
+ * reading tour is optional on the direct source-guided path. Preserve the older
+ * note/rehearsal route's requirements when restoring its saved checkpoints. */
+export function lessonRequiresWalkthrough(plan:LearningPlan,guided=false):boolean {
+  return plan.teaching?!!plan.teaching.workedExample:!guided||plan.walkthrough.kind!=='source-reading';
 }
 export function beginLessonPractice(plan:LearningPlan,saved?:unknown):LessonState {
   const state=initialLessonState(plan,saved);
@@ -263,11 +263,11 @@ export function beginLessonPractice(plan:LearningPlan,saved?:unknown):LessonStat
  * worked example. A generic source kit is not an additional prerequisite.
  * Retain kits in the plan so existing saved notes and artifacts remain usable. */
 export function lessonAllowsGuidedStart(plan:LearningPlan):boolean {
-  return !!plan.teaching;
+  return !!plan.teaching||plan.status!=='blocked'&&plan.passages.length>0&&plan.coverage.uncoveredTargetIds.length===0;
 }
 export function completeGuidedLesson(plan:LearningPlan,saved:unknown,now=Date.now()):LessonState {
   const state=initialLessonState(plan,saved);
-  if(state.stage==='ready'||!lessonAllowsGuidedStart(plan)||plan.status==='blocked'||!state.missionAccepted||!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan)&&state.walkthroughStep!==plan.walkthrough.steps.length)return state;
+  if(state.stage==='ready'||!lessonAllowsGuidedStart(plan)||plan.status==='blocked'||!state.missionAccepted||!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan,true)&&state.walkthroughStep!==plan.walkthrough.steps.length)return state;
   return completeLesson(plan,{...state,practice:{...state.practice,guidedStart:true}},now);
 }
 export function lessonRehearsalChecks(plan:LearningPlan,saved?:LessonRehearsalState){
@@ -327,8 +327,9 @@ export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState
   // only: no passage/example is marked read and no completion is manufactured.
   if(plan.teaching){state.missionAccepted=true;if(state.stage==='mission')state.stage='context';}
   if(state.rehearsal){if(!plan.rehearsal){delete state.rehearsal;}else{const validTiles=new Set(plan.rehearsal.tiles.map(t=>t.id)),validSlots=new Set(plan.rehearsal.slots.map(s=>s.id));state.rehearsal={...state.rehearsal,answers:Object.fromEntries(Object.entries(state.rehearsal.answers).filter(([key,value])=>validSlots.has(key)&&validTiles.has(value))),revealed:state.rehearsal.revealed.filter(id=>validSlots.has(id)),selectedTileId:validTiles.has(state.rehearsal.selectedTileId)?state.rehearsal.selectedTileId:''};}}
-  const context=!!state.rehearsal&&!plan.teaching||lessonContextReady(plan,state);
-  const walked=!lessonRequiresWalkthrough(plan)||!!state.rehearsal&&!plan.teaching||state.walkthroughStep===plan.walkthrough.steps.length&&plan.walkthrough.steps.length>0;
+  const legacyRehearsal=!!state.rehearsal&&!plan.teaching&&!state.practice.guidedStart;
+  const context=legacyRehearsal||lessonContextReady(plan,state);
+  const walked=!lessonRequiresWalkthrough(plan,!!state.practice.guidedStart)||legacyRehearsal||state.walkthroughStep===plan.walkthrough.steps.length&&plan.walkthrough.steps.length>0;
   if(state.stage==='walkthrough'&&context&&!lessonRequiresWalkthrough(plan))state.stage='practice';
   const allowed=!state.missionAccepted?0:!context?1:!walked?2:!lessonPracticeReady(plan,state)||!state.completedAt?3:4;
   if(STAGES.indexOf(state.stage)>allowed)state.stage=STAGES[allowed];
@@ -340,13 +341,14 @@ export function initialLessonState(plan:LearningPlan,saved?:unknown):LessonState
 }
 export function lessonReady(plan:LearningPlan,saved?:unknown):boolean {const state=initialLessonState(plan,saved);return plan.status!=='blocked'&&state.stage==='ready'&&!!state.completedAt&&lessonPracticeReady(plan,state);}
 export function completeLesson(plan:LearningPlan,saved:unknown,now=Date.now()):LessonState {
-  const state=initialLessonState(plan,saved);if(plan.status==='blocked'||!state.missionAccepted||((!state.rehearsal||plan.teaching)&&(!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan)&&state.walkthroughStep!==plan.walkthrough.steps.length))||!lessonPracticeReady(plan,state)||!Number.isFinite(now))return state;
+  const state=initialLessonState(plan,saved);if(plan.status==='blocked'||!state.missionAccepted||((!state.rehearsal||plan.teaching||state.practice.guidedStart)&&(!lessonContextReady(plan,state)||lessonRequiresWalkthrough(plan,!!state.practice.guidedStart)&&state.walkthroughStep!==plan.walkthrough.steps.length))||!lessonPracticeReady(plan,state)||!Number.isFinite(now))return state;
   return{...state,stage:'ready',completedAt:new Date(now).toISOString()};
 }
 export function lessonQuestSupport(plan:LearningPlan,saved:unknown,now=Date.now()):{assisted:boolean;reason:string} {
   const state=initialLessonState(plan,saved);
   if(!lessonReady(plan,state))return{assisted:true,reason:'Complete the source briefing before beginning this quest.'};
   if(!plan.reviewed)return{assisted:true,reason:'This mission is an unapproved draft; preview cannot grant independent learning credit.'};
+  if(state.practice.guidedStart&&!plan.teaching)return{assisted:true,reason:'Source-guided practice keeps the supplied passages available during the quest. Reading them prepares the attempt; it does not establish independent recall.'};
   const elapsed=now-Date.parse(state.completedAt!);
   if(!Number.isFinite(elapsed)||elapsed<LESSON_SUPPORT_WINDOW_MS)return{assisted:true,reason:'This first-day quest is supported practice after teaching. Return later for independent retrieval; 24 hours is a product default, not a guarantee of retention.'};
   return{assisted:false,reason:'The saved briefing is at least 24 hours old. Attempt the quest without reopening teaching or hints for independent retrieval.'};

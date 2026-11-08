@@ -60,7 +60,7 @@ test('teaching hands off to a visible quest, mistakes explain the rule, and a so
  await expect(page.getByRole('list',{name:'Evaluation details',exact:true})).toContainText('Read the task description.');
  expect((await progress(page)).practice?.xp??0).toBe(0);
  await solve(page);await page.getByRole('button',{name:'Check my work',exact:true}).click();
- await expect(page.locator('.structured-feedback')).toContainText('Mission rules satisfied');
+ await expect(page.locator('.structured-feedback')).toContainText('Practice mission complete');
  await expect(page.getByRole('button',{name:'Challenge complete',exact:true})).toBeDisabled();
  await expect(page.locator('.mission-takeaway')).toContainText('A tool’s capabilities alone do not settle a task decision.');
  await visibleBelowHud(page,'.structured-feedback');
@@ -136,7 +136,7 @@ test('a pending or failed result keeps its mission open until the same save succ
  await page.getByRole('dialog').getByRole('button',{name:'Close dialog',exact:true}).click();
  await page.evaluate(()=>(window as any).missionNavigationSave.mode='save');
  await page.getByRole('button',{name:'Retry saving result',exact:true}).click();
- await expect(page.locator('.structured-feedback')).toContainText('Mission rules satisfied');await expect(nextMission).toBeEnabled();
+ await expect(page.locator('.structured-feedback')).toContainText('Practice mission complete');await expect(nextMission).toBeEnabled();
  await expect(page.locator('[data-hud="total-xp"]')).toContainText('20 XP');
  const writes=await page.evaluate(()=>(window as any).missionNavigationSave.attempts);expect(writes).toHaveLength(2);expect({...writes[1],updatedAt:writes[0].updatedAt}).toEqual(writes[0]);
  await page.getByRole('button',{name:'Continue your expedition',exact:true}).click();
@@ -172,7 +172,7 @@ test('a large source opens its grounded lesson promptly and preserves the comple
  await expect(briefing.locator('.lesson-mission-source')).toContainText('Page 153');
  await learnBeforeQuest(page);await solve(page);
  await page.getByRole('button',{name:'Check my work',exact:true}).click();
- await expect(page.locator('.structured-feedback')).toContainText('Mission rules satisfied');
+ await expect(page.locator('.structured-feedback')).toContainText('Practice mission complete');
  await expect(page.locator('[data-hud="total-xp"]')).toContainText('20 XP');
  await expect(page.locator('.save-state')).toContainText('Saved on this device');
  await page.reload();await page.getByRole('button',{name:/^(Play game|Continue game)$/}).click({timeout:10000});

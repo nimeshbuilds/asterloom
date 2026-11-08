@@ -3,6 +3,7 @@ const Bridge = preload("res://scripts/assessment_bridge.gd")
 const Store = preload("res://scripts/progress_store.gd")
 const Board = preload("res://scripts/activity_board.gd")
 const Spatial = preload("res://scripts/spatial_mission.gd")
+const ScenarioWorld = preload("res://scripts/scenario_world.gd")
 const Presentation = preload("res://presentation/world_presentation.gd")
 var presentation: Node
 var bridge: Node
@@ -173,7 +174,13 @@ func render_mission() -> void:
 	var play_row := HBoxContainer.new(); play_row.add_theme_constant_override("separation",18); play_row.size_flags_vertical = Control.SIZE_EXPAND_FILL; content.add_child(play_row)
 	var play_column := VBoxContainer.new(); play_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL; play_column.size_flags_vertical = Control.SIZE_EXPAND_FILL; play_row.add_child(play_column)
 	var spatial: bool = Spatial.supports(activity)
-	if spatial:
+	var scenario_world: bool = ScenarioWorld.supports(activity)
+	if scenario_world:
+		var world_scroll := ScrollContainer.new(); world_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; world_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL; world_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL; play_column.add_child(world_scroll)
+		board = ScenarioWorld.new(); board.size_flags_horizontal = Control.SIZE_EXPAND_FILL; world_scroll.add_child(board); board.configure(activity,response,current_view,notebook.get("sources",[]),native_media)
+		board.set_world(presentation.world_texture(),presentation.reduced_motion,presentation.age_settings.get("palette",{}),str(presentation.recipe.get("world",{}).get("layout","console")))
+		board.inspected.connect(func(_id): presentation.play_cue("inspect"))
+	elif spatial:
 		board = Spatial.new(); board.selected = selected_item; play_column.add_child(board); board.configure(activity,response,current_view,notebook.get("sources",[]),native_media)
 		board.set_world(presentation.world_texture(),presentation.reduced_motion)
 		board.inspected.connect(func(_id): presentation.play_cue("inspect"))
@@ -187,14 +194,14 @@ func render_mission() -> void:
 		if not taught: taught = true; assisted = true; presentation.set_phase("play")
 		if activity.kind == "recall" and not response.get("revealedIds",[]).is_empty(): assisted = true
 		if save_current():
-			presentation.play_cue("place"); status.text = "Your move is saved. Run the connection when you are ready to test it."
+			presentation.play_cue("place"); status.text = "Evidence saved. Explore another action or finish your conclusion." if scenario_world else "Your move is saved. Run the connection when you are ready to test it."
 			if is_instance_valid(check_button): check_button.disabled = false
 			show_coach_lesson())
 	board.narration_active.connect(func(active): presentation.set_narration_active(active))
 	board.action_requested.connect(run_action)
 	var actions := HBoxContainer.new(); actions.add_theme_constant_override("separation",12); content.add_child(actions)
-	var world_note := Label.new(); world_note.text = "Build a connection. Bring this part of your journey to life."; world_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL; world_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; world_note.add_theme_color_override("font_color",Color("b1c8be")); actions.add_child(world_note)
-	check_button = add_button("Run connection" if spatial else "Save my reflection" if activity.kind == "rubric" and activity.get("mode") == "self-assessment" else "Check my work",check_work,actions); check_button.custom_minimum_size = Vector2(210,54)
+	var world_note := Label.new(); world_note.text = "Explore → observe → build a supported conclusion" if scenario_world else "Build a connection. Bring this part of your journey to life."; world_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL; world_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; world_note.add_theme_color_override("font_color",Color("b1c8be")); actions.add_child(world_note)
+	check_button = add_button("Finish mission" if scenario_world else "Run connection" if spatial else "Save my reflection" if activity.kind == "rubric" and activity.get("mode") == "self-assessment" else "Check my work",check_work,actions); check_button.custom_minimum_size = Vector2(210,54)
 	check_button.add_theme_color_override("font_color",Color("ffe2a1"))
 	if not result.is_empty(): display_result()
 	else: status.text = "Explore the idea with Aster, then make your first move. Your choices are saved as you go."
@@ -212,10 +219,26 @@ func run_action(action: Dictionary) -> void:
 	var submitted_response := JSON.stringify(response)
 	var checked: Dictionary = await bridge.request({"op":"action","activity":activity,"response":response,"action":action,"sources":notebook.get("sources",[])})
 	busy = false
-	if JSON.stringify(response) != submitted_response: status.text = "Your choices changed while the action was processing. Apply the action again."; return
-	if not checked.get("ok",false): status.text = str(checked.get("error","The action is unavailable at this point.")); return
+	if JSON.stringify(response) != submitted_response:
+		status.text = "Your choices changed while the action was processing. Apply the action again."
+		if board is ScenarioWorld: board.action_failed()
+		return
+	if not checked.get("ok",false):
+		status.text = str(checked.get("error","The action is unavailable at this point."))
+		if board is ScenarioWorld: board.action_failed()
+		return
+	var previous_response := response.duplicate(true); var previous_view := current_view.duplicate(true)
+	var previous_result := result.duplicate(true); var previous_practice := practice_result.duplicate(true)
+	var previous_taught := taught; var previous_assisted := assisted
 	response = checked.get("response",response); current_view = checked.get("view",{}); result = {}; practice_result = {}
-	if save_current(): presentation.play_cue("commit"); render_mission()
+	if not taught: taught = true; assisted = true
+	if save_current():
+		presentation.play_cue("commit"); render_mission()
+		if board is ScenarioWorld: board.play_consequence()
+	else:
+		response = previous_response; current_view = previous_view; result = previous_result; practice_result = previous_practice
+		taught = previous_taught; assisted = previous_assisted
+		if board is ScenarioWorld: board.action_failed()
 
 func check_work() -> void:
 	if busy: return
@@ -240,7 +263,7 @@ func check_work() -> void:
 func display_result() -> void:
 	var feedback_result: Dictionary = practice_result if not practice_result.is_empty() else result
 	var complete: bool = feedback_result.get("correct") == true or feedback_result.get("outcome") == "self-reviewed"
-	if board is Spatial: board.show_feedback(feedback_result)
+	if board is Spatial or board is ScenarioWorld: board.show_feedback(feedback_result)
 	coach_title.text = "Mission complete" if complete else "A connection to revisit"
 	coach_copy.text = ("Practice result" if not practice_result.is_empty() else "Result")+": %d / %d checks\n\n" % [int(feedback_result.get("score",0)),int(feedback_result.get("maxScore",0))]+str(feedback_result.get("feedback",""))
 	if not complete:
@@ -319,7 +342,7 @@ func short_idea(text: String) -> String:
 func show_coach_lesson() -> void:
 	if not is_instance_valid(coach_copy): return
 	var teaching: Dictionary = mission.get("teaching",{})
-	coach_title.text = "Try it from memory" if taught and not assisted else "Make a connection" if taught else "Before your first move"
+	coach_title.text = "Try it from memory" if taught and not assisted else "Follow your evidence" if taught and board is ScenarioWorld else "Make a connection" if taught else "Before your first move"
 	var idea := str(teaching.get("conceptExplanation",{}).get("text",""))
 	if taught and not assisted: idea = ""
 	coach_copy.text = short_idea(idea) if not idea.is_empty() else str(activity.get("instruction","Explore the supplied material."))
@@ -327,6 +350,7 @@ func show_coach_lesson() -> void:
 	if activity.get("kind") == "classification": coach_copy.text += "\n\nStart with the signal on the left. Connect it to the destinations that fit, then move to the next signal."
 	elif activity.get("kind") == "sequence": coach_copy.text += "\n\nSelect two relays to change their order, or drag a relay into position. Run the connection to see what needs work."
 	elif activity.get("kind") == "completion": coach_copy.text += "\n\nRead the open module. Choose a piece to fit the socket, then explore the next module."
+	elif board is ScenarioWorld: coach_copy.text += "\n\nInspect a station before acting. Watch what changes, read the discoveries in Field notes, and use the evidence to support your conclusion."
 
 func lesson_pages() -> Array:
 	var pages: Array = []; var teaching: Dictionary = mission.get("teaching",{})
@@ -371,7 +395,10 @@ func show_settings() -> void:
 	var column := VBoxContainer.new(); column.size_flags_horizontal = Control.SIZE_EXPAND_FILL; column.add_theme_constant_override("separation",15); scroll.add_child(column)
 	for kind in ["music","effects"]:
 		var toggle := CheckButton.new(); toggle.text = "Music" if kind == "music" else "Action sounds"; toggle.button_pressed = presentation.music_enabled if kind == "music" else presentation.effects_enabled; toggle.toggled.connect(func(on): presentation.set_audio_enabled(kind,on)); column.add_child(toggle)
-	var quiet := CheckButton.new(); quiet.text = "Reduce motion"; quiet.button_pressed = presentation.reduced_motion; quiet.toggled.connect(func(on): presentation.set_reduced_motion(on); if board is Spatial: board.reduced_motion = on); column.add_child(quiet)
+	var quiet := CheckButton.new(); quiet.text = "Reduce motion"; quiet.button_pressed = presentation.reduced_motion; quiet.toggled.connect(func(on):
+		presentation.set_reduced_motion(on)
+		if board is Spatial: board.reduced_motion = on
+		elif board is ScenarioWorld: board.set_quiet_motion(on)); column.add_child(quiet)
 	panel_text(column,"This Godot preview saves its own progress. Aster chat, shared progress, challenge rooms, and full video playback are in the full game.",16)
 	panel_text(column,"AI-created lessons remain practice until reviewed. A saved completion is not a certification of the source or lesson.",16)
 	add_button("Start a fresh attempt without hints",func(): settings_dialog.hide(); await restart_attempt(),column)
@@ -440,7 +467,7 @@ func qa_run() -> void:
 		var item := {"scaffoldId":entry.get("scaffoldId",""),"activityId":a.get("id",""),"kind":a.get("kind",""),"rendered":false,"controlCount":0,"controlTypes":{},"resumeEqual":false,"error":""}
 		var initialized: Dictionary = await bridge.request({"op":"initial","activity":a,"sources":supplied})
 		if not initialized.get("ok",false): item.error = initialized.get("error","initial failed"); report.cases.append(item); continue
-		clear_content(); var test_board = Spatial.new() if Spatial.supports(a) else Board.new(); content.add_child(test_board); test_board.configure(a,initialized.response,initialized.get("view",{}),supplied)
+		clear_content(); var test_board = ScenarioWorld.new() if ScenarioWorld.supports(a) else Spatial.new() if Spatial.supports(a) else Board.new(); content.add_child(test_board); test_board.configure(a,initialized.response,initialized.get("view",{}),supplied)
 		await get_tree().process_frame
 		var counts := {}; count_controls(test_board,counts); item.controlTypes = counts
 		for count in counts.values(): item.controlCount += count

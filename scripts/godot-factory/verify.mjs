@@ -34,6 +34,8 @@ try{
   await run('native-render-assessment-resume',godot,['--headless','--path',project,'--',save,`--qa-manifest=${manifest}`,`--qa-output=${report}`],env);
   await run('native-controls',godot,['--headless','--path',project,'--script','res://scripts/native_interaction_test.gd','--',save,`--manifest=${manifest}`],env);
   await run('native-spatial-play',godot,['--headless','--path',project,'--script','res://scripts/spatial_contract_test.gd','--',save,`--manifest=${manifest}`],env);
+  await run('native-scenario-world',godot,['--headless','--path',project,'--script','res://scripts/scenario_world_contract_test.gd','--',save,`--manifest=${manifest}`],env);
+  await run('native-scenario-world-controller',godot,['--headless','--path',project,'--script','res://scripts/scenario_world_integration_test.gd','--',save,`--manifest=${manifest}`],env);
   await run('native-response-rendering',godot,['--headless','--path',project,'--script','res://scripts/render_contract_test.gd','--',save,`--manifest=${manifest}`],env);
   await run('native-progress-isolation',godot,['--headless','--path',project,'--script','res://scripts/progress_contract_test.gd','--',save,`--manifest=${manifest}`],env);
   await run('native-shape-and-image-contracts',godot,['--headless','--path',project,'--script','res://scripts/shape_contract_test.gd','--',save],env);

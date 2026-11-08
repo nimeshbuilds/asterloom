@@ -1,0 +1,48 @@
+/* Playing uses the full stage. Studio navigation returns with the world screen. */
+.app-shell.playing:has(.mission-content){background:#091923;color:#e5eeeb}
+.app-shell.playing:has(.mission-content)>.sidebar,.app-shell.playing:has(.mission-content)>.sidebar-overlay{display:none}
+.app-shell.playing:has(.mission-content)>.main-shell{margin-left:0;background:radial-gradient(ellipse at 50% 10%,#203d47 0,transparent 60%),#0b1a23;min-height:100vh}
+.app-shell.playing:has(.mission-content) .topbar{height:42px;min-height:42px;padding:0 26px;background:#0b1c26;border-color:#38535f;color:#b9d0d5;position:relative;top:0}
+.app-shell.playing:has(.mission-content) .topbar-context{font-size:11px;max-width:65%;color:#b9d0d5}
+.app-shell.playing:has(.mission-content) .topbar .search-box,.app-shell.playing:has(.mission-content) .topbar .avatar,.app-shell.playing:has(.mission-content) .topbar .mobile-menu,.app-shell.playing:has(.mission-content) .topbar-context>svg{display:none}
+.app-shell.playing:has(.mission-content) .save-state{color:#b6ccc5;font-size:10px}
+.app-shell.playing .content.mission-content{width:100%;max-width:1360px;margin:0 auto;padding:14px 26px 60px}
+.app-shell .mission-content .structured-game-header>.eyebrow{color:#a9c5ca}.app-shell .mission-content .structured-game-header>.button{color:#dfebe6;border-color:#597783;background:#173340}
+.app-shell .mission-content .gameplay-hud{background:#142d39;border-color:#42616c;box-shadow:none;color:#e3ece8}
+.app-shell .mission-content .gameplay-hud h2,.app-shell .mission-content .gameplay-hud strong,.app-shell .mission-content .gameplay-hud dt{color:#e4eeea}
+.app-shell .mission-content .gameplay-hud p,.app-shell .mission-content .gameplay-hud small,.app-shell .mission-content .gameplay-hud-footer{color:#b8d0cf}
+.app-shell .mission-content .mission-navigation{color:#d4e2df;background:#102936;border-color:#4a6671}
+.app-shell .mission-content .mission-navigation>summary{color:#c0d7d5}.app-shell .mission-content .mission-navigation>summary strong{color:#f0dfb7}
+.app-shell .mission-content .structured-board{background:#102530;border-color:#49636e;box-shadow:0 18px 60px #0002;color:#e7efeb;border-radius:16px;padding:22px}
+.app-shell .mission-content .mission-play-heading h2{color:#fff0d5;font-size:28px}.app-shell .mission-content .mission-play-heading .structured-kicker{color:#a9cabe}.app-shell .mission-content .structured-badge{background:#223d43;border-color:#527471;color:#d8e8da}
+.app-shell .mission-content .mission-play-directions h3{color:#dbc696;font-size:10px}.app-shell .mission-content .mission-play-directions p{color:#d4e4e4;font-size:13px;line-height:1.6}
+.app-shell .mission-content .mission-guide-dock{background:#183340;border-color:#4b6a76}.app-shell .mission-content .mission-guide-dock>summary{color:#e6dcba}.app-shell .mission-content .mission-guide-dock>summary small{color:#bbd2d3}.app-shell .mission-content .mission-guide-content{background:#f7f8f0;color:#283f35;padding:18px;border-radius:0 0 8px 8px}
+.app-shell .mission-content .structured-board>.structured-board-footer{background:#102b37;border-color:#537380;color:#bdd4d4;padding:14px 17px;border-radius:10px;margin:18px 0 0}
+.app-shell .mission-content .structured-board-footer>span{color:#c1d8d7}.app-shell .mission-content .structured-board-footer .structured-primary{background:#efd39b;border:1px solid #f4dfb4;color:#18313b;min-height:44px;padding:12px 19px}
+.app-shell .mission-content .structured-board .arena-detailed-workspace{background:#183340;border-color:#4c6a76;color:#d9e6df}.app-shell .mission-content .arena-detailed-workspace>summary{color:#deebdf}.app-shell .mission-content .arena-detailed-workspace>summary span{color:#b5ccc8}
+.app-shell .mission-content .structured-board .nimeshbuilds-credit,.app-shell .mission-content .structured-board .nimeshbuilds-credit a{color:#9db9bd}
+.app-shell .mission-content .structured-feedback{background:#f3f7ee;color:#244a3b;border-color:#a1c2ad}.app-shell .mission-content .structured-next{background:#17383d;border-color:#587e75;color:#d8ebe0}.app-shell .mission-content .structured-next p{color:#c5e0d1}
+@media(max-width:700px){.app-shell.playing .content.mission-content{padding:10px 12px 38px}.app-shell.playing:has(.mission-content) .topbar{padding:0 14px}.app-shell .mission-content .structured-board{padding:15px 12px}.app-shell .mission-content .mission-play-heading h2{font-size:23px}.app-shell .mission-content .mission-play-directions p{font-size:13px}.app-shell .mission-content .structured-board>.structured-board-footer{padding:12px;bottom:8px}}
+
+.app-shell .mission-content .structured-board:has(.mission-play-heading){background:#102530;border-color:#49636e}.app-shell .mission-content .structured-board .mission-play-heading h2{color:#fff0d5}.app-shell .mission-content .structured-board .mission-play-directions p{color:#d4e4e4}
+.app-shell .mission-content .gameplay-hud-outcome{background:#203f3c;border-color:#668f77;color:#d6e9d7}.app-shell .mission-content .gameplay-hud-outcome strong{color:#e2f0d7}.app-shell .mission-content .gameplay-hud-outcome.retry{background:#3c342a;border-color:#a0906c;color:#f1ddb9}.app-shell .mission-content .gameplay-hud-outcome.retry strong{color:#f1ddb9}
+
+/* Workbench labels sit on the dark stage; their light source cards keep their
+   own ink. Scope these surfaces rather than changing every board descendant. */
+.app-shell .mission-content :is(.data-filter>label,.data-text-controls>summary,.structured-text-alternative>summary,.structured-criterion legend,.completion-direct>summary,.connection-relations>legend,.connection-map-guide,.connection-commit>p,.model-text-controls>summary,.switch-helper,.switch-selected,.picture-message){color:#c1d8d7}
+.app-shell .mission-content :is(.cw-heading h3,.completion-model>h3,.composition-subheading>h4,.child-action-area>h3){color:#e7efeb}
+.app-shell .mission-content :is(.cw-heading .cw-eyebrow,.cw-heading p,.cw-live,.composition-subheading>span,.composition-role-help,.composition-argument-connector>small,.composition-live,.child-action-area>p){color:#c1d8d7}
+.app-shell .mission-content :is(.picture-board>.picture-caregiver,.child-story-journal,.child-caregiver)>summary{color:#dbc696}
+.app-shell .mission-content .media-checkpoint{color:#304a3c}
+.app-shell .mission-content :is(.structured-decisions>legend,.structured-diagram>.structured-helper,.structured-rubric>.structured-helper,.media-workbench>.structured-helper,.completion-workbench>p,.completion-progress,.completion-progress>span,.completion-direct>p,.completion-direct label,.model-text-controls .structured-connect-controls>label,.picture-intro,.picture-board>.picture-caregiver>p,.child-story-journal,.child-story-journal p,.child-caregiver,.child-caregiver p){color:#c1d8d7}
+.app-shell .mission-content :is(.composition-intro h3,.model-workspace-heading h3,.picture-welcome h3,.child-play-heading){color:#e7efeb}
+.app-shell .mission-content :is(.composition-intro p,.model-workspace-heading p,.picture-welcome small,.picture-welcome p){color:#c1d8d7}
+/* This existing helper uses an important component rule. */
+.app-shell .mission-content .connection-map-guide{color:#c1d8d7!important}
+.app-shell .mission-content .structured-evidence blockquote{color:#465d46}
+.app-shell .mission-content .data-text-controls{color:#c1d8d7}
+.app-shell .mission-content .data-text-controls :is(p,legend,label){color:#c1d8d7}
+.app-shell .mission-content .data-text-controls .data-table-wrap{background:#f6f8f1;color:#253f3b;border-radius:8px}
+.app-shell .mission-content .structured-board .picture-build .picture-welcome h3{color:#e7efeb}
+.app-shell .mission-content .cw-scroll:focus-visible{outline:3px solid #edb854;outline-offset:-3px}
+.app-shell .mission-content :is(.switch-ready,.switch-history,.switch-history p,.picture-next>span,.picture-next>p){color:#c1d8d7}

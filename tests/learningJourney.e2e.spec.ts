@@ -97,6 +97,17 @@ test('fresh lesson practice unlocks recall but awards no independent credit and 
  await page.getByRole('button',{name:'Complete this chapter',exact:true}).click();await expect(page.locator('.aster-reaction[data-reaction="complete"]')).toHaveCount(0);await page.evaluate(()=>{(window as any).journey.release(true);});await expect(page.locator('.aster-reaction[data-reaction="complete"]')).toHaveCount(1);expect(await page.evaluate(()=>(window as any).journey.completed)).toEqual([{score:0,total:1}]);
 });
 
+test('the direct source-guided route unlocks actual play without granting independent mastery',async({page})=>{
+ await openJourney(page);await page.getByRole('button',{name:'Explore the source',exact:true}).click();
+ const unread=page.getByRole('button',{name:/^Mark passage \d+ explored$/});while(await unread.count())await unread.first().click();
+ await page.getByRole('button',{name:'Start source-guided quest',exact:true}).click();
+ await expect(page.locator('.answer-option')).toHaveCount(2);
+ const prepared=await durable(page);expect(prepared.activeSession.state.lesson.practice.guidedStart).toBe(true);expect(prepared.attempts).toHaveLength(0);expect(prepared.xp).toBe(0);
+ await page.reload();await expect(page.getByText('Apply what you just learned',{exact:false})).toBeVisible();
+ await page.locator('.answer-option').filter({hasText:'Packet'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.success')).toBeVisible();
+ const p=await durable(page);expect(p.activeSession.state.resultAssisted).toBe(true);expect(p.activeSession.state.independentCount).toBe(0);expect(p.xp).toBe(0);expect(p.mastery).toBe(0);expect(p.cards.packet.successfulReviews).toBe(0);expect(p.completedCardIds).toEqual([]);expect(p.attempts[0].xp).toBe(0);
+});
+
 test('a reviewed lesson completed 48 hours earlier permits a new independent recall',async({page})=>{
  await page.goto(address+'/?aged=1');await expect(page.getByText('Independent retrieval',{exact:false})).toBeVisible();await expect(page.getByRole('button',{name:'Explore the source'})).toHaveCount(0);
  await page.locator('.answer-option').filter({hasText:'Packet'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.success')).toBeVisible();
@@ -148,9 +159,9 @@ test('young learners can use the caregiver conversation route without false inde
 });
 
 
-test('a source lesson has one reading card, a ready-selected mission reference and only one required note',async({page},info)=>{
+test('a source lesson offers two direct stages while retaining the optional field-note route',async({page},info)=>{
  await openJourney(page);
- await expect(page.locator('.lesson-route li')).toHaveCount(3);
+ await expect(page.locator('.lesson-route li')).toHaveCount(2);
  await expect(page.locator('.lesson-mission-source')).not.toHaveAttribute('open');
  await page.getByRole('button',{name:'Explore the source',exact:true}).click();
  await expect(page.locator('.lesson-source-reader .lesson-passage')).toHaveCount(1);

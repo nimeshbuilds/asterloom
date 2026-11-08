@@ -107,7 +107,12 @@ describe('AI teaching runtime with existing lesson gates',()=>{
   expect(lessonReady(p,{...ready,viewedPassageIds:[]})).toBe(false);
   expect(completeGuidedLesson(p,{...practice,viewedPassageIds:[]}).practice.guidedStart).toBeUndefined();
   expect(lessonReady({...p,id:'lesson-'+'a'.repeat(64)},ready)).toBe(false);
-  const noTeaching={...p,teaching:undefined};expect(lessonAllowsGuidedStart(noTeaching)).toBe(false);expect(lessonReady(noTeaching,ready)).toBe(false);
+  const noTeaching={...p,teaching:undefined};expect(lessonAllowsGuidedStart(noTeaching)).toBe(true);expect(lessonReady(noTeaching,ready)).toBe(false);
+  // AI idea IDs never count as reading the original passages after teaching is
+  // absent. A source-guided handoff has its own actual passage prerequisites.
+  expect(completeGuidedLesson(noTeaching,practice).completedAt).toBeUndefined();
+  expect(lessonAllowsGuidedStart({...noTeaching,passages:[]})).toBe(false);
+  expect(lessonAllowsGuidedStart({...noTeaching,coverage:{...noTeaching.coverage,uncoveredTargetIds:['missing']}})).toBe(false);
   const real=plan().plan;expect(lessonAllowsGuidedStart(real)).toBe(true);expect(completeGuidedLesson(real,initialLessonState(real)).completedAt).toBeUndefined();
   const ordered={...p,practice:{...p.practice,orderIds:['step-0','step-1']}};expect(lessonAllowsGuidedStart(ordered)).toBe(true);expect(lessonReady(ordered,ready)).toBe(true);
   const example={...p,teaching:{...p.teaching!,workedExample:plan().mission.workedExample}};
