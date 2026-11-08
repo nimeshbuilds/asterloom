@@ -1,0 +1,99 @@
+{
+  "description": "Optimized derivatives of existing Asterloom-owned product artwork. World and Aster generation provenance remains in the source repository under public/assets. No new artwork or user source material was generated for the landing page.",
+  "assets": [
+    {
+      "file": "hero-outpost.webp",
+      "source": "public/assets/world-art/inspection-outpost.png",
+      "description": "Decorative world artwork, inspection outpost",
+      "width": 1672,
+      "height": 941,
+      "bytes": 237482,
+      "sha256": "f8a908eb1c8d451e09044c0ca91589b59a8b4fc116c10a74d6e15bb634c87571"
+    },
+    {
+      "file": "hero-outpost-small.webp",
+      "source": "public/assets/world-art/inspection-outpost.png",
+      "description": "Decorative world artwork, inspection outpost; responsive derivative",
+      "width": 960,
+      "height": 540,
+      "bytes": 85174,
+      "sha256": "2af1796bea143bf439defad0a5e3f4890c494e7865acf5e140e14748810480fb"
+    },
+    {
+      "file": "world-studio.webp",
+      "source": "public/assets/world-art/tool-routing-studio.png",
+      "description": "Decorative world artwork, tool routing studio",
+      "width": 960,
+      "height": 540,
+      "bytes": 84794,
+      "sha256": "e0a9661c8a297cbc2a686fcfe074e595f3a5320a4b9b19735b43b3e545e4099a"
+    },
+    {
+      "file": "world-observatory.webp",
+      "source": "public/assets/world-art/systems-observatory.png",
+      "description": "Decorative world artwork, systems observatory",
+      "width": 960,
+      "height": 540,
+      "bytes": 91242,
+      "sha256": "3ca36d53a5cdcc2ccfa25ed43e9c2a6bfa97570a0e3db65020484935dea536a6"
+    },
+    {
+      "file": "world-expedition.webp",
+      "source": "public/assets/world-art/junior-expedition.png",
+      "description": "Decorative world artwork, junior expedition",
+      "width": 960,
+      "height": 640,
+      "bytes": 158140,
+      "sha256": "6c3d95cfae796ef01f07631839188823d6e744d01efd3265bc0b9b26c29ac8cc"
+    },
+    {
+      "file": "aster-welcome.webp",
+      "source": "public/assets/aster/emotions/welcome-wave.png",
+      "description": "Original Aster character, welcome-wave emotion; alpha preserved",
+      "width": 720,
+      "height": 720,
+      "bytes": 78472,
+      "sha256": "4081b8e7f7d03509c268139c50c96cd90516646dc43be5ccaf354b8335be7329"
+    },
+    {
+      "file": "gameplay.webp",
+      "source": ".qa/desktop-operation-review/desktop-resumed.png",
+      "description": "Actual desktop screenshot of original network-lab QA fixture; not uploaded user material",
+      "width": 1440,
+      "height": 1610,
+      "bytes": 141126,
+      "sha256": "7e206b634203d3dff929a27305cfd29a65b1dbeb9c1b49b362dc38faea803eb5"
+    },
+    {
+      "file": "social-preview.jpg",
+      "source": "public/assets/world-art/inspection-outpost.png",
+      "description": "JPEG compatibility derivative of decorative inspection outpost artwork for social preview cards",
+      "width": 1200,
+      "height": 675,
+      "bytes": 150267,
+      "sha256": "fdcc093c2ac23a28496571b3fdd8b0227e0326ac748f338ce2f29049b36d824f"
+    }
+  ],
+  "fonts": [
+    {
+      "source": "node_modules/@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2",
+      "file": "fonts/dm-sans-latin.woff2"
+    },
+    {
+      "source": "node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2",
+      "file": "fonts/fraunces-latin.woff2"
+    },
+    {
+      "source": "node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-italic.woff2",
+      "file": "fonts/fraunces-latin-italic.woff2"
+    },
+    {
+      "source": "public/assets/licenses/dm-sans-OFL.txt",
+      "file": "fonts/dm-sans-OFL.txt"
+    },
+    {
+      "source": "public/assets/licenses/fraunces-OFL.txt",
+      "file": "fonts/fraunces-OFL.txt"
+    }
+  ]
+}

@@ -6,6 +6,8 @@ A local-first studio for turning your own materials into portable, editable lear
 
 **Current status: working development build, not a validated commercial release.** The repository distinguishes implemented engines from authored scaffold specifications. Do not market all 75 recipes as distinct complete simulations or claim proven learning benefits before field evaluation.
 
+[Explore the public Asterloom website](https://nimeshbuilds.github.io/asterloom-site/). Its source lives in [`site/`](site/README.md) and is published separately from the private application repository; see [website deployment](docs/github-pages.md).
+
 ## Run the studio
 
 Node.js 24 or newer:
