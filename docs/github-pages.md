@@ -1,10 +1,10 @@
 # Asterloom public website
 
-The buildless site lives in `site/`. GitHub Pages publishes the public **website-only** repository, `nimeshbuilds/asterloom-site`, from `main` at `/`:
+The application and buildless website share the public `nimeshbuilds/asterloom` repository. The website source lives in `site/`; GitHub Pages publishes the `gh-pages` branch from `/`:
 
-https://nimeshbuilds.github.io/asterloom-site/
+https://nimeshbuilds.github.io/asterloom/
 
-The application repository stays private. GitHub Free does not include Pages for private organization repositories. Do not change application visibility or push application history to the website repository to work around that constraint.
+The `gh-pages` branch contains the website files only. Application changes remain in the normal development branches and pull requests. Publishing the website does not merge or release the application.
 
 ## Preview and verification
 
@@ -23,11 +23,11 @@ Commit the reviewed site changes in this repository first. Split only that direc
 ```sh
 git subtree split --prefix=site -b codex/pages-publish
 git ls-tree -r --name-only codex/pages-publish
-git push https://github.com/nimeshbuilds/asterloom-site.git codex/pages-publish:main
+git push origin codex/pages-publish:gh-pages
 ```
 
-Use a fresh local split branch name if the example branch already exists. Inspect the tree before pushing: only the public website, its assets, README and license should be present. Use a normal fast-forward push; if the website repository has diverged, reconcile it rather than forcing over changes.
+Use a fresh local split branch name if the example branch already exists. Inspect the tree before pushing: only the public website, its assets, README and license should be present. Use a normal fast-forward push; if `gh-pages` has diverged, reconcile it rather than forcing over changes. All updates stay in this same repository; no second website repository is needed.
 
-GitHub Pages is configured with `build_type: legacy`, source `main`, path `/`, and HTTPS enforced. `.nojekyll` disables Jekyll processing. After pushing, verify Pages build status and the live website; repository push success is not proof of successful publication.
+GitHub Pages is configured with `build_type: legacy`, source `gh-pages`, path `/`, and HTTPS enforced. `.nojekyll` disables Jekyll processing. After pushing, verify Pages build status and the live website; repository push success is not proof of successful publication.
 
-The landing page deliberately says the app is in development and no public application download is available. Private releases are not accessible to anonymous visitors. Replace that message only after a public, verified application release exists. Distinguish illustrative world artwork from actual development screenshots and released functionality.
+The landing page describes the published v0.7.14 Mac prerelease separately from current development work. That signed and notarized universal preview supports macOS 13 or later, on Apple silicon and Intel, and has no Windows download. Its gameplay predates the development screenshot on the website. Update release copy only after verifying a new published build. Distinguish illustrative world artwork from actual development screenshots and released functionality.
