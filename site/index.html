@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10252b" />
+    <title>Asterloom — Make knowledge an adventure</title>
+    <meta
+      name="description"
+      content="Turn your materials into source-grounded learning adventures. Build with AI, learn through missions, and play finished games offline. By NimeshBuilds."
+    />
+    <link
+      rel="canonical"
+      href="https://nimeshbuilds.github.io/asterloom/"
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Asterloom — Make knowledge an adventure"
+    />
+    <meta
+      property="og:description"
+      content="Your notes. Your sources. A world of things to discover. Meet the desktop studio for source-grounded learning adventures."
+    />
+    <meta
+      property="og:url"
+      content="https://nimeshbuilds.github.io/asterloom/"
+    />
+    <meta
+      property="og:image"
+      content="https://nimeshbuilds.github.io/asterloom/assets/social-preview.jpg"
+    />
+    <meta
+      property="og:image:alt"
+      content="Asterloom world artwork: a lantern-lit mountain outpost with brass portals"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="./assets/favicon-32.png"
+    />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link
+      rel="preload"
+      href="./assets/fonts/dm-sans-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="./assets/fonts/fraunces-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./scenarios/scenarios.css" />
+    <script src="./site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <svg
+      class="icon-definitions"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <symbol id="arrow" viewBox="0 0 24 24">
+          <path d="M4 12h15M13 5l7 7-7 7" />
+        </symbol>
+        <symbol id="arrow-up" viewBox="0 0 24 24">
+          <path d="M6 18 18 6M6 6h12v12" />
+        </symbol>
+        <symbol id="spark" viewBox="0 0 24 24">
+          <path
+            d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"
+          />
+        </symbol>
+        <symbol id="book" viewBox="0 0 24 24">
+          <path
+            d="M12 6v15M3 3h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5v16h-5a4 4 0 0 0-4 2 4 4 0 0 0-4-2H3Z"
+          />
+        </symbol>
+        <symbol id="compass" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="m16 8-2.5 5.5L8 16l2.5-5.5L16 8Z" />
+        </symbol>
+        <symbol id="download" viewBox="0 0 24 24">
+          <path d="M12 3v12m-5-5 5 5 5-5M4 15v5h16v-5" />
+        </symbol>
+        <symbol id="layers" viewBox="0 0 24 24">
+          <path d="m12 3 10 5-10 5L2 8l10-5ZM2 12l10 5 10-5M2 16l10 5 10-5" />
+        </symbol>
+        <symbol id="shield" viewBox="0 0 24 24">
+          <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" />
+          <path d="m8 12 3 3 5-6" />
+        </symbol>
+        <symbol id="expand" viewBox="0 0 24 24">
+          <path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" />
+        </symbol>
+        <symbol id="close" viewBox="0 0 24 24">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </symbol>
+        <symbol id="github" viewBox="0 0 24 24">
+          <path
+            d="M8 21v-4c-4 1-4-2-6-2m14 6v-4a4 4 0 0 0-1-3c3-.4 5-1.5 5-5a4 4 0 0 0-1-3 4 4 0 0 0 0-3s-2 0-4 2a12 12 0 0 0-6 0C7 3 5 3 5 3a4 4 0 0 0 0 3 4 4 0 0 0-1 3c0 3.5 2 4.6 5 5a4 4 0 0 0-1 3"
+          />
+        </symbol>
+      </defs>
+    </svg>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="wordmark" href="#" aria-label="Asterloom home"
+          ><img src="./assets/icon.svg" width="34" height="34" alt="" /><span
+            >asterloom</span
+          ></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="#experience">The experience</a>
+          <a href="./scenarios/">Try a scenario</a>
+          <a href="https://github.com/nimeshbuilds/asterloom"
+            >GitHub <svg class="icon small"><use href="#arrow-up" /></svg
+          ></a>
+        </nav>
+        <a class="button button-small button-outline" href="#preview"
+          >Explore the Mac preview <svg class="icon small"><use href="#arrow" /></svg
+        ></a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-heading">
+        <picture class="hero-art">
+          <source
+            media="(max-width: 700px)"
+            srcset="./assets/hero-outpost-small.webp"
+          />
+          <img
+            src="./assets/hero-outpost.webp"
+            width="1672"
+            height="941"
+            alt=""
+            fetchpriority="high"
+          />
+        </picture>
+        <div class="hero-shade"></div>
+        <div class="container hero-content">
+          <p class="eyebrow hero-eyebrow">
+            <span class="status-dot"></span> A new world of learning
+          </p>
+          <h1 id="hero-heading">Make knowledge<br />an <em>adventure.</em></h1>
+          <p class="hero-description">
+            Your notes. Your sources. A world of things to discover.<br
+              class="desktop-break"
+            />
+            Turn the material you care about into learning missions—with Aster
+            by your side.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-gold" href="#experience"
+              >Explore the experience
+              <svg class="icon"><use href="#arrow" /></svg
+            ></a>
+            <a class="text-link" href="./scenarios/"
+              >Try a guided scenario <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <p class="hero-note">
+            A learning adventure in the making, by
+            <a href="https://github.com/nimeshbuilds">NimeshBuilds</a>
+          </p>
+        </div>
+        <div class="container hero-bottom">
+          <div class="hero-principle">
+            <svg class="icon"><use href="#book" /></svg
+            ><span>Grounded in your sources</span>
+          </div>
+          <div class="hero-principle">
+            <svg class="icon"><use href="#compass" /></svg
+            ><span>Learn through missions</span>
+          </div>
+          <div class="hero-principle">
+            <svg class="icon"><use href="#download" /></svg
+            ><span>Keep your adventures</span>
+          </div>
+          <span class="art-caption"
+            >The Inspection Outpost · world artwork</span
+          >
+        </div>
+      </section>
+
+      <section
+        class="section introduction"
+        id="how-it-works"
+        aria-labelledby="intro-heading"
+      >
+        <div class="container">
+          <div class="section-heading intro-heading">
+            <p class="eyebrow">
+              From a pile of materials to a sense of discovery
+            </p>
+            <h2 id="intro-heading">
+              There’s an adventure<br />in what you want to <em>learn.</em>
+            </h2>
+            <p>
+              Asterloom is a desktop studio for making learning personal. Start
+              with your material, shape an adventure with AI, then take the time
+              to understand, explore and apply it.
+            </p>
+          </div>
+          <ol class="creation-steps">
+            <li>
+              <div
+                class="step-illustration source-illustration"
+                aria-hidden="true"
+              >
+                <span class="file-sheet file-back"
+                  >.pdf<span></span><span></span></span
+                ><span class="file-sheet file-front"
+                  >your notes<span></span><span></span><span></span></span
+                ><span class="file-tag">.mp3</span
+                ><svg class="step-spark icon"><use href="#spark" /></svg>
+              </div>
+              <div class="step-label">
+                <span>01</span>
+                <h3>Bring your curiosity.</h3>
+              </div>
+              <p>
+                Add documents, notes, web pages or recordings. Your sources
+                become the foundation of the learning experience.
+              </p>
+            </li>
+            <li>
+              <div
+                class="step-illustration route-illustration"
+                aria-hidden="true"
+              >
+                <span class="route-line"></span
+                ><span class="route-node"
+                  ><svg class="icon"><use href="#book" /></svg></span
+                ><span class="route-node route-main"
+                  ><svg class="icon"><use href="#spark" /></svg></span
+                ><span class="route-node"
+                  ><svg class="icon"><use href="#compass" /></svg></span
+                ><span class="route-label">a plan for your material</span>
+              </div>
+              <div class="step-label">
+                <span>02</span>
+                <h3>Build with your AI.</h3>
+              </div>
+              <p>
+                Connect a supported provider or API. Asterloom uses your sources
+                to plan the teaching, missions and setting.
+              </p>
+            </li>
+            <li>
+              <div
+                class="step-illustration journey-illustration"
+                aria-hidden="true"
+              >
+                <span class="journey-orbit"></span
+                ><span class="journey-orbit orbit-two"></span
+                ><svg class="icon journey-compass"><use href="#compass" /></svg
+                ><span class="journey-star star-one">✦</span
+                ><span class="journey-star star-two">✧</span
+                ><span class="journey-label">your next discovery</span>
+              </div>
+              <div class="step-label">
+                <span>03</span>
+                <h3>Step into the learning.</h3>
+              </div>
+              <p>
+                Study the ideas, put them into practice, and see what your
+                choices change. Finished games can be played offline.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- SCENARIOS:START -->
+<section class="scenario-home section" id="try-it" aria-labelledby="try-it-heading"><div class="container"><div class="catalog-heading"><div><p class="eyebrow">Ready when you are</p><h2 id="try-it-heading">Don’t start with<br><em>a blank page.</em></h2></div><div><p>Follow one of ten field guides, each with original sample material, clear steps, and something different to discover about Asterloom.</p><a class="text-link" href="./scenarios/">Explore all ten scenarios <span aria-hidden="true">↗</span></a></div></div><div class="scenario-grid"><article class="scenario-card" data-category="create"><a class="scenario-card-link" href="./scenarios/first-adventure/">
+<div class="scenario-card-art"><img src="./assets/hero-outpost-small.webp" width="960" height="540" alt="" loading="lazy"><span class="scenario-number">01</span><span class="scenario-category">Start here</span></div>
+<div class="scenario-card-copy"><h3>Your first shift</h3><p>Create your first game from copied text, then check its teaching against the material you supplied.</p><span class="scenario-card-bottom">6 steps · Source included <span aria-hidden="true">↗</span></span></div>
+</a></article><article class="scenario-card" data-category="learn"><a class="scenario-card-link" href="./scenarios/evidence-desk/">
+<div class="scenario-card-art"><img src="./assets/world-observatory.webp" width="960" height="540" alt="" loading="lazy"><span class="scenario-number">04</span><span class="scenario-category">Aster &amp; evidence</span></div>
+<div class="scenario-card-copy"><h3>Ask, then verify</h3><p>Compare regular Aster&#39;s source retrieval with optional AI explanations while checking both against the same evidence.</p><span class="scenario-card-bottom">7 steps · Source included <span aria-hidden="true">↗</span></span></div>
+</a></article><article class="scenario-card" data-category="extend"><a class="scenario-card-link" href="./scenarios/pass-it-on/">
+<div class="scenario-card-art"><img src="./assets/hero-outpost-small.webp" width="960" height="540" alt="" loading="lazy"><span class="scenario-number">10</span><span class="scenario-category">Export &amp; remix</span></div>
+<div class="scenario-card-copy"><h3>Pass the adventure on</h3><p>Export exactly one game as an editable notebook, import it into another copy of Asterloom, and inspect the source material that travels with it.</p><span class="scenario-card-bottom">7 steps · Source included <span aria-hidden="true">↗</span></span></div>
+</a></article></div><p class="catalog-note">Guided walkthroughs for the Mac desktop preview. AI is required to create a game; finished games play offline.</p></div></section>
+<!-- SCENARIOS:END -->
+
+      <section
+        class="experience section"
+        id="experience"
+        aria-labelledby="experience-heading"
+      >
+        <div class="container experience-layout">
+          <div class="experience-copy">
+            <p class="eyebrow">Inside a learning adventure</p>
+            <h2 id="experience-heading">
+              Understand it.<br />Try it.<br /><em>Make it click.</em>
+            </h2>
+            <p>
+              The idea is simple: teach the concept, give it a purpose, and let
+              you work with it. Every mission should connect the action to what
+              you’re learning.
+            </p>
+            <div class="experience-detail">
+              <span class="detail-number">01</span>
+              <div>
+                <h3>Get your bearings</h3>
+                <p>
+                  A clear goal, source-linked teaching and a worked example
+                  before the challenge.
+                </p>
+              </div>
+            </div>
+            <div class="experience-detail">
+              <span class="detail-number">02</span>
+              <div>
+                <h3>Make a meaningful move</h3>
+                <p>
+                  Inspect a station, choose a tool, route a system or weigh the
+                  evidence. See the consequences.
+                </p>
+              </div>
+            </div>
+            <div class="experience-detail">
+              <span class="detail-number">03</span>
+              <div>
+                <h3>Find out why it worked</h3>
+                <p>
+                  Feedback connects your choices to the material, while your
+                  progress saves on your device.
+                </p>
+              </div>
+            </div>
+            <p class="development-note">
+              <span class="status-dot"></span> A look at the next chapter<br /><span
+                >An actual desktop capture using original sample material.
+                This newer gameplay is not in the v0.7.14 Mac preview.</span
+              >
+            </p>
+          </div>
+          <figure class="gameplay-figure">
+            <div class="window-bar">
+              <span class="window-dots" aria-hidden="true"
+                ><i></i><i></i><i></i></span
+              ><span>Asterloom · The missing signal</span
+              ><svg class="icon small"><use href="#compass" /></svg>
+            </div>
+            <a
+              href="./assets/gameplay.webp"
+              class="screenshot-link"
+              data-open-screenshot
+              aria-label="Enlarge the desktop gameplay screenshot"
+            >
+              <img
+                src="./assets/gameplay.webp"
+                width="1440"
+                height="1610"
+                alt="Actual Asterloom desktop mission. Inspect resolver settings, test an address and restore name lookup within a lab budget. Your actions update the situation, evidence and decision record."
+                loading="lazy"
+              />
+              <span class="enlarge-label"
+                ><svg class="icon small"><use href="#expand" /></svg> Explore
+                the full screenshot</span
+              >
+            </a>
+            <figcaption>
+              <span class="live-dot"></span> Actual desktop capture ·
+              development preview · sample learning material
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="worlds section" aria-labelledby="worlds-heading">
+        <div class="container">
+          <div class="worlds-heading">
+            <div>
+              <p class="eyebrow">A setting for every kind of curiosity</p>
+              <h2 id="worlds-heading">
+                Find your sense<br />of <em>wonder.</em>
+              </h2>
+            </div>
+            <p>
+              From an intricate systems workshop to a bright island expedition,
+              Asterloom’s illustrated worlds give each adventure its own
+              atmosphere.
+            </p>
+          </div>
+          <div class="world-tabs" aria-label="Explore world artwork">
+            <button
+              class="world-tab is-active"
+              id="tab-studio"
+              data-world="studio"
+              aria-controls="panel-studio"
+            >
+              <span>01</span> The Workshop
+              <svg class="icon small"><use href="#arrow" /></svg>
+            </button>
+            <button
+              class="world-tab"
+              id="tab-observatory"
+              data-world="observatory"
+              aria-controls="panel-observatory"
+            >
+              <span>02</span> The Observatory
+              <svg class="icon small"><use href="#arrow" /></svg>
+            </button>
+            <button
+              class="world-tab"
+              id="tab-expedition"
+              data-world="expedition"
+              aria-controls="panel-expedition"
+            >
+              <span>03</span> The Expedition
+              <svg class="icon small"><use href="#arrow" /></svg>
+            </button>
+          </div>
+          <div class="world-panels">
+            <section
+              class="world-panel"
+              id="panel-studio"
+              aria-labelledby="world-studio-heading"
+            >
+              <img
+                src="./assets/world-studio.webp"
+                width="960"
+                height="540"
+                alt="A teal and brass workshop with illuminated worktables, floating mechanisms and shelves of tools"
+                loading="lazy"
+              />
+              <div class="world-overlay"></div>
+              <div class="world-copy">
+                <span class="world-kind">Build · connect · reason</span>
+                <h3 id="world-studio-heading">Ideas, put to work.</h3>
+                <p>
+                  A world of tools and possibilities, made for thinking through
+                  how things fit together.
+                </p>
+              </div>
+              <span class="world-art-label">Asterloom world artwork</span>
+            </section>
+            <section
+              class="world-panel"
+              id="panel-observatory"
+              aria-labelledby="world-observatory-heading"
+            >
+              <img
+                src="./assets/world-observatory.webp"
+                width="960"
+                height="540"
+                alt="A celestial observatory filled with golden orbital models, star charts and an open view of the night sky"
+                loading="lazy"
+              />
+              <div class="world-overlay"></div>
+              <div class="world-copy">
+                <span class="world-kind">Observe · investigate · discover</span>
+                <h3 id="world-observatory-heading">Look a little closer.</h3>
+                <p>
+                  Find patterns, follow the evidence and explore the
+                  relationships behind the bigger picture.
+                </p>
+              </div>
+              <span class="world-art-label">Asterloom world artwork</span>
+            </section>
+            <section
+              class="world-panel"
+              id="panel-expedition"
+              aria-labelledby="world-expedition-heading"
+            >
+              <img
+                src="./assets/world-expedition.webp"
+                width="960"
+                height="640"
+                alt="A colorful island expedition with leafy trees, winding paths and friendly adventure landmarks"
+                loading="lazy"
+              />
+              <div class="world-overlay"></div>
+              <div class="world-copy">
+                <span class="world-kind">Explore · try · grow</span>
+                <h3 id="world-expedition-heading">
+                  Small steps. Big discoveries.
+                </h3>
+                <p>
+                  A brighter, playful setting for younger explorers and their
+                  next moment of understanding.
+                </p>
+              </div>
+              <span class="world-art-label">Asterloom world artwork</span>
+            </section>
+          </div>
+          <p class="worlds-footnote">
+            <svg class="icon small"><use href="#spark" /></svg> A glimpse of the
+            visual library. World artwork illustrates the settings; it is not a
+            gameplay recording.
+          </p>
+        </div>
+      </section>
+
+      <section class="aster section" id="aster" aria-labelledby="aster-heading">
+        <div class="container aster-layout">
+          <div class="aster-portrait">
+            <span class="aster-orbit orbit-a" aria-hidden="true"></span
+            ><span class="aster-orbit orbit-b" aria-hidden="true"></span>
+            <span class="portrait-spark spark-a" aria-hidden="true">✧</span
+            ><span class="portrait-spark spark-b" aria-hidden="true">✦</span>
+            <span class="aster-nameplate"
+              ><svg class="icon small"><use href="#spark" /></svg> Your guide to
+              the next discovery</span
+            >
+            <img
+              src="./assets/aster-welcome.webp"
+              width="720"
+              height="720"
+              alt="Aster, Asterloom’s illustrated guide, smiling and waving in a blue explorer’s outfit"
+              loading="lazy"
+            />
+            <p class="aster-signature" aria-hidden="true">Meet Aster.</p>
+          </div>
+          <div class="aster-copy">
+            <p class="eyebrow">A little guidance. A little encouragement.</p>
+            <h2 id="aster-heading">
+              Every adventure<br />deserves a <em>guide.</em>
+            </h2>
+            <p>
+              Aster helps you find your footing—from creating a game to working
+              through a mission. She brings the focus back to your material and
+              your next step.
+            </p>
+            <div class="aster-feature">
+              <svg class="icon"><use href="#book" /></svg>
+              <div>
+                <h3>Your material, within reach</h3>
+                <p>
+                  Local source search helps you find relevant passages and
+                  revisit the ideas behind a challenge.
+                </p>
+              </div>
+            </div>
+            <div class="aster-feature">
+              <svg class="icon"><use href="#spark" /></svg>
+              <div>
+                <h3>A deeper conversation, if you want one</h3>
+                <p>
+                  Connect AI for source-grounded explanations. It’s optional
+                  during play; the finished adventure doesn’t need it.
+                </p>
+              </div>
+            </div>
+            <a class="text-link dark-link" href="#questions"
+              >A few things worth knowing
+              <svg class="icon small"><use href="#arrow" /></svg
+            ></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="ownership section" aria-labelledby="ownership-heading">
+        <div class="container">
+          <div class="ownership-intro">
+            <p class="eyebrow">Made to stay with you</p>
+            <h2 id="ownership-heading">
+              Your learning.<br /><em>Your own little world.</em>
+            </h2>
+          </div>
+          <div class="ownership-grid">
+            <article>
+              <svg class="icon"><use href="#shield" /></svg>
+              <h3>Rooted in the material</h3>
+              <p>
+                Lessons and missions are built around your sources. Follow the
+                evidence back to its context.
+              </p>
+            </article>
+            <article>
+              <svg class="icon"><use href="#compass" /></svg>
+              <h3>Ready when you are</h3>
+              <p>
+                Finished games run locally with saved progress. No AI connection
+                is required to keep playing.
+              </p>
+            </article>
+            <article>
+              <svg class="icon"><use href="#layers" /></svg>
+              <h3>Made to travel</h3>
+              <p>
+                Export one adventure with its learning content and source files.
+                Share material you have permission to share.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="download-section section"
+        id="preview"
+        aria-labelledby="preview-heading"
+      >
+        <div class="container download-layout">
+          <div class="download-copy">
+            <span class="preview-badge"
+              ><span class="status-dot"></span> In development · made for
+              personal learning</span
+            >
+            <h2 id="preview-heading">
+              An adventure<br />in the <em>making.</em>
+            </h2>
+            <p>
+              We’re building Asterloom for the joy of understanding something
+              new. Explore the project and help shape the next chapter of
+              learning through play.
+            </p>
+            <div class="download-actions">
+              <a
+                class="button button-gold"
+                href="https://github.com/nimeshbuilds/asterloom/releases/tag/v0.7.14"
+                >Explore the Mac preview
+                <svg class="icon"><use href="#arrow-up" /></svg></a
+              ><a
+                class="text-link"
+                href="https://github.com/nimeshbuilds/asterloom/issues"
+                >Share an idea
+                <svg class="icon small"><use href="#github" /></svg
+              ></a>
+            </div>
+            <p class="download-meta">
+              v0.7.14 preview · macOS 13+ · Apple silicon &amp; Intel
+            </p>
+          </div>
+          <aside class="release-card" aria-labelledby="release-heading">
+            <div class="release-card-top">
+              <svg class="icon"><use href="#compass" /></svg
+              ><span>Before you set off</span>
+            </div>
+            <h3 id="release-heading">An honest preview.</h3>
+            <p>
+              The signed and notarized Mac preview is available for personal
+              learning. Asterloom is still being refined.
+              <strong>The newer gameplay shown on this page is not included in
+                the v0.7.14 download.</strong>
+            </p>
+            <p>
+              Explore the application source, website and development work in
+              one public repository. There is no Windows download in this
+              release; the Mac preview supports Apple silicon and Intel.
+            </p>
+            <a href="https://github.com/nimeshbuilds/asterloom"
+              >Explore the source &amp; development
+              <svg class="icon small"><use href="#arrow-up" /></svg
+            ></a>
+          </aside>
+        </div>
+      </section>
+
+      <section class="faq section" id="questions" aria-labelledby="faq-heading">
+        <div class="container faq-layout">
+          <div>
+            <p class="eyebrow">A few things worth knowing</p>
+            <h2 id="faq-heading">Before the<br /><em>first chapter.</em></h2>
+          </div>
+          <div class="faq-list">
+            <details>
+              <summary>
+                Do I need AI to create or play a game?<span
+                  class="faq-plus"
+                  aria-hidden="true"
+                ></span>
+              </summary>
+              <div>
+                <p>
+                  New game creation uses a supported AI provider or API
+                  connection to turn your sources into a learning plan and
+                  missions. Finished games play locally without AI. You can
+                  optionally connect AI to Aster for additional source-grounded
+                  help.
+                </p>
+                <p>
+                  Provider availability, authentication and model quality vary.
+                  See the project’s
+                  <a href="https://github.com/nimeshbuilds/asterloom/blob/codex/godot-native-player-pilot/docs/provider-integrations.md"
+                    >provider documentation</a
+                  > for supported connection options and their current limitations.
+                </p>
+              </div>
+            </details>
+            <details>
+              <summary>
+                What can I use as source material?<span
+                  class="faq-plus"
+                  aria-hidden="true"
+                ></span>
+              </summary>
+              <div>
+                <p>
+                  Start with PDFs, text and Markdown files, copied text, web
+                  pages or audio and video files such as MP3 and MP4. Import
+                  quality depends on the document, website and transcription.
+                  Review the extracted material before relying on it.
+                </p>
+                <p>
+                  NotebookLM and YouTube links use assisted import workflows.
+                  They are not a guarantee that private notebooks, protected
+                  pages or every video transcript can be read automatically.
+                </p>
+              </div>
+            </details>
+            <details>
+              <summary>
+                Are the world images actual gameplay?<span
+                  class="faq-plus"
+                  aria-hidden="true"
+                ></span>
+              </summary>
+              <div>
+                <p>
+                  The landscapes are artwork used for Asterloom’s learning
+                  settings. The image in “Inside a learning adventure” is an
+                  actual desktop screenshot using sample material. It shows the
+                  current development work, which is newer than the published
+                  v0.7.14 Mac preview.
+                </p>
+                <p>
+                  The experimental Godot player is a separate path with a
+                  smaller feature set. The main desktop player currently has the
+                  fuller set of Aster and source tools.
+                </p>
+              </div>
+            </details>
+            <details>
+              <summary>
+                Can I keep and share an adventure?<span
+                  class="faq-plus"
+                  aria-hidden="true"
+                ></span>
+              </summary>
+              <div>
+                <p>
+                  Asterloom supports exporting one learning notebook at a time
+                  with its content, source artifacts and a desktop player.
+                  Finished games don’t require the creation AI to play. Export
+                  targets depend on the available runtime packages. The
+                  published v0.7.14 preview is for macOS 13 or later, on Apple
+                  silicon and Intel. It does not include a Windows download.
+                </p>
+                <p>
+                  Only share source materials you own or have permission to
+                  distribute. Exported runtime software remains subject to the
+                  Asterloom license.
+                </p>
+              </div>
+            </details>
+            <details>
+              <summary>
+                Is Asterloom free? Is it open source?<span
+                  class="faq-plus"
+                  aria-hidden="true"
+                ></span>
+              </summary>
+              <div>
+                <p>
+                  Asterloom’s personal learning license permits free personal
+                  and family learning. Business and institutional use requires a
+                  separate written license. The license has use restrictions and
+                  is not an unrestricted open-source license.
+                </p>
+                <p>
+                  The application and website source are available together in
+                  the public repository. Your learning materials remain yours.
+                  AI provider charges may apply. See the
+                  <a
+                    href="https://github.com/nimeshbuilds/asterloom/blob/main/LICENSE"
+                    >full license</a
+                  >
+                  for the terms.
+                </p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-top">
+          <a class="wordmark" href="#"
+            ><img src="./assets/icon.svg" width="32" height="32" alt="" /><span
+              >asterloom</span
+            ></a
+          >
+          <p>For the joy of figuring things out.</p>
+          <a href="https://github.com/nimeshbuilds"
+            >Crafted by <strong>NimeshBuilds</strong>
+            <svg class="icon small"><use href="#arrow-up" /></svg
+          ></a>
+        </div>
+        <div class="footer-bottom">
+          <p>© 2026 NimeshBuilds · Free for personal and family learning.</p>
+          <nav aria-label="Footer navigation">
+            <a href="https://github.com/nimeshbuilds/asterloom/tree/gh-pages"
+              >Website source</a
+            ><a
+              href="https://github.com/nimeshbuilds/asterloom/releases/tag/v0.7.14"
+              >Mac preview</a
+            ><a
+              href="https://github.com/nimeshbuilds/asterloom/blob/main/LICENSE"
+              >License</a
+            >
+          </nav>
+        </div>
+      </div>
+    </footer>
+
+    <dialog class="screenshot-dialog" aria-labelledby="screenshot-title">
+      <div class="dialog-header">
+        <h2 id="screenshot-title">Inside the desktop development preview</h2>
+        <button class="dialog-close" aria-label="Close screenshot">
+          <svg class="icon"><use href="#close" /></svg>
+        </button>
+      </div>
+      <p>
+        An actual development capture using original sample learning material.
+        <a href="./assets/gameplay.webp" target="_blank" rel="noopener"
+          >Open full-resolution image <span aria-hidden="true">↗</span></a
+        >
+      </p>
+      <img
+        src="./assets/gameplay.webp"
+        width="1440"
+        height="1610"
+        alt="Full desktop capture of the source-guided network lab mission, showing stations, action consequences, evidence and saved progress."
+      />
+    </dialog>
+  </body>
+</html>

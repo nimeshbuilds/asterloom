@@ -19,8 +19,8 @@ test.beforeAll(async()=>{
  const card={id:'card',prompt:'Choose the term from the source.',answer:'Packet',options:['Packet','Frame'],correctIndex:0,explanation:text,sourceId:'source',evidence:text,concept:'Packet',tags:[],questionType:'definition',reviewStatus:'reviewed'};
  const notebook=createNotebook({id:'workbench',title:young?'Prepare a picture guide':'Deliver the network field guide',ageGroup:preschool?'3-5':young?'9-11':'adult',sources:[source],cards:[card]});
  const plan=buildLearningBriefing({notebook,scaffold:SCAFFOLDS.find(s=>s.id==='recall-escape-mission')});
- const controls=window.workbench={fail:false,ready:0,writes:[],durable:JSON.parse(localStorage.getItem('kit')||'null')};
- function Harness(){const[saved,setSaved]=useState(controls.durable),[ready,setReady]=useState(false);return <main style={{padding:'24px 12px'}}>{ready?<div><h1>Quest opened</h1><p>Your preparation was saved.</p></div>:<LearningBriefing plan={plan} saved={saved} onSave={async next=>{controls.writes.push(structuredClone(next));if(controls.fail)return false;controls.durable=structuredClone(next);localStorage.setItem('kit',JSON.stringify(next));setSaved(next);return true;}} onReady={()=>{controls.ready++;setReady(true);}}/>}</main>}
+ const controls=window.workbench={fail:false,hold:false,pending:[],ready:0,writes:[],durable:JSON.parse(localStorage.getItem('kit')||'null')};
+ function Harness(){const[saved,setSaved]=useState(controls.durable),[ready,setReady]=useState(false);return <main style={{padding:'24px 12px'}}>{ready?<div><h1>Quest opened</h1><p>Your preparation was saved.</p></div>:<LearningBriefing plan={plan} saved={saved} onSave={async next=>{controls.writes.push(structuredClone(next));if(controls.hold)await new Promise(resolve=>controls.pending.push(resolve));if(controls.fail)return false;controls.durable=structuredClone(next);localStorage.setItem('kit',JSON.stringify(next));setSaved(next);return true;}} onReady={()=>{controls.ready++;setReady(true);}}/>}</main>}
  createRoot(document.getElementById('root')).render(<React.StrictMode><Harness/></React.StrictMode>);
  `,resolveDir:process.cwd(),loader:'tsx'},bundle:true,format:'esm',target:'es2022',outfile:path.join(folder,'workbench.js'),jsx:'automatic',loader:{'.woff2':'dataurl'},plugins:[{name:'presentation-only-stubs',setup(builder){builder.onResolve({filter:/^(\.\/WorldPreview|\.\.\/lib\/music)$/},args=>({path:args.path,namespace:'presentation-stub'}));builder.onLoad({filter:/.*/,namespace:'presentation-stub'},args=>({contents:args.path.includes('/music')?'export const duckMusic=()=>{};export const setLearningMusicPhase=()=>{};':'export default function Preview(){return null}',loader:'js'}));}}]});
  server=createServer(async(req,res)=>{try{const name=req.url?.split('?')[0];if(name==='/'){res.setHeader('content-type','text/html');res.end('<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Source kit verification</title><link rel="stylesheet" href="/workbench.css"></head><body><div id="root"></div><script type="module" src="/workbench.js"></script></body></html>');return;}const file=name==='/workbench.js'?'workbench.js':name==='/workbench.css'?'workbench.css':null;if(!file){res.writeHead(404);res.end();return;}res.setHeader('content-type',file.endsWith('.js')?'text/javascript':'text/css');res.end(await readFile(path.join(folder,file)));}catch{res.writeHead(500);res.end();}});
@@ -35,6 +35,7 @@ test('keyboard kit feedback, saved selection and arrangement survive reload, and
  await expect(page.getByRole('button',{name:'Save briefing & start quest',exact:true})).toBeDisabled();
  await place(page,'Buffer',2);await place(page,'Frame',3);await page.getByRole('button',{name:'Check my kit against the source',exact:true}).click();
  await expect(page.getByText('Some pieces need another look.',{exact:false})).toBeVisible();await expect(page.locator('.lesson-kit-slot.revisit')).toHaveCount(2);
+ expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
  await expect(page.getByRole('button',{name:'Save briefing & start quest',exact:true})).toBeDisabled();
  const frame=page.locator('.lesson-kit-piece').filter({hasText:/^Frame$/});await frame.click();await expect(page.getByText('Selected: Frame. Choose its place in your kit.',{exact:true})).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>(window as any).workbench.durable?.rehearsal?.selectedTileId)).toBe('term-1');
@@ -46,7 +47,7 @@ test('keyboard kit feedback, saved selection and arrangement survive reload, and
  await page.evaluate(()=>(window as any).workbench.fail=false);await page.getByRole('button',{name:'Retry saving briefing',exact:true}).click();await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();expect(await page.evaluate(()=>(window as any).workbench.ready)).toBe(1);
  expect(errors).toEqual([]);
 });
-test('visible teaching driver completes both a term kit and a procedure kit without hidden answers',async({page})=>{
+test('visible teaching driver follows the direct source and real procedure routes without hidden answers',async({page})=>{
  await page.goto(address+'/');await learnBeforeQuest(page);await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();await page.evaluate(()=>localStorage.clear());await page.goto(address+'/?route');await learnBeforeQuest(page);await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();
 });
 test('a note from older preparation stays editable and needs an explicit source selection before reuse',async({page})=>{
@@ -64,6 +65,7 @@ test('a note from older preparation stays editable and needs an explicit source 
  await page.evaluate(()=>{const saved=JSON.parse(localStorage.getItem('kit')!);saved.planKey='lesson-'+'0'.repeat(64);saved.practice.compared=true;localStorage.setItem('kit',JSON.stringify(saved));});
  await page.reload();await enterPractice();
  await expect(page.locator('.lesson-preserved-note')).toBeVisible();
+ expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
  await expect(page.getByLabel('Explain it in your own words')).toHaveValue(note);
  await expect(page.locator('.lesson-focus-options input:checked')).toHaveCount(0);
  await expect(page.getByLabel('I compared my note with the source',{exact:true})).toBeDisabled();
@@ -89,3 +91,21 @@ test('adult and child workbenches remain legible, accessible and usable at narro
   await open(page,'?preschool');await expect(page.getByText('Let’s build together',{exact:true})).toBeVisible();await expect(page.getByRole('progressbar',{name:'Pieces placed',exact:false})).toHaveAttribute('value','1');await place(page,'Tree',2);await expect(page.getByRole('progressbar',{name:'Pieces placed',exact:false})).toHaveAttribute('value','2');await page.evaluate(()=>localStorage.clear());
   await page.goto(address+'/?preschool&prose');await page.getByRole('button',{name:'Explore the source',exact:true}).click();while(await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).count())await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).first().click();await page.getByRole('button',{name:'Study the walkthrough',exact:true}).click();while(await page.getByRole('button',{name:'Next walkthrough step',exact:true}).count())await page.getByRole('button',{name:'Next walkthrough step',exact:true}).click();await page.getByRole('button',{name:'Build my field note',exact:true}).click();await expect(page.getByRole('checkbox',{name:'Talk or point with a grown-up instead of typing',exact:true})).toBeChecked();await expect(page.getByRole('textbox')).toHaveCount(0);await expect(page.getByRole('button',{name:'Save briefing & start quest',exact:true})).toBeDisabled();await learnBeforeQuest(page);await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();expect(await page.evaluate(()=>(window as any).workbench.durable.practice.mode)).toBe('spoken');
  });
+
+test('source-guided play needs only the real source, waits for save, and survives reload without mandatory kit or writing',async({page})=>{
+ await page.goto(address+'/');await expect(page.locator('.lesson-mission .lesson-primary')).toHaveText(/Explore the source/);await page.getByRole('button',{name:'Explore the source',exact:true}).click();
+ const start=page.getByRole('button',{name:'Start source-guided quest',exact:true});await expect(start).toBeDisabled();
+ while(await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).count())await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).click();
+ await expect(start).toBeEnabled();await expect(page.locator('.lesson-walkthrough,.lesson-practice,.lesson-workbench')).toHaveCount(0);await expect(page.getByRole('textbox')).not.toBeVisible();
+ await page.evaluate(()=>(window as any).workbench.hold=true);await start.click();await expect(page.locator('.lesson-save')).toContainText('Saving briefing');expect(await page.evaluate(()=>(window as any).workbench.ready)).toBe(0);expect(await page.evaluate(()=>(window as any).workbench.durable.completedAt)).toBeUndefined();
+ await page.evaluate(()=>{(window as any).workbench.fail=true;(window as any).workbench.pending.shift()();});await expect(page.getByRole('alert')).toContainText('has not been saved');await expect(page.getByRole('heading',{name:'Quest opened'})).toHaveCount(0);
+ await page.evaluate(()=>{(window as any).workbench.fail=false;(window as any).workbench.hold=false;});await page.getByRole('button',{name:'Retry saving briefing',exact:true}).click();await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();expect(await page.evaluate(()=>(window as any).workbench.durable.practice)).toMatchObject({guidedStart:true,explanation:'',compared:false});
+ await page.reload();await expect(page.getByRole('heading',{name:'Ready for the quest',exact:true})).toBeVisible();await expect(page.getByText('Source-guided practice keeps the supplied passages available during the quest.',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Start quest',exact:true}).click();await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();
+});
+
+test('source-guided procedure play retains every real walkthrough step and does not require a second sorting or writing task',async({page})=>{
+ await page.goto(address+'/?route');await page.getByRole('button',{name:'Explore the source',exact:true}).click();while(await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).count())await page.getByRole('button',{name:/^Mark passage \d+ explored$/}).click();
+ await expect(page.getByRole('button',{name:'Start source-guided quest',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Study the walkthrough',exact:true}).click();let read=1;
+ while(await page.getByRole('button',{name:'Next walkthrough step',exact:true}).count()){await page.getByRole('button',{name:'Next walkthrough step',exact:true}).click();read++;}
+ expect(read).toBe(3);await expect(page.locator('.lesson-practice,.lesson-workbench')).toHaveCount(0);await page.getByRole('button',{name:'Start source-guided quest',exact:true}).click();await expect(page.getByRole('heading',{name:'Quest opened'})).toBeVisible();expect(await page.evaluate(()=>(window as any).workbench.durable.walkthroughStep)).toBe(3);expect(await page.evaluate(()=>(window as any).workbench.durable.practice.guidedStart)).toBe(true);
+});

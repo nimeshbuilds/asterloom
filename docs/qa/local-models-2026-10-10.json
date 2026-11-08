@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "recordedDate": "2026-10-10",
+  "scope": "Managed local-model integration and bounded synthetic-source smoke checks. Installation and runtime readiness do not establish chat or game-creation quality qualification.",
+  "provider": "local",
+  "identity": {
+    "modelDigest": "sha256:ee665637121887cf3befff38abbb1be4ee117c7db867d97a67e29049ecd7e15f",
+    "workflowVersion": "asterloom-source-grounded-2026-10-10",
+    "runtimeVersion": "0.40.2",
+    "settingsDigest": "de017a9019111999ac584832639af1fbedd1bdda48697a1efe3d6a078c06201a",
+    "hardwareId": "c550df40fbe185582799de9a15ac2614fecbd9a6ff4f3e8642ce9a8dcfae6c0e"
+  },
+  "hardware": {
+    "platform": "macOS",
+    "architecture": "arm64",
+    "processor": "Apple M4",
+    "totalMemoryBytes": 17179869184,
+    "hardwareIdMeaning": "Hash of platform, architecture, processor model and total memory; no machine name or unique device identifier."
+  },
+  "inferenceSettings": {
+    "contextTokens": 32768,
+    "temperature": 0.2,
+    "think": false,
+    "truncate": false,
+    "shift": false,
+    "keepAlive": "5m",
+    "maximumOutputTokens": 8192,
+    "asterRequestedOutputTokens": 1800,
+    "readinessRequestedOutputTokens": 32,
+    "sourceExtractionRequestedOutputTokens": 128
+  },
+  "runtime": {
+    "version": "0.40.2",
+    "officialRelease": "https://github.com/ollama/ollama/releases/tag/v0.40.2",
+    "archiveName": "ollama-darwin.tgz",
+    "archiveBytes": 167473220,
+    "archiveSha256": "e888b7637291ceb80b622c00ea067f62c86d9c50d419b3eb903032e4f1f8a4f6",
+    "downloadedAndHashVerified": true,
+    "safeExtractionExecuted": true,
+    "privateRuntimeStartupExecuted": true,
+    "reportedVersion": "0.40.2",
+    "existingUserOllamaModified": false,
+    "windowsPinnedArtifactsAndExtractionTests": true,
+    "windowsRuntimeExecuted": false,
+    "macIntelRuntimeExecuted": false
+  },
+  "modelSetup": {
+    "model": "gemma4:e4b-it-qat",
+    "catalogConfigAndLayerBytes": 6146501801,
+    "manifestSha256": "ee665637121887cf3befff38abbb1be4ee117c7db867d97a67e29049ecd7e15f",
+    "allReferencedModelBlobsHashVerified": true,
+    "firstFreshSetup": {
+      "status": "failed-after-download",
+      "reason": "The verifier initially inspected Ollama’s legacy downgrade-anchor manifest rather than its exact pinned manifests-v2 blob.",
+      "failurePreventedReadiness": true,
+      "durationMs": null
+    },
+    "correction": "Verify the exact pinned v2 manifest, permit only a relative reference to its owned digest-named regular blob or the Windows regular-file fallback, then verify every model blob. Scan and remove both supported manifest layouts.",
+    "resume": {
+      "status": "completed",
+      "durationMs": 29015,
+      "reusedCompleteDownloadedWeights": true,
+      "includes": [
+        "Model integrity checks",
+        "Private runtime startup",
+        "Actual schema-constrained readiness inference"
+      ],
+      "modelReady": true
+    },
+    "freshOneClickAfterFixExecuted": false,
+    "oneClickSetupSequenceCoveredByAutomatedTests": true,
+    "readinessMeaning": "The model produced the required constrained response on this computer; no content quality qualification.",
+    "downloadSafety": {
+      "initialQaFreeDiskMinimumBytes": 11811160064,
+      "qaStopReserveBytes": 2147483648,
+      "productionDownloadStopReserveBytes": 536870912,
+      "headerTimeoutMs": 30000,
+      "progressIdleTimeoutMs": 120000
+    },
+    "gemma412BDownloadedOrExecuted": false
+  },
+  "asterTrials": [
+    {
+      "cohort": "initial-source-answer",
+      "status": "answered",
+      "durationMs": 12021,
+      "usage": {
+        "status": "reported",
+        "inputTokens": 1062,
+        "outputTokens": 243,
+        "cachedInputTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": null,
+        "totalTokens": 1305
+      },
+      "citationCount": 1,
+      "citationChecks": "Existing production retrieval and readAnswer validators accepted the exact source citation.",
+      "observations": [
+        "The source answer correctly described the synthetic queue/worker facts.",
+        "The response also added unnecessary app-state information, greetings and conversational prompts."
+      ],
+      "assessment": "AI inspection of this synthetic source trial; no human quality approval."
+    },
+    {
+      "cohort": "revised-source-answer-prompt",
+      "promptDelta": "Choose only relevant paragraph scopes; avoid app-state and greeting padding for subject questions.",
+      "status": "answered",
+      "durationMs": 8252,
+      "usage": {
+        "status": "reported",
+        "inputTokens": 1108,
+        "outputTokens": 138,
+        "cachedInputTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": null,
+        "totalTokens": 1246
+      },
+      "citationCount": 1,
+      "citationChecks": "Existing production retrieval and readAnswer validators accepted the exact source citation.",
+      "observations": [
+        "The source answer and exact citation remained correct for this case.",
+        "App-state and greeting padding disappeared.",
+        "One unsolicited social follow-up paragraph remained, so readability is not considered solved."
+      ],
+      "assessment": "AI inspection of this synthetic source trial; no human quality approval."
+    }
+  ],
+  "smallStructuredSourceExtraction": {
+    "httpStatus": 200,
+    "durationMs": 1019,
+    "usage": {
+      "status": "reported",
+      "inputTokens": 62,
+      "outputTokens": 21,
+      "cachedInputTokens": null,
+      "cacheWriteTokens": null,
+      "reasoningTokens": null,
+      "totalTokens": 83
+    },
+    "outputSchemaAccepted": true,
+    "exactSourceDefinitionReturned": true
+  },
+  "fullPipelineSmoke": {
+    "ledger": "scripts/factory-benchmark/results/results.json",
+    "status": "completed-needs-review-different-recipe",
+    "requestCount": 6,
+    "durationMs": 178480,
+    "inputTokens": 28813,
+    "outputTokens": 2251,
+    "totalTokens": 31064,
+    "requestedRecipe": "process-reconstruction",
+    "createdRecipe": "claim-verification",
+    "createdActivityKind": "classification",
+    "planningRepairCount": 1,
+    "scope": "One synthetic-source production pipeline trial; not all75 recipes, not a task-format pass, not model qualification.",
+    "ledgerIsAuthoritativeForFinalDetails": true
+  },
+  "accounting": {
+    "cachedInputTokens": null,
+    "cacheWriteTokens": null,
+    "reasoningTokens": null,
+    "unknownMeans": "The runtime did not report these dimensions; they are not asserted to be zero.",
+    "trialServiceRevision": "The trial service loaded before a final accounting-only change that adds exact actualModels to post-response validation failures; successful receipts already include the returned model. Inference settings were unchanged."
+  },
+  "qualification": {
+    "asterChat": "untested",
+    "gameCreation": "untested",
+    "promoted": false,
+    "reason": "No complete version-matched use-case benchmark and human review evidence exists. These are isolated smoke observations."
+  },
+  "verification": {
+    "focusedBackendAndQualificationTestsPassed": 37,
+    "engineTestsAfterFinalReceiptPatchPassed": 20,
+    "integratedServerTestsPassed": 176,
+    "integratedServerTestsSkipped": 3,
+    "integratedServerResultAttribution": "Reported by the parent integration run.",
+    "typecheck": "passed",
+    "automatedTestScope": "Lifecycle, isolation, safe extraction, pinned integrity, v2 storage, cancellation, stall/disk guards, bounded Unicode responses, context behavior, usage, route boundaries and cleanup. Mock fixtures do not replace the separately recorded actual runtime trials."
+  },
+  "cleanup": {
+    "removedViaProductionApi": true,
+    "removeStatus": "completed",
+    "modelInstalledAfter": false,
+    "modelReadyAfter": false,
+    "remainingBlobCount": 0,
+    "managedRuntimeRunningAfter": false,
+    "qaServiceAndChildProcessesStopped": true,
+    "verifiedRuntimeRetained": true,
+    "downloadArchiveAndDuplicateExtractionRemoved": true,
+    "freeDiskBytesBefore": 2870063104,
+    "freeDiskBytesAfter": 9370120192,
+    "freeDiskCaveat": "Observed free disk includes other system activity; the difference is not a measurement of model file size."
+  },
+  "limitations": [
+    "The successful real setup followed a corrected verification retry using existing bytes; a fresh full download after that fix was not repeated.",
+    "Windows and Mac Intel execution remain untested on those platforms.",
+    "Gemma4 12B is a pinned experimental catalog candidate, not a model tested in this session.",
+    "Model stores are isolated per application profile, so separate Studio/export profiles may download separate copies.",
+    "The revised Aster response still added an unsolicited conversational follow-up.",
+    "The full creation trial chose a different recipe and still requires content review."
+  ],
+  "privacy": "Aggregate results only. No raw prompts, model answer text, private source passages, local filesystem paths, credentials or raw provider receipts."
+}

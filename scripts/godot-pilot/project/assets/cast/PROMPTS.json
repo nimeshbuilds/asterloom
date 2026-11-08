@@ -1,0 +1,15 @@
+{
+  "generator": "Built-in image_gen",
+  "date": "2026-10-10",
+  "assets": [
+    {
+      "file": "owen.png",
+      "prompt": "Use case: stylized-concept. Transparent game dialogue portrait. Create Owen, an approachable white Caucasian adult male learning-adventure workshop coordinator in his late thirties. Fair skin, short wavy chestnut-brown hair, neat short beard, blue-grey eyes. Premium stylized 3D animated-feature rendering, mature adult proportions, finely detailed fabric, confident warm expression. Waist-up with BOTH hands and shoulders completely visible, one open explaining hand, the other holding a small closed unmarked toolkit. Navy work jacket with copper seams and tiny teal accents, cream shirt. Slightly facing right. Strong readable face/silhouette at small dialogue-card size. Soft cinematic key and restrained rim lighting. Truly transparent background, no scenery, no text, no logos, no weapons, no armor. Original character."
+    },
+    {
+      "file": "claire.png",
+      "prompt": "Use case: stylized-concept. Transparent game dialogue portrait. Create Claire, an approachable white Caucasian adult female evidence investigator in her early forties. Fair skin with light freckles, shoulder-length softly waved dark blonde hair tucked behind one ear, green-grey eyes, subtle round glasses. Premium stylized 3D animated-feature rendering, mature adult proportions, finely detailed fabric, kind attentive expression. Waist-up with BOTH hands and shoulders completely visible, one hand holding a small closed unmarked field notebook, other hand open inviting reflection. Teal field jacket with muted plum lining and brass accents, cream top. Slightly facing left. Strong readable face/silhouette at small dialogue-card size. Soft cinematic key and restrained rim lighting. Truly transparent background, no scenery, no text, no logos, no weapons, no armor. Original character."
+    }
+  ],
+  "aster": "Unmodified existing Aster warm-smile, planning, gentle-hint, quiet-celebration assets copied from public/assets/aster/emotions. Aster appearance preserved."
+}

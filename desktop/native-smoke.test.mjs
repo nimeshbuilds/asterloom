@@ -51,13 +51,13 @@ const workflowTimeout=process.platform==='darwin'&&process.env.ASTERLOOM_SMOKE_A
 // default30s debugger-attachment deadline expires. Keep an explicit bound
 // for this emulated architecture; native platform launches retain30s.
 const launchTimeout=emulatedIntel?90000:30000;
-test('native studio saves across launches, exports a standalone game, and opens its isolated studio',{skip:!enabled,timeout:workflowTimeout},async()=>{
+test('desktop studio preserves full player features and launches a separate native preview',{skip:!enabled,timeout:workflowTimeout},async()=>{
   const directory=await fs.mkdtemp(path.join(os.tmpdir(),'asterloom-native-smoke-'));
   const output=path.join(directory,'exports');await fs.mkdir(output);
   const executable=process.env.ASTERLOOM_SMOKE_APP;
   const args=executable?[]:[path.join(ROOT,'desktop','main.mjs')];
   const env={...process.env,ASTERLOOM_DATA_DIR:path.join(directory,'profiles')};delete env.ELECTRON_RUN_AS_NODE;
-  let application,primaryFailure;
+  let application,primaryFailure;const nativeProcesses=[];
   const errors=[],remoteRequests=[];let features={};
   const launch=async(binary=executable)=>{
     const selected=await nativeTestExecutable(binary,directory);
@@ -82,6 +82,10 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const wasm=await page.evaluate(async()=>{try{await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0]));return true;}catch(error){return error.message;}});
     assert.equal(wasm,true,'The native CSP must allow the local WebAssembly retrieval runtime');
     const health=await page.evaluate(()=>fetch('/api/health').then(response=>response.json()));assert.equal(health.ok,true);assert.equal(health.capabilities.pdf,true);
+    const localModels=await page.evaluate(()=>fetch('/api/ai/local/status').then(response=>response.json()));
+    assert.equal(localModels.localOnly,true);assert.equal(localModels.runtime.supported,true);assert.equal(localModels.runtime.installed,false);
+    assert.equal(localModels.models.length,2);assert.ok(localModels.models.every(model=>!model.installed&&!model.ready&&model.qualification.asterChat.status==='untested'&&model.qualification.gameCreation.status==='untested'));
+    features.localModels={studioCatalog:true,downloadedAutomatically:false,qualityQualified:false};
     const pdf=await page.evaluate(dataBase64=>fetch('/api/import-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'native.pdf',dataBase64})}).then(async response=>({status:response.status,body:await response.json()})),fixturePdf());
     assert.equal(pdf.status,200,JSON.stringify(pdf.body));assert.match(pdf.body.source.content,/DNS resolves names to addresses/);assert.equal(pdf.body.source.metadata.pages,1);
     const sourcePdfBytes=Buffer.from(fixturePdf(),'base64'),sourcePdfFile={name:'native-source.pdf',mime:'application/pdf',dataUrl:'data:application/pdf;base64,'+sourcePdfBytes.toString('base64'),size:sourcePdfBytes.length,sha256:createHash('sha256').update(sourcePdfBytes).digest('hex')};
@@ -151,6 +155,13 @@ test('native studio saves across launches, exports a standalone game, and opens 
     const asterConnection=page.getByRole('dialog',{name:'Connect Aster to AI',exact:true});await asterConnection.waitFor();
     assert.match(await asterConnection.innerText(),/Nothing is sent automatically/);
     assert.equal(await asterConnection.getByRole('button',{name:'Enable AI for Aster',exact:true}).isDisabled(),true,'An export must not inherit the creator’s provider selection or account.');
+    await asterConnection.getByRole('button',{name:'On this computer',exact:true}).click();
+    await asterConnection.getByRole('heading',{name:'Gemma 4 E4B · QAT',exact:true}).waitFor();
+    await asterConnection.getByRole('heading',{name:'Gemma 4 12B · QAT',exact:true}).waitFor();
+    assert.equal(await asterConnection.getByRole('button',{name:'Enable AI for Aster',exact:true}).isDisabled(),true,'Viewing local candidates must not select or install one.');
+    const recipientModels=await page.evaluate(()=>fetch('/api/ai/local/status').then(response=>response.json()));
+    assert.equal(recipientModels.job,null);assert.equal(recipientModels.runtime.installed,false);assert.ok(recipientModels.models.every(model=>!model.installed&&!model.ready));
+    features.localModels.exportedCatalog=true;features.localModels.recipientOptIn=true;
     await asterConnection.getByRole('button',{name:'Use regular Aster',exact:true}).click();
     assert.equal(await page.locator('.aster-guide').getAttribute('data-connection'),'local');
     const auraBytes=await fs.readFile(path.join(process.cwd(),'public/assets/aster/agentic-aura.png'));
@@ -176,6 +187,14 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(await page.getByRole('button',{name:'Native continuity test',exact:true}).count(),0);
     // A generated draft remains explorable, but an author must approve it
     // before correct-looking answers can become scored independent progress.
+    assert.equal(await page.evaluate(()=>window.asterloomDesktop.nativeGameAvailable),true,'A packaged desktop release must include the Godot player');
+    const nativeProbe=structuredClone(fixtureNotebook);nativeProbe.activities=nativeProbe.activities.slice(0,1);nativeProbe.activities[0].scaffoldIds=['chart-and-data-investigation'];nativeProbe.scaffoldIds=['chart-and-data-investigation'];
+    const launchedNative=await page.evaluate(packageText=>window.asterloomDesktop.launchNativeGame({packageText}),JSON.stringify({format:'learnpack',version:1,exportedAt:new Date().toISOString(),notebook:nativeProbe}));
+    assert.equal(launchedNative.launched,true,JSON.stringify(launchedNative));
+    assert.ok(Number.isInteger(launchedNative.processId));nativeProcesses.push(launchedNative.processId);
+    await new Promise(resolve=>setTimeout(resolve,1000));process.kill(launchedNative.processId,0);
+    features.godotNativePlayer={launched:true,missionCount:launchedNative.missionCount};
+    process.kill(launchedNative.processId,'SIGTERM'); // Deletion later in this flow must not leave a separate preview active.
     await page.locator('[data-activity-id]').filter({hasText:'Preview an unreviewed native model'}).click();
     await page.getByRole('region',{name:'Learning briefing',exact:true}).waitFor();
     assert.equal(await page.getByLabel('Your numerical result',{exact:true}).count(),0,'Teaching must precede the native quest controls');
@@ -263,8 +282,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     assert.equal(await page.locator('.aster-reaction[data-reaction="success"]').count(),1,'A saved correct answer should show the recipe reaction');
     await page.getByRole('button',{name:'Complete this chapter',exact:true}).click();
     await page.getByRole('button',{name:'Return to my notebook',exact:true}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/50\s*Journey XP/,'Distinct supported model20 + model20 + recall10 rewards must be visible');
-    assert.match(await page.locator('.world-statbar').innerText(),/0\s*solved independently/,'First-day teaching cannot grant independent mastery');
+    assert.match(await page.locator('.adventure-home-stats').innerText(),/50\s*Journey XP/,'Distinct supported model20 + model20 + recall10 rewards must be visible');
     const combinedProgress=await readSavedProgress(page,fixtureNotebook.id);
     assert.equal(combinedProgress.xp,0);assert.equal(combinedProgress.practice?.xp,50);assert.equal(combinedProgress.mastery,0);assert.deepEqual(combinedProgress.completedCardIds,[]);assert.deepEqual(combinedProgress.independentActivityAwards??{},{});
     assert.deepEqual(Object.values(combinedProgress.practice.awards).map(({kind,objectiveId,xp})=>({kind,objectiveId,xp})).sort((a,b)=>a.objectiveId.localeCompare(b.objectiveId)),[{kind:'card',objectiveId:'native-card',xp:10},{kind:'activity',objectiveId:'native-data-lab',xp:20},{kind:'activity',objectiveId:'native-unreviewed-lab',xp:20}]);
@@ -304,7 +322,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await page.locator('.structured-feedback.correct').waitFor();
     assert.match(await page.locator('.structured-review-banner').innerText(),/0 independent attempts/,'Preserved draft feedback remains supported after author approval');
     await page.getByRole('button',{name:'Save & return',exact:false}).click();
-    assert.match(await page.locator('.world-statbar').innerText(),/50\s*Journey XP/,'Approving and repeating the same model must not award its discovery points again');
+    assert.match(await page.locator('.adventure-home-stats').innerText(),/50\s*Journey XP/,'Approving and repeating the same model must not award its discovery points again');
     const approvedProgress=await readSavedProgress(page,fixtureNotebook.id);
     assert.equal(approvedProgress.xp,0);assert.equal(approvedProgress.mastery,0);assert.deepEqual(approvedProgress.completedCardIds,[]);assert.deepEqual(approvedProgress.independentActivityAwards??{},{});
     assert.deepEqual(approvedProgress.practice,combinedProgress.practice,'Author approval and replay must preserve the exact previously committed reward ledger');
@@ -367,13 +385,19 @@ test('native studio saves across launches, exports a standalone game, and opens 
     await application.evaluate(({shell},{expected,destination})=>{shell.trashItem=async filename=>{if(filename!==expected)throw new Error('The test only permits its registered archive');await process.getBuiltinModule('fs').promises.rename(filename,destination);};},{expected:await fs.realpath(deleteArchive),destination:trashArchive});
     await page.getByRole('button',{name:'Your games',exact:true}).click();
     await page.getByRole('button',{name:'Open A remixed native game',exact:true}).click();
+    await page.locator('.adventure-home-more>summary').click();
     await page.getByRole('button',{name:'Delete game',exact:true}).click();
     let deletionDialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Delete this game?',exact:true})});
     await deletionDialog.getByRole('button',{name:'Keep game',exact:true}).click();assert.ok(await readSaved());await fs.access(localRecording);await fs.access(deleteArchive);
     await page.getByRole('button',{name:'Delete game',exact:true}).click();deletionDialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Delete this game?',exact:true})});
     await deletionDialog.locator('.delete-exports label').filter({hasText:'delete-native-archive.learnzip'}).getByRole('checkbox').check();
     await deletionDialog.getByRole('button',{name:'Delete game',exact:true}).click();await deletionDialog.waitFor({state:'hidden'});
-    await assert.rejects(()=>fs.access(localRecording),{code:'ENOENT'});await assert.rejects(()=>fs.access(deleteArchive),{code:'ENOENT'});await fs.access(trashArchive);assert.deepEqual(await fs.readFile(originalUpload),wav);
+    const cleanupWarnings=await page.locator('.notice').filter({has:page.getByRole('button',{name:'Retry cleanup',exact:true})}).allTextContents();
+    assert.deepEqual(cleanupWarnings,[],'Notebook deletion reported unfinished local file cleanup');
+    assert.equal(await readSaved(),undefined,'The deleted notebook must be absent before its file cleanup is checked');
+    await assert.rejects(()=>fs.access(localRecording),{code:'ENOENT'},'The private recording must be removed');
+    await assert.rejects(()=>fs.access(deleteArchive),{code:'ENOENT'},'The selected archive must leave its original location');
+    await fs.access(trashArchive);assert.deepEqual(await fs.readFile(originalUpload),wav);
     await application.close();application=await launch(exportedExecutable(remixedPath));page=await application.firstWindow();
     await page.getByRole('heading',{name:'What will you discover today?'}).waitFor({timeout:20000});
     assert.equal(await readSaved(),undefined,'Deleted embedded notebooks must not return after a real native restart');
@@ -389,6 +413,7 @@ test('native studio saves across launches, exports a standalone game, and opens 
     throw error;
   }finally{
     const cleanupErrors=[];
+    for(const pid of nativeProcesses){try{process.kill(pid,'SIGTERM');}catch(error){if(error.code!=='ESRCH')cleanupErrors.push(error);}}
     try{if(application)await application.close();}catch(error){cleanupErrors.push(error);}
     // Windows can retain a short executable lock after Electron's main process
     // exits (for example in a renderer/helper or virus scanner). Retry only

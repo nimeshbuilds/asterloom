@@ -1,0 +1,28 @@
+THE PINE TRAIL SUPPLY CHALLENGE
+Original fictional learning material for Asterloom • NimeshBuilds
+
+Plan within two limits
+
+Pine Trail is a fictional tabletop expedition. Two explorers need supplies for a single round. The quartermaster has 12 coins and 8 turns. Every purchase consumes both coins and turns. A valid plan must stay within both limits and meet the essential supply requirements before considering bonus actions. These rules are a planning exercise, not advice for a real outdoor trip.
+
+Essential supplies
+
+Each of the two explorers needs one water unit, one food unit, and one blanket. A water kit contains two water units and costs 4 coins and 2 turns. A food kit contains two food units and costs 3 coins and 2 turns. A blanket kit contains two blankets and costs 2 coins and 1 turn. One of each kit therefore supplies both explorers completely.
+
+Kits cannot be split into smaller purchases. Each listed kit or bonus action can be selected at most once in the round. Supplies cannot substitute for each other: an extra blanket does not replace a missing water unit. A plan missing an essential supply is incomplete, even if it earns many bonus points.
+
+Bonus actions
+
+After securing the essentials, the team may activate a signal for 3 coins and 2 turns, earning 5 bonus points. They may collect field notes for 2 coins and 1 turn, earning 4 bonus points. They may repair a trail marker for 2 coins and 2 turns, also earning 4 bonus points. Unspent coins and turns earn no bonus points. The round's objective is to complete the essentials and then earn the largest possible bonus within the limits.
+
+A worked plan
+
+The water, food, and blanket kits together cost 4 + 3 + 2 = 9 coins. They use 2 + 2 + 1 = 5 turns. That leaves 3 coins and 3 turns. Adding the signal costs the remaining 3 coins and another 2 turns. The final plan uses 12 coins and 7 turns, meets all essential requirements, and earns 5 bonus points.
+
+Field notes would also fit, giving a total of 11 coins and 6 turns with 4 bonus points. The marker repair fits at 11 coins and 7 turns with 4 points. No two bonus actions fit the remaining 3 coins, since even the cheapest pair costs 4 coins. Therefore, the signal is the highest-scoring bonus for this round.
+
+Why check both columns?
+
+A plan can be affordable yet too slow, or quick enough yet too expensive. Add each column separately before choosing. State the total, the remaining resources, and whether every essential requirement is satisfied. This makes a decision explainable and exposes a hidden trade-off before the round begins.
+
+Personal learning and sharing: Asterloom Personal Learning License 1.0 applies. Copyright © 2026 NimeshBuilds. Keep the accompanying license with redistributed copies.

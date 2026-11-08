@@ -57,6 +57,7 @@ const SETTINGS: Record<string, { label: string; description: string }> = {
   library: { label: 'The secret library', description: 'A fictional library with a reading room for each prepared chapter.' },
 };
 const OBJECTIVES: Record<StructuredActivity['kind'], string> = {
+  recall: 'Recall source-written terms, using an explicit reveal when support is helpful.',
   sequence: 'Reconstruct the source-backed order while satisfying the reviewed dependencies.',
   classification: 'Apply the categories and memberships established in the reviewed material.',
   decision: 'Apply the authored rule to the supplied case and explain the resulting decision.',

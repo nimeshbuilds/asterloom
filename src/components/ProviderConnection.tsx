@@ -3,6 +3,7 @@ import {ExternalLink,RefreshCw,ShieldCheck,KeyRound,Download,Check,LoaderCircle}
 import type {ProviderConfig} from '../lib/provider';
 import {subscriptionLoginUrl,subscriptionStatuses,providerModelCatalog,claudeLoginContinuation,type ClaudeLoginContinuation,type SubscriptionEngineId,type SubscriptionEngineStatus} from '../lib/providerConnections';
 import {api} from '../lib/imports';
+import LocalModelConnection from './LocalModelConnection';
 import './provider-connection.css';
 type Model={id:string;name:string};
 const engineNames={codex:'Codex · ChatGPT plan',grok:'Grok · SuperGrok plan',claude:'Claude Code · your account'};
@@ -134,6 +135,8 @@ export default function ProviderConnection({config,onChange,disabled=false,image
   finally{if(current(token,life))setSendingCode(false);}
  }
  return <div className="provider-connection">
+ {!images&&<div className="provider-location-choice" role="group" aria-label="Where AI runs"><button type="button" aria-pressed={config.provider==='local'} disabled={disabled} onClick={()=>{if(config.provider!=='local')choose({provider:'local',apiKey:'',model:''});}}>On this computer</button><button type="button" aria-pressed={config.provider!=='local'} disabled={disabled} onClick={()=>{if(config.provider==='local')choose({provider:'openai',apiKey:'',model:''});}}>Online provider</button></div>}
+ {!images&&config.provider==='local'?<LocalModelConnection config={config} onChange={choose} disabled={disabled}/>:<>
  {!images&&<details className="subscription-connections" open><summary>Connect a subscription</summary>
   <p>Install the official local engine and sign in in your browser. The engine manages its account; Asterloom never asks for your password.</p>
   <div className="subscription-grid">
@@ -172,5 +175,6 @@ export default function ProviderConnection({config,onChange,disabled=false,image
  <label>{images?'Image model ID':'Model ID'}<input value={config.model} disabled={disabled} onChange={e=>choose({...config,model:e.target.value})} placeholder="Choose above or enter a provider model ID"/></label>
  {notice&&<p className="provider-status" role="status">{notice}</p>}
  <p className="small muted"><ShieldCheck size={13}/> API keys stay in memory. Official engines store their own sign-in in Asterloom’s private local connection folder. Keys and accounts never travel with exported games. Providers apply their own usage limits and charges.</p>
+ </>}
  </div>;
 }

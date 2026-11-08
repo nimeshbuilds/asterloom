@@ -6,6 +6,10 @@ A local-first studio for turning your own materials into portable, editable lear
 
 **Current status: working development build, not a validated commercial release.** The repository distinguishes implemented engines from authored scaffold specifications. Do not market all 75 recipes as distinct complete simulations or claim proven learning benefits before field evaluation.
 
+[Explore the public Asterloom website](https://nimeshbuilds.github.io/asterloom/). The application and website share this repository. Website source lives in [`site/`](site/README.md), and the `gh-pages` branch publishes it; see [website deployment](docs/github-pages.md).
+
+[Try ten guided scenarios](https://nimeshbuilds.github.io/asterloom/scenarios/) with original sample sources, step-by-step desktop walkthroughs, and source-based checks. Each demonstrates a different workflow, from your first game and Aster's source help to offline progress, new editions, and sharing a notebook.
+
 ## Run the studio
 
 Node.js 24 or newer:

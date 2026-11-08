@@ -10,3 +10,6 @@ public/assets/licenses/* -text
 desktop/verification-keys/*.asc -text
 desktop/fixtures/tor/* -text
 server/fixtures/claude-release/* -text
+
+# Deterministic human-readable copies of the compiled template design skills.
+public/template-skills/** linguist-generated=true

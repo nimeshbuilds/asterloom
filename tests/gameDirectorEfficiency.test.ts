@@ -1,3 +1,5 @@
+import {gameLearningContract} from '../src/lib/gameLearningContract';
+import {templateSkillFor} from '../src/lib/gameTemplateSkills';
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {prepareGameExperience} from '../src/lib/prepareGameExperience';
 import {prepareAutomaticLearning} from '../src/lib/automaticLearning';
@@ -23,26 +25,27 @@ afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe('finite complete creation without forced manual continuation',()=>{
  it('finishes all37 source units in one action beyond the former60-request cutoff',async()=>{
   const calls=mock(),input=notebook(37),result=await runGameDirector(input,options);
-  expect(result.status,result.message).toBe('ready');expect(calls).toHaveLength(64);expect(result.requestCount).toBe(64);
+  expect(result.status,result.message).toBe('ready');expect(calls).toHaveLength(65);expect(result.requestCount).toBe(65);
   expect(gameDesignProgress(result.notebook.gameDesign!)).toMatchObject({coveredUnits:37,totalUnits:37,completedBatches:13,pendingBatches:0,missionCount:37,percent:100});
   expect(result.notebook.sources).toEqual(input.sources);expect(result.notebook.aiLearningPlan?.missions).toHaveLength(37);
-  expect(new Set(result.notebook.gameDesign!.receipts.map(receipt=>receipt.id)).size).toBe(64);
+  expect(calls.slice(0,13).every(call=>call.stage==='plan')).toBe(true);expect(calls[13].stage).toBe('direction');expect(calls[13].data.sourceAnalysis).toMatchObject({unitCount:37,missionCount:37});expect(calls.slice(14).every(call=>call.stage!=='plan'&&call.stage!=='direction')).toBe(true);
+  expect(new Set(result.notebook.gameDesign!.receipts.map(receipt=>receipt.id)).size).toBe(65);
   expect(result.notebook.gameDesign!.receipts.every(receipt=>receipt.status==='completed'&&typeof receipt.finishedAt==='string'&&Number.isSafeInteger(receipt.durationMs))).toBe(true);
  },15000);
- it('honors an explicit60-request pause and resumes only the four unsent requests including its overview',async()=>{
+ it('honors an explicit60-request pause and resumes only the five unsent requests including its overview',async()=>{
   const calls=mock(),first=await runGameDirector(notebook(37),{...options,maxRequests:60});
   expect(first.status).toBe('incomplete');expect(first.requestCount).toBe(60);expect(first.notebook.gameDesign!.status).toBe('preparing');
   const receipts=structuredClone(first.notebook.gameDesign!.receipts);
   const second=await runGameDirector(parsePackage(serializePackage(first.notebook)),options);
-  expect(second.status,second.message).toBe('ready');expect(second.requestCount).toBe(4);expect(calls).toHaveLength(64);
-  expect(second.notebook.gameDesign!.receipts.slice(0,60)).toEqual(receipts);
+  expect(second.status,second.message).toBe('ready');expect(second.requestCount).toBe(5);expect(calls).toHaveLength(65);
+  expect(second.notebook.gameDesign!.receipts.slice(0,60)).toEqual(receipts);expect(second.notebook.gameDesign!.creativeDirection).toEqual(first.notebook.gameDesign!.creativeDirection);expect(calls.slice(60).every(call=>call.stage!=='plan'&&call.stage!=='direction')).toBe(true);
   expect(gameDesignProgress(second.notebook.gameDesign!)).toMatchObject({coveredUnits:37,pendingBatches:0});
  },15000);
  it('measures dispatched request time separately from durable checkpoint work',async()=>{
   let elapsed=100;vi.spyOn(performance,'now').mockImplementation(()=>elapsed);
   vi.stubGlobal('fetch',vi.fn(async(_url,body)=>{const request=JSON.parse(body.body),stage=request.prompt.match(/STAGE: (\w+)/)[1],data=JSON.parse(request.prompt.split('REFERENCE DATA (JSON):\n')[1]);elapsed+=125;return{ok:true,json:async()=>({text:JSON.stringify(directorFixtureResponse(stage,data)),usage})};}));
   const result=await runGameDirector(notebook(),{...options,onCheckpoint:async()=>{elapsed+=9000;return true;}});
-  expect(result.status,result.message).toBe('ready');expect(result.notebook.gameDesign!.receipts.map(receipt=>receipt.durationMs)).toEqual([125,125,125,125]);
+  expect(result.status,result.message).toBe('ready');expect(result.notebook.gameDesign!.receipts.map(receipt=>receipt.durationMs)).toEqual([125,125,125,125,125]);
   expect(parsePackage(serializePackage(result.notebook)).gameDesign!.receipts).toEqual(result.notebook.gameDesign!.receipts);
  });
  it('records measured network-failure duration without retrying or fabricating token usage',async()=>{
@@ -64,7 +67,7 @@ function unpooledMissions(batch:GameDesignBatch){return(batch.drafts??[]).map(dr
  const citations=[...draft.activity.sourceRefs.map(reference=>({sourceId:reference.sourceId,evidence:reference.evidence})),...draft.teaching.sourceWindows.map(reference=>({sourceId:reference.sourceId,evidence:reference.quote}))];
  const exactEvidence=citations.filter((reference,index)=>!citations.some((other,otherIndex)=>index!==otherIndex&&other.sourceId===reference.sourceId&&other.evidence.includes(reference.evidence)&&(other.evidence.length>reference.evidence.length||otherIndex<index)));
  const plan=batch.missions!.find(mission=>mission.id===draft.missionId)!;
- return{missionId:draft.missionId,plan,recipe:gameRecipeMetadata(plan.scaffoldId),storyContext:scaffoldStoryContext(plan.scaffoldId,draft.teaching.ageGroup,draft.activity),renderedControls:gameRuntimeControlPresentation(draft.activity),activity:draft.activity,teaching:draft.teaching,exactEvidence};
+ return{missionId:draft.missionId,plan,recipe:gameRecipeMetadata(plan.scaffoldId),learningContract:gameLearningContract(plan.kind),templateSkill:templateSkillFor(plan.scaffoldId,draft.teaching.ageGroup,draft.activity),storyContext:scaffoldStoryContext(plan.scaffoldId,draft.teaching.ageGroup,draft.activity),renderedControls:gameRuntimeControlPresentation(draft.activity),activity:draft.activity,teaching:draft.teaching,exactEvidence};
 });}
 function decode(value:any,evidencePool:{id:string;sourceId:string;text:string}[]):any{
  if(Array.isArray(value))return value.map(item=>decode(item,evidencePool));

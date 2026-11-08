@@ -6,7 +6,7 @@ export interface TrackedNotebookExport {id:string;name:string;path:string;kind:'
 export interface NotebookDeletionPlan {notebookId:string;title:string;sourceCount:number;cardCount:number;activityCount:number;mediaCount:number;exclusiveMediaBytes:number;sharedMediaCount:number;draftCount:number;exports:TrackedNotebookExport[];warnings:string[]}
 export interface NotebookDeletionResult {deleted:true;pendingCleanup:boolean;warnings:string[];removedAssets:number;removedBytes:number;trashedExports:number}
 export interface DeletionWork {notebookId:string;assetIds:string[];draftKeys:string[];trashExportIds:string[]}
-interface DeletionDesktop {listNotebookExports?:(id:string)=>Promise<{exports?:TrackedNotebookExport[];error?:string}>;trashNotebookExports?:(id:string,ids:string[])=>Promise<{trashedIds?:string[];warnings?:string[];error?:string}>;clearNotebookCache?:()=>Promise<{cleared?:boolean;error?:string}>}
+interface DeletionDesktop {clearNativeNotebook?:(id:string)=>Promise<{cleared?:boolean;warnings?:string[];error?:string}>;listNotebookExports?:(id:string)=>Promise<{exports?:TrackedNotebookExport[];error?:string}>;trashNotebookExports?:(id:string,ids:string[])=>Promise<{trashedIds?:string[];warnings?:string[];error?:string}>;clearNotebookCache?:()=>Promise<{cleared?:boolean;error?:string}>}
 export function deletionDesktop():DeletionDesktop|undefined {return typeof window==='undefined'?undefined:(window as unknown as {asterloomDesktop?:DeletionDesktop}).asterloomDesktop;}
 const ASSET=/^[a-f0-9]{64}$/;
 export function notebookAssetIds(notebooks:Notebook[]):Set<string>{return new Set(notebooks.flatMap(n=>n.sources.flatMap(s=>s.asset&&ASSET.test(s.asset.id)?[s.asset.id]:[])));}
@@ -31,6 +31,13 @@ async function cleanDatabase(name:string,storeName:string,remove:(key:string)=>b
 /** Clears only this browser profile. Model/runtime downloads and account settings stay shared. */
 export async function cleanupNotebookWork(work:DeletionWork,retained:Notebook[],retainedHistoryAssetIds:string[]=[]):Promise<NotebookDeletionResult>{
  const result:NotebookDeletionResult={deleted:true,pendingCleanup:false,warnings:[],removedAssets:0,removedBytes:0,trashedExports:0};
+ // Native previews hold their own exact source copy. Clear them before removing
+ // original recordings, or retain the cleanup journal until the preview closes.
+ const clearNative=deletionDesktop()?.clearNativeNotebook;
+ if(clearNative)try{
+  const native=await clearNative(work.notebookId);
+  if(!native.cleared||native.error){result.pendingCleanup=true;result.warnings.push(...(native.warnings?.length?native.warnings:[native.error||'Native preview data could not be removed. Close the preview and retry cleanup.']));return result;}
+ }catch{result.pendingCleanup=true;result.warnings.push('Native preview data could not be removed. Close the preview and retry cleanup.');return result;}
  const retainedAssets=new Set([...notebookAssetIds(retained),...retainedHistoryAssetIds]);
  const attempt=async(label:string,fn:()=>Promise<void>)=>{try{await fn();}catch{result.pendingCleanup=true;result.warnings.push(label+' Retry cleanup to finish removing its local data.');}};
  await attempt('Some creator drafts could not be removed.',async()=>{const protectedKeys=new Set(retained.flatMap(n=>notebookDraftKeys(n.id,work.draftKeys,notebookAssetIds([n]))));for(const hash of retainedAssets)protectedKeys.add(`asterloom:transcription:${hash}`);for(const key of work.draftKeys)if(!protectedKeys.has(key))localStorage.removeItem(key);});

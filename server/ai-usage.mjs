@@ -1,5 +1,6 @@
 // Normalized provider telemetry. Never infer tokens from string length or context capacity.
 const count=value=>Number.isSafeInteger(value)&&value>=0?value:null;
+export const safeActualModels=value=>Array.isArray(value)?[...new Set(value.filter(v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9._\[\]:/-]{0,199}$/.test(v)))].slice(0,20):[];
 export const unavailableAIUsage=()=>({status:'unavailable',inputTokens:null,outputTokens:null,cachedInputTokens:null,cacheWriteTokens:null,reasoningTokens:null,totalTokens:null});
 export function normalizeAIUsage(provider,raw){
  const result=unavailableAIUsage();if(!raw||typeof raw!=='object'||Array.isArray(raw))return result;
@@ -14,6 +15,7 @@ export function normalizeAIUsage(provider,raw){
   // Missing cache fields make total input unknown: absent does not assert zero cache activity.
   result.inputTokens=base!==null&&read!==null&&write!==null?count(base+read+write):null;
   result.outputTokens=count(raw.output_tokens);result.cachedInputTokens=read;result.cacheWriteTokens=write;
+  result.reasoningTokens=count(raw.output_tokens_details?.thinking_tokens);
  }else{
   result.inputTokens=count(raw.input_tokens??raw.prompt_tokens);result.outputTokens=count(raw.output_tokens??raw.completion_tokens);
   result.cachedInputTokens=count(raw.input_tokens_details?.cached_tokens??raw.prompt_tokens_details?.cached_tokens);

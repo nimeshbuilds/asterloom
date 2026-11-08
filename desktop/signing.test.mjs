@@ -26,8 +26,30 @@ test('signing cannot follow output-directory symlinks into the original app',{sk
 test('only Electron processes receive a JIT exception',async()=>{
   const app='/tmp/Asterloom.app';
   assert.match(entitlementPath(app,app),/electron.plist$/);
-  assert.match(entitlementPath(`${app}/Contents/Frameworks/Asterloom Helper (Renderer).app`,app),/electron.plist$/);
-  for(const suffix of ['Contents/Resources/app/desktop/vendor/tor/runtime/tor/tor','Contents/Resources/app/native/canvas.node','Contents/Frameworks/Electron Framework.framework'])assert.match(entitlementPath(`${app}/${suffix}`,app),/native.plist$/);
+  assert.match(entitlementPath(`${app}/Contents/MacOS/Asterloom`,app),/electron.plist$/);
+  for(const name of ['Asterloom Helper','Asterloom Helper (Renderer)','Asterloom Helper (GPU)','Asterloom Helper (Plugin)']){
+    const bundle=path.join(app,'Contents','Frameworks',`${name}.app`);
+    assert.match(entitlementPath(bundle,app),/electron.plist$/);
+    assert.match(entitlementPath(path.join(bundle,'Contents','MacOS',name),app),/electron.plist$/);
+  }
+  const godot='Contents/Resources/app/desktop/vendor/godot-factory/runtime/Asterloom Native Factory.app';
+  for(const suffix of ['Contents/Resources/app/desktop/vendor/tor/runtime/tor/tor','Contents/Resources/app/native/canvas.node','Contents/Frameworks/Electron Framework.framework',godot,`${godot}/Contents/MacOS/Asterloom Native Factory`])assert.match(entitlementPath(`${app}/${suffix}`,app),/native.plist$/);
   const electron=await fs.readFile(entitlementPath(app,app),'utf8');assert.deepEqual([...electron.matchAll(/<key>([^<]+)<\/key>/g)].map(match=>match[1]),['com.apple.security.cs.allow-jit']);
   const native=await fs.readFile(entitlementPath(`${app}/Contents/native.node`,app),'utf8');assert.doesNotMatch(native,/<key>/);
+});
+
+test('renamed exports preserve Electron entitlements without granting them to nested or lookalike apps',()=>{
+  const app='/tmp/My Learning Game.app';
+  assert.match(entitlementPath(app,app),/electron.plist$/);
+  assert.match(entitlementPath(`${app}/Contents/MacOS/Asterloom`,app),/electron.plist$/);
+  const nested='Contents/Resources/Asterloom Helper (Renderer).app';
+  for(const suffix of [
+    'Contents/MacOS/Other Tool',
+    'Contents/Frameworks/Other.app',
+    'Contents/Frameworks/Other.app/Contents/MacOS/Other',
+    'Contents/Frameworks/Asterloom Helper (Other).app',
+    'Contents/Frameworks/Asterloom Helper.app/Contents/MacOS/Other',
+    nested,`${nested}/Contents/MacOS/Asterloom Helper (Renderer)`,
+    '../Other.app/Contents/MacOS/Asterloom',
+  ])assert.match(entitlementPath(path.join(app,suffix),app),/native.plist$/,suffix);
 });

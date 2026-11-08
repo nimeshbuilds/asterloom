@@ -9,6 +9,7 @@ import {isUniversalMacApp} from './architectures.mjs';
 import {exportNotebookArchive,importNotebookArchive} from './media-archive.mjs';
 import {createExportRegistry} from './export-registry.mjs';
 import {saveSourceMaterial} from './source-downloads.mjs';
+import {nativeFactoryRuntime,createNativeFactoryController} from './godot-factory.mjs';
 
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
@@ -95,8 +96,21 @@ app.whenReady().then(async()=>{try{
     try{const state=enabled?await service.startTor():await service.stopTor();await configureTorProxy(state);await fs.writeFile(path.join(app.getPath('userData'),'tor-settings.json'),JSON.stringify({enabled}),{mode:0o600});return {...state,proxyConfigured};}
     catch{return {error:'Tor could not be started. Check the bundled runtime and network access.'};}
   });
+  const nativeOptions={userData:app.getPath('userData'),executablePath:process.execPath,resolveAsset:service.media.resolveAsset,legacyBridgeDirectory:path.join(app.getPath('appData'),'Godot','app_userdata','Asterloom Native Factory','bridge'),...(!app.isPackaged?{playerPath:process.env.ASTERLOOM_FACTORY_PLAYER,enginePath:process.env.ASTERLOOM_FACTORY_ENGINE}: {})};
+  const nativeRuntime=await nativeFactoryRuntime(nativeOptions);
+  const nativeController=createNativeFactoryController(nativeOptions);
+  ipcMain.handle('asterloom:launch-native-game',async(event,request)=>{
+    if(!ownFrame(event))return {error:'Only this application can launch its native game.'};
+    try{return await nativeController.launch(request);}
+    catch(error){return {error:error.message||'The native game could not be opened.'};}
+  });
+  ipcMain.handle('asterloom:clear-native-notebook',async(event,id)=>{
+    if(!ownFrame(event))return {cleared:false,error:'Only this application can clear its native preview data.'};
+    try{return await nativeController.clear(id);}
+    catch{return {cleared:false,warnings:['Native preview cleanup could not finish. Its files have been preserved; retry cleanup.']};}
+  });
   const availableExports=[];for(const target of ['mac','windows'])if(await templateFor(target))availableExports.push(target);
-  ipcMain.on('asterloom:bootstrap',event=>{event.returnValue=ownFrame(event)?{notebook:embedded?.notebook||null,platform:process.platform==='darwin'?'mac':process.platform==='win32'?'windows':process.platform,availableExports}:null;});
+  ipcMain.on('asterloom:bootstrap',event=>{event.returnValue=ownFrame(event)?{notebook:embedded?.notebook||null,platform:process.platform==='darwin'?'mac':process.platform==='win32'?'windows':process.platform,availableExports,nativeGameAvailable:nativeRuntime.available,nativeGameUnavailableReason:nativeRuntime.error}:null;});
   ipcMain.handle('asterloom:export-game',async(event,packageText,target)=>{
     if(!ownFrame(event))return {error:'Only this application can export a notebook.'};
     if(exporting)return {error:'An export is already in progress.'};

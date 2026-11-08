@@ -33,6 +33,7 @@ describe('explicit recovery of legacy validation failures',()=>{
   const notebook=legacy(),original=structuredClone(notebook),calls=provider(),result=await prepareGameExperience(notebook,{}, {...options,retryFailedSections:true});
   expect(result.creationStatus,result.ai.message).toBe('ready');expect(calls.map(call=>call.stage)).toEqual(['plan','write','write','check','overview']);
   expect(calls[0].data.units.map((unit:any)=>unit.unitId)).toEqual(original.gameDesign!.batches[0].unitIds.slice(0,2));expect(calls.every(call=>call.model==='new-designer')).toBe(true);
+  expect(calls[0].data.planningHistory).toEqual({plannedMissionCount:0,sourceStudyCount:1,byKind:[],byScaffold:[],recentMissions:[]});
   expect(result.notebook.gameDesign!.batches[1]).toEqual(original.gameDesign!.batches[1]);expect(result.notebook.gameDesign!.batches[0].study).toEqual(original.gameDesign!.batches[0].study!.slice(2));expect(result.notebook.gameDesign!.receipts[0]).toEqual(original.gameDesign!.receipts[0]);expect(result.notebook.gameDesign!.receipts).toHaveLength(6);expect(result.notebook.aiLearningPlan!.missions).toHaveLength(2);expect(result.notebook.sources).toEqual(original.sources);
   expect(parsePackage(serializePackage(result.notebook)).gameDesign).toEqual(result.notebook.gameDesign);expect(gameCreationRecovery(result.notebook.gameDesign).unitCount).toBe(0);
  });

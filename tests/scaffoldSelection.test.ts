@@ -1,5 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import {sourceSupportedScaffoldIds} from '../src/lib/scaffoldSelection';
+import {resolveScaffoldRuntime} from '../src/lib/scaffoldRuntime';
+import {recallAuthoringFixture} from './gameDraftAuthoring.fixture';
 import {prepareAutomaticLearning} from '../src/lib/automaticLearning';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {ACTIVITY_EXAMPLES,EXAMPLE_ACTIVITY_SOURCE} from '../src/lib/structuredEngine';
@@ -36,6 +38,16 @@ describe('source-first activity selection',()=>{
   expect(sourceSupportedScaffoldIds({...n,sources:[{...source,text:'Unrelated replacement content.'}]})).toEqual([]);
   expect(sourceSupportedScaffoldIds({...n,sources:[]})).toEqual([]);
   expect(n.activities?.[0].reviewStatus).toBe('needs-review');
+ });
+ it('preserves reviewed legacy recall cards and does not use them to bypass a bound recall model',()=>{
+  const s=createSource('Queue: A list of jobs waiting for a worker to run.\nWorker: A process that runs queued jobs.','Queue glossary');
+  const prepared=prepareAutomaticLearning(createNotebook({sources:[s]})).notebook;
+  const reviewed={...prepared,cards:prepared.cards.map(card=>({...card,reviewStatus:'reviewed' as const}))};
+  expect(reviewed.cards.length).toBeGreaterThan(0);expect(sourceSupportedScaffoldIds(reviewed)).toContain('recall-escape-mission');
+  expect(resolveScaffoldRuntime('recall-escape-mission',reviewed)).toMatchObject({available:true,mode:'source-practice'});
+  const again=prepareAutomaticLearning(reviewed).notebook;expect(again.cards).toEqual(reviewed.cards);
+  const fixture=recallAuthoringFixture(),bound={...fixture.activity,scaffoldIds:['recall-escape-mission']};
+  const missingSource={...reviewed,activities:[bound]};expect(sourceSupportedScaffoldIds(missingSource)).not.toContain('recall-escape-mission');expect(resolveScaffoldRuntime('recall-escape-mission',missingSource)).toMatchObject({available:false,mode:'structured'});
  });
  it('does not invite a learner back to a stale or missing-source activity',()=>{
   const activity={...structuredClone(ACTIVITY_EXAMPLES.find(a=>a.kind==='sequence')!),scaffoldIds:['process-reconstruction'],reviewStatus:'reviewed' as const};

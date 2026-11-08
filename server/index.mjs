@@ -1,6 +1,6 @@
 import {createGenerationStatus} from './generation-status.mjs';
 import {withGenerationControl,completionMetadata,providerHttpFailure,generationError} from './generation-control.mjs';
-import {generationResult,normalizeAIUsage} from './ai-usage.mjs';
+import {generationResult,normalizeAIUsage,safeActualModels} from './ai-usage.mjs';
 import http from 'node:http';
 import https from 'node:https';
 import dns from 'node:dns/promises';
@@ -15,6 +15,7 @@ import { createTorController } from './tor.mjs';
 import {createCodexConnection} from './codex-engine.mjs';
 import {createGrokConnection} from './grok-engine.mjs';
 import {createClaudeConnection} from './claude-engine.mjs';
+import {createLocalConnection} from './local-engine.mjs';
 import {extractWebPage} from './web-extraction.mjs';
 import {pdfPageText} from './pdf-text.mjs';
 import {createMediaService} from './media-service.mjs';
@@ -278,7 +279,8 @@ async function importUrl(input) {
   return result;
 }
 
-async function generate(input, connection, grok, claude, execution={}) {
+async function generate(input, connection, grok, claude, local, execution={}) {
+  if(input.provider==='local')return generationResult(input.provider,input.model,await local.generate(input,execution));
   if(input.provider==='chatgpt')return generationResult(input.provider,input.model,await connection.generate(input,execution));
   if(input.provider==='grok')return generationResult(input.provider,input.model,await grok.generate(input,execution));
   if(input.provider==='claude-code')return generationResult(input.provider,input.model,await claude.generate(input,execution));
@@ -329,12 +331,13 @@ async function generate(input, connection, grok, claude, execution={}) {
 }
 
 /** Read the current provider catalog; models are not hardcoded or treated as paid-call entitlement. */
-export async function listProviderModels(input,{connection,grok,claude,request=requestBytes,publicRequest=fetchPublic}={}){
+export async function listProviderModels(input,{connection,grok,claude,local,request=requestBytes,publicRequest=fetchPublic}={}){
  const provider=bounded(input.provider,30),apiKey=bounded(input.apiKey,2000);
- assert(['openai','anthropic','xai','compatible','chatgpt','grok','claude-code'].includes(provider),'Choose a supported provider.');
+ assert(['openai','anthropic','xai','compatible','chatgpt','grok','claude-code','local'].includes(provider),'Choose a supported provider.');
  if(provider==='chatgpt')return connection.models();
  if(provider==='grok')return grok.models();
  if(provider==='claude-code')return claude.models();
+ if(provider==='local')return local.models();
  const key=apiKey;
  assert(provider==='compatible'||key,'Enter an API key or sign in.');
  const base=provider==='anthropic'?'https://api.anthropic.com/v1':provider==='xai'?'https://api.x.ai/v1':['openai','chatgpt'].includes(provider)?'https://api.openai.com/v1':bounded(input.baseUrl,2000);
@@ -421,7 +424,7 @@ async function readBody(request) {
   return result;
 }
 
-export async function createService({port=4319,host='127.0.0.1',dataDir=path.join(HERE,'.data'),distDir=path.join(HERE,'../dist'),enableTor=false,torBinary,onTorChange,credentialStore,mediaAssetDir,mediaModelDir,mediaRuntime,distributionMode='disabled',engineConnections} = {}) {
+export async function createService({port=4319,host='127.0.0.1',dataDir=path.join(HERE,'.data'),distDir=path.join(HERE,'../dist'),enableTor=false,torBinary,onTorChange,credentialStore,mediaAssetDir,mediaModelDir,mediaRuntime,distributionMode='disabled',engineConnections,localConnection} = {}) {
   dataDir=path.resolve(dataDir);distDir=path.resolve(distDir);
   if(mediaAssetDir)mediaAssetDir=path.resolve(mediaAssetDir);if(mediaModelDir)mediaModelDir=path.resolve(mediaModelDir);
   await fs.mkdir(dataDir,{recursive:true,mode:0o700});
@@ -430,6 +433,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
   const connection=engineConnections?.codex||await createCodexConnection({dataDir:path.join(dataDir,'ai-engines'),distributionMode});
   const grok=engineConnections?.grok||await createGrokConnection({dataDir:path.join(dataDir,'ai-engines'),distributionMode});
   const claude=engineConnections?.claude||await createClaudeConnection({dataDir:path.join(dataDir,'ai-engines'),distributionMode});
+  const local=localConnection??await createLocalConnection({dataDir:path.join(dataDir,'ai-engines')});
   const engines={codex:connection,grok,claude,...engineConnections};const generationStatus=createGenerationStatus();
   const roomFile=path.join(dataDir,'rooms.json');
   let rooms=[];
@@ -493,8 +497,15 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       if(request.method==='GET'&&url.pathname.startsWith('/api/generate/status/'))return send(200,generationStatus.get(decodeURIComponent(url.pathname.slice('/api/generate/status/'.length))));
       if(request.method === 'POST' && url.pathname === '/api/generate') {
        const input=await readBody(request),requestId=generationStatus.start(input.requestId);
-       try{const result=await withGenerationControl(input,request,response,execution=>generate(input,connection,grok,claude,{...execution,onProgress:patch=>generationStatus.update(requestId,patch)}));generationStatus.update(requestId,{phase:'completed',outputCharacters:result.text.length,usage:result.usage});return send(200,{...result,requestId});}
+       try{const result=await withGenerationControl(input,request,response,execution=>generate(input,connection,grok,claude,local,{...execution,onProgress:patch=>generationStatus.update(requestId,patch)}));generationStatus.update(requestId,{phase:'completed',outputCharacters:result.text.length,usage:result.usage});return send(200,{...result,requestId});}
        catch(error){if(!error.aiUsage)error.aiUsage=normalizeAIUsage('',null);generationStatus.update(requestId,{phase:error.code==='PROVIDER_CANCELED'?'canceled':'failed',usage:error.aiUsage});throw error;}
+      }
+      if(request.method==='GET'&&url.pathname==='/api/ai/local/status')return send(200,await local.status());
+      const localRoute=url.pathname.match(/^\/api\/ai\/local\/(runtime\/install|models\/(?:pull|probe|remove|setup)|cancel)$/);
+      if(request.method==='POST'&&localRoute){
+        const input=await readBody(request),operation=localRoute[1],modelAction=operation.startsWith('models/');
+        assert(input&&typeof input==='object'&&!Array.isArray(input)&&Object.keys(input).every(key=>modelAction&&key==='model')&&(!modelAction||typeof input.model==='string'),'Use a bounded local model operation.');
+        return send(200,await (modelAction?local[operation.slice(7)](input.model):operation==='cancel'?local.cancel():local.install()));
       }
       if(request.method==='GET'&&url.pathname==='/api/ai/engines')return send(200,{engines:await Promise.all(Object.values(engines).map(engine=>engine.status()))});
       if(request.method==='POST'&&url.pathname==='/api/ai/engines/claude/login-code'){
@@ -511,7 +522,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       if(request.method==='POST'&&url.pathname==='/api/ai/sign-in'){await readBody(request);return send(200,await connection.start());}
       if(request.method==='POST'&&url.pathname==='/api/ai/disconnect'){await readBody(request);await connection.disconnect();return send(200,await connection.status());}
       if(request.method==='POST'&&url.pathname==='/api/ai/cancel'){await readBody(request);await connection.cancel();return send(200,await connection.status());}
-      if(request.method==='POST'&&url.pathname==='/api/models')return send(200,await listProviderModels(await readBody(request),{connection,grok,claude}));
+      if(request.method==='POST'&&url.pathname==='/api/models')return send(200,await listProviderModels(await readBody(request),{connection,grok,claude,local}));
       if(request.method === 'POST' && url.pathname === '/api/generate-image') return send(200,await generateImage(await readBody(request)));
       if(request.method === 'POST' && url.pathname === '/api/rooms') {
         const input=await readBody(request);const name=bounded(input.playerName,48);
@@ -572,7 +583,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
       }
       send(404,{error:'This endpoint was not found.',code:'NOT_FOUND'});
     } catch(error) {
-      if(!response.headersSent) send(error.status || 500,{error:error instanceof ApiError || error.publicMessage===true ? error.message : 'The local service could not complete this operation.',code:error.code || 'SERVICE_ERROR',...(error.aiUsage?{usage:error.aiUsage}:{}),...(typeof error.retryable==='boolean'?{retryable:error.retryable}:{}),...(typeof error.truncated==='boolean'?{truncated:error.truncated}:{}),...(error.finishReason?{finishReason:error.finishReason}:{})});
+      if(!response.headersSent) send(error.status || 500,{error:error instanceof ApiError || error.publicMessage===true ? error.message : 'The local service could not complete this operation.',code:error.code || 'SERVICE_ERROR',...(error.aiUsage?{usage:error.aiUsage}:{}),...(safeActualModels(error.actualModels).length?{actualModels:safeActualModels(error.actualModels)}:{}),...(typeof error.retryable==='boolean'?{retryable:error.retryable}:{}),...(typeof error.truncated==='boolean'?{truncated:error.truncated}:{}),...(error.finishReason?{finishReason:error.finishReason}:{})});
       else response.end();
     }
   });
@@ -599,7 +610,7 @@ export async function createService({port=4319,host='127.0.0.1',dataDir=path.joi
   const torController=createTorController({binary:tor,dataDir,servicePort:onionGatewayPort,onChange:state=>{Object.assign(capabilities.tor,state);onTorChange?.(state);}});
   Object.assign(capabilities.tor,torController.status());
   if(enableTor)await torController.start();
-  return {server,port:actualPort,onionGatewayPort,capabilities,media,startTor:()=>torController.start(),stopTor:()=>torController.stop(),torStatus:()=>torController.status(),markTorReachable:()=>torController.markReachable(),close:async()=>{await media.close();await Promise.all(Object.values(engines).map(engine=>engine.close()));await torController.stop();for(const responses of events.values())for(const response of responses)response.end();onionGateway.closeAllConnections();server.closeAllConnections();await Promise.all([new Promise(resolve=>server.close(resolve)),new Promise(resolve=>onionGateway.close(resolve))]);await writeQueue;}};
+  return {server,port:actualPort,onionGatewayPort,capabilities,media,startTor:()=>torController.start(),stopTor:()=>torController.stop(),torStatus:()=>torController.status(),markTorReachable:()=>torController.markReachable(),close:async()=>{await local.close();await media.close();await Promise.all(Object.values(engines).map(engine=>engine.close()));await torController.stop();for(const responses of events.values())for(const response of responses)response.end();onionGateway.closeAllConnections();server.closeAllConnections();await Promise.all([new Promise(resolve=>server.close(resolve)),new Promise(resolve=>onionGateway.close(resolve))]);await writeQueue;}};
 }
 
 if(process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

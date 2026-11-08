@@ -33,18 +33,18 @@ afterEach(()=>vi.unstubAllGlobals());
 
 describe('source guidance plus the actual app control instructions',()=>{
  it('keeps every source-specific step and citation while disclosing exact controls to the writer and checker',async()=>{
-  const calls=mock(),original=input(),first=await runGameDirector(original,{...options,maxRequests:2});expect(first.status).toBe('incomplete');
+  const calls=mock(),original=input(),first=await runGameDirector(original,{...options,maxRequests:3});expect(first.status).toBe('incomplete');
   const draft=structuredClone(first.notebook.gameDesign!.batches[0].drafts![0]),receipts=structuredClone(first.notebook.gameDesign!.receipts);
   expect(draft.teaching.guidedApplication.steps).toEqual(steps);
   const written=calls.find(call=>call.stage==='write')!;expect(written.data.missions[0].storyContext.actionGuide.act).toContain('Move earlier or Move later');
   const resumed=await runGameDirector(parsePackage(serializePackage(first.notebook)),options);expect(resumed.status,resumed.message).toBe('ready');
-  expect(calls.map(call=>call.stage)).toEqual(['plan','write','check','overview']);expect(resumed.notebook.gameDesign!.receipts.slice(0,2)).toEqual(receipts);
+  expect(calls.map(call=>call.stage)).toEqual(['plan','direction','write','check','overview']);expect(resumed.notebook.gameDesign!.receipts.slice(0,3)).toEqual(receipts);
   expect(resumed.notebook.gameDesign!.batches[0].drafts![0]).toEqual(draft);expect(resumed.notebook.sources).toEqual(original.sources);
   const check=calls.find(call=>call.stage==='check')!;expect(check.prompt).toContain('COMPLETE displayed instructions');expect(check.prompt).toContain('Still reject any contradiction');expect(check.prompt).toContain('never subject evidence');
   const saved=parsePackage(serializePackage(resumed.notebook));expect(saved.aiLearningPlan!.missions[0].guidedApplication.steps).toEqual(steps);expect(saved.aiLearningPlan!.missions[0].chunks).toEqual(draft.teaching.chunks);expect(saved.aiLearningPlan!.missions[0].sourceWindows).toEqual(draft.teaching.sourceWindows);
  });
  it('does not hide contradictory generated steps or bypass a negative controls review',async()=>{
-  const calls=mock(true),result=await runGameDirector(input(),options);expect(result.status).toBe('needs-source');expect(calls.map(call=>call.stage)).toEqual(['plan','write','check']);
+  const calls=mock(true),result=await runGameDirector(input(),options);expect(result.status).toBe('needs-source');expect(calls.map(call=>call.stage)).toEqual(['plan','direction','write','check']);
   const checked=calls.find(call=>call.stage==='check')!.data.missions[0];expect(checked.teaching.guidedApplication.steps.at(-1)).toBe('Choose Launch live terminal to execute the procedure.');
   expect(result.notebook.gameDesign!.batches[0].checks![0]).toMatchObject({decision:'source-study',quality:{controlsMatch:false}});expect(result.activityIds).toEqual([]);
  });

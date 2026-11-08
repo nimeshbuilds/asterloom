@@ -1,4 +1,5 @@
 import type {Notebook,Source} from '../types';
+import type {ExplanationActivity} from './compositionEngine';
 import {sourceLearningUnits,segmentSource,type SourceLearningUnit} from './sourceUnits';
 import {sourceRevision,textDigest} from './evidence';
 import {isReadyLearningSource} from './scaffoldRuntime';
@@ -66,6 +67,22 @@ export function assertDirectorProseEvidence(unit:DirectorSourceUnit,sources:Sour
   return false;
  };
  if(references.some(reference=>reference.sourceId!==unit.sourceId||!supported(reference)))throw new Error('For a source unit containing code, cite only complete non-code explanations or instructions. Keep code as context, not as an inferred answer or teaching claim.');
+}
+
+/** Code review may quote exact inert input/spans as observations. Its interpreted
+ * findings, repairs and reasoning still require independent non-code prose. */
+export function assertDirectorCodeReviewEvidence(unit:DirectorSourceUnit,sources:Source[],activity:ExplanationActivity):void {
+ const review=activity.codeReview;if(!review)throw new Error('A source-code exception requires an explicit code-review contract.');
+ if(activity.sourceRefs[review.sourceRefIndex]?.evidence!==review.code)throw new Error('Code review must keep its exact code in a dedicated source quotation, separate from prose reasoning.');
+ const rawQuotes=new Set([review.code,...review.spans.map(span=>review.code.slice(span.start,span.end))]);
+ const observationIndexes=new Set([review.sourceRefIndex,...review.spans.flatMap(span=>span.evidenceRefs),...activity.pieces.filter(piece=>piece.role==='evidence'&&review.code.includes(piece.text)).flatMap(piece=>piece.evidenceRefs)]);
+ const proseIndexes=new Set<number>();
+ activity.sourceRefs.forEach((reference,index)=>{
+  if(observationIndexes.has(index)&&rawQuotes.has(reference.evidence))return;
+  assertDirectorProseEvidence(unit,sources,[reference]);proseIndexes.add(index);
+ });
+ const reasoning=[...activity.pieces.filter(piece=>piece.role!=='evidence'||!review.code.includes(piece.text)),...activity.arguments,...activity.arguments.flatMap(argument=>argument.alternatives),...review.repairs,...review.findings,...review.findings.flatMap(finding=>finding.alternatives)];
+ if(reasoning.some(item=>!item.evidenceRefs.length||item.evidenceRefs.some(index=>!proseIndexes.has(index))))throw new Error('Every interpreted code-review claim, reasoning chain, repair and finding must cite explicit non-code prose. Exact code observations do not establish their meaning.');
 }
 
 function groupedUnits(source:Source):SourceLearningUnit[]{

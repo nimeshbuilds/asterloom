@@ -1,0 +1,31 @@
+{
+  "format": "asterloom-godot-pilot", "version": 1,
+  "id": "signalwright-durable-jobs-v1", "title": "Keep the work. Survive the restart.",
+  "audience": "adult", "fictionalSetting": "Signalwright Workshop",
+  "source": {
+    "id": "public-workshop-note", "title": "A small durable job system — original teaching fixture",
+    "license": "Asterloom Personal Learning License 1.0", "author": "NimeshBuilds / Asterloom pilot",
+    "text": "A durable job system keeps its job record after the worker restarts. In this workshop design, the queue carries only a job ID, not the job result. The job store keeps the pending job and the completed result. The worker reads the pending job from the job store, performs the work, and writes the completed result back to the job store. The result view reads the result from the job store.\n\nUse this procedure in this design: first assign a stable job ID. Next persist the pending job under that ID. Then enqueue the job ID. After the worker performs the work, store the completed result under the same ID. Only then acknowledge the queued job.\n\nThe ordering has a purpose. Persisting the pending record before enqueueing means a worker can find its job record. Storing the completed result before acknowledging means completion is recorded before the queue considers the job finished. If a worker restarts after the result is stored but before acknowledgement, the same job ID lets it find that completed result and avoid repeating the completed work. This design assumes that each worker checks for an existing completed result before doing the work. It does not claim that every kind of external side effect is automatically safe to repeat."
+  },
+  "lessons": [
+    {"title":"Memory lives outside the worker", "body":"A worker can restart. In this design, the job store keeps the job and its completed result. The queue carries a reference: the job ID. The view gets the result from the store, not from the queue.", "quote":"In this workshop design, the queue carries only a job ID, not the job result. The job store keeps the pending job and the completed result."},
+    {"title":"Record first. Release second.", "body":"The worker needs a stored job before it can act on a queued ID. At the end, record the result before acknowledging the queue. These are two different handoffs: make the work findable, then make completion durable.", "quote":"Persisting the pending record before enqueueing means a worker can find its job record. Storing the completed result before acknowledging means completion is recorded before the queue considers the job finished."},
+    {"title":"A restart is not a new job", "body":"Keep the same ID when work resumes. A worker that checks the store can recognize a completed result instead of doing that completed work again. This is a property of this design; it is not a promise that all external actions are safe to repeat.", "quote":"This design assumes that each worker checks for an existing completed result before doing the work. It does not claim that every kind of external side effect is automatically safe to repeat."}
+  ],
+  "sequence": {
+    "version":1,"id":"durable-procedure","kind":"sequence","reviewStatus":"reviewed",
+    "title":"Build the durable handoff","instruction":"Carry the five procedure modules into the numbered bays, then check the assembled procedure.",
+    "items":[{"id":"id","label":"Assign a stable job ID"},{"id":"pending","label":"Persist the pending job"},{"id":"enqueue","label":"Enqueue the job ID"},{"id":"result","label":"Store the completed result"},{"id":"ack","label":"Acknowledge the queued job"}],
+    "constraints":[{"before":"id","after":"pending"},{"before":"pending","after":"enqueue"},{"before":"enqueue","after":"result"},{"before":"result","after":"ack"}],
+    "sourceRefs":[{"sourceId":"public-workshop-note","evidence":"Use this procedure in this design: first assign a stable job ID. Next persist the pending job under that ID. Then enqueue the job ID. After the worker performs the work, store the completed result under the same ID. Only then acknowledge the queued job."}],
+    "explanation":"Recording the job before enqueueing makes the job findable. Recording the result before acknowledgement makes completion durable.","hint":"Find the two record-before-release handoffs: pending before enqueue, result before acknowledgement."
+  },
+  "dependency": {
+    "version":1,"id":"durable-map","kind":"dependency","reviewStatus":"reviewed","acyclic":false,
+    "title":"Wire the information paths","instruction":"Build the four directed relationships described in the workshop note. Select a starting concept, a relationship, and a destination; then connect.",
+    "nodes":[{"id":"queue","label":"Queue"},{"id":"id","label":"Job ID"},{"id":"store","label":"Job store"},{"id":"worker","label":"Worker"},{"id":"view","label":"Result view"}],
+    "edges":[{"from":"queue","to":"id","relation":"carries"},{"from":"worker","to":"store","relation":"reads from"},{"from":"worker","to":"store","relation":"writes to"},{"from":"view","to":"store","relation":"reads from"}],
+    "sourceRefs":[{"sourceId":"public-workshop-note","evidence":"In this workshop design, the queue carries only a job ID, not the job result. The job store keeps the pending job and the completed result. The worker reads the pending job from the job store, performs the work, and writes the completed result back to the job store. The result view reads the result from the job store."}],
+    "explanation":"The queue identifies work; the store holds durable state. The worker reads and writes that state, while the result view reads it.","hint":"The worker has two different links to the same store. Link labels and direction both matter."
+  }
+}

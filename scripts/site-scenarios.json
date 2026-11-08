@@ -1,0 +1,790 @@
+[
+  {
+    "id": "first-adventure",
+    "title": "Your first shift",
+    "subtitle": "Turn a few pages of notes into something you can learn and play.",
+    "category": "create",
+    "categoryLabel": "Start here",
+    "age": "Adults",
+    "goal": "Understand and remember",
+    "art": "hero-outpost-small.webp",
+    "intro": "Lantern Station needs a careful dispatcher. Bring its short handbook, learn the three boat rules, and see how your source becomes a learning adventure.",
+    "outcome": "Create your first game from copied text, then check its teaching against the material you supplied.",
+    "focus": "A route must match the parcel's destination, weight, and dry marker. Check every requirement, then use the smallest sufficient boat or hold the parcel when no route fits.",
+    "steps": [
+      {
+        "title": "Bring the handbook",
+        "body": "Copy the complete first-adventure.txt source below. In Asterloom, choose Create a game, then Paste notes. Enter Lantern Station Handbook as Source title, paste into Your material, and choose Add material.",
+        "check": "Lantern Station Handbook appears in Your materials with Ready beside it."
+      },
+      {
+        "title": "Keep the choices simple",
+        "body": "Under Make it yours, choose Adults for Age group and Understand and remember for Learning goal. Open the source once to confirm the boat descriptions and worked dispatch are present, then choose Done.",
+        "check": "The readable material includes Swift, Shelter, Beacon, and the rule for a parcel with no route."
+      },
+      {
+        "title": "Let your AI build",
+        "body": "Choose Connect AI to create, select your provider, finish the connection, and select an available model. Choose Back to my game, then Create game with AI. If your connection is already ready, go straight to Create game with AI. Wait for Your adventure is ready.",
+        "check": "The creation panel offers Play game. A saved source alone is not yet a finished AI-created game."
+      },
+      {
+        "title": "Learn before the quest",
+        "body": "Choose Play game. Read the assignment, then choose Learn the ideas when offered. Read each short explanation before choosing Explore idea and Next idea. Follow the next-step control into the walkthrough or guided quest.",
+        "check": "You can explain why a destination match alone is not enough to dispatch a parcel."
+      },
+      {
+        "title": "Make an evidence-based choice",
+        "body": "Try a mission using the rules you learned. For a 1-kilogram parcel to Reed Island that must stay dry, compare the cover as well as the destination and weight. Use the mission's feedback to revisit the relevant rule when needed.",
+        "check": "Your reasoning identifies Shelter because Swift lacks a cover, rather than simply choosing the larger boat."
+      },
+      {
+        "title": "Check the material behind it",
+        "body": "Open Source materials and choose Download readable text. Compare the generated explanation with the handbook, then answer the source checks below. Keep the downloaded text as your reference.",
+        "check": "The original rule remains available independently of the generated lesson."
+      }
+    ],
+    "success": [
+      "A new game appears in Your games with the handbook included.",
+      "You can distinguish a route's destination, capacity, and cover requirements.",
+      "You can open or download the material used to create the lesson."
+    ],
+    "checks": [
+      {
+        "question": "Which boat should carry a 1-kilogram parcel for Reed Island if it must stay dry?",
+        "answer": "Shelter. It visits Reed Island, supports up to 5 kilograms, and has a waterproof cover. Swift lacks the required cover."
+      },
+      {
+        "question": "Which boat should carry an ordinary 2-kilogram parcel to Reed Island?",
+        "answer": "Swift. Both Swift and Shelter qualify, but Swift has the smallest sufficient weight limit. Exactly 2 kilograms is within Swift's limit."
+      },
+      {
+        "question": "What should happen to a parcel addressed to Mist Island?",
+        "answer": "Hold it for a supervisor. No listed boat visits Mist Island, so the source does not support assigning a route."
+      }
+    ],
+    "caveat": "AI chooses the activity and wording from the source. Your generated title, scenery, and mission controls may differ from another learner's game; this guide does not guarantee a particular template.",
+    "troubleshooting": [
+      {
+        "question": "I cannot choose Create game with AI.",
+        "answer": "Confirm the handbook says Ready, then use Connect to select a usable provider and model. Choosing a provider without a model does not complete setup."
+      },
+      {
+        "question": "Creation needs attention instead of showing Play game.",
+        "answer": "Read the issue in the creation panel. Your source is saved. Restore the provider connection or model access before using the offered resume or retry control; do not repeatedly start new games."
+      }
+    ],
+    "next": "access-desk"
+  },
+  {
+    "id": "access-desk",
+    "title": "The right permission",
+    "subtitle": "Learn to apply several rules to one decision, not just remember a definition.",
+    "category": "create",
+    "categoryLabel": "Rules & classification",
+    "age": "Adults",
+    "goal": "Understand and remember",
+    "art": "world-studio.webp",
+    "intro": "Cedar Workshop has three roles and a queue of access requests. Work out the smallest sufficient permission, then check whether the request has the right approval.",
+    "outcome": "Practice distinguishing similar options using explicit rules and exceptions from one source.",
+    "focus": "Choose the least powerful role that permits the stated task. Check the person's name, task, end date, and the correct approver separately before granting access.",
+    "steps": [
+      {
+        "title": "Upload the access handbook",
+        "body": "Download access-desk.txt. In Asterloom choose Create a game, then Upload files, and select that file. Open the source to check its text, then choose Done.",
+        "check": "The Cedar Workshop rules include Reader, Maker, Steward, and the approval requirements."
+      },
+      {
+        "title": "Set the learning intention",
+        "body": "Choose Adults and Understand and remember. Keep the whole source, including the incomplete-request examples; those examples explain when a role must not be granted yet.",
+        "check": "The source includes the worked decision about editing a draft and the later request to publish it."
+      },
+      {
+        "title": "Create the adventure",
+        "body": "Connect your provider and model if needed. Choose Create game with AI and wait for the ready state, then choose Play game.",
+        "check": "You reach the game's teaching or mission briefing, rather than only the source editor."
+      },
+      {
+        "title": "Separate the two checks",
+        "body": "Follow the lesson's idea and walkthrough controls. First identify the permission required for a task. Then identify who can approve that role. Read the evidence when a distinction is unclear.",
+        "check": "You can explain why permission and approval are separate requirements."
+      },
+      {
+        "title": "Apply the rules",
+        "body": "Work through the generated mission. When comparing requests, use the smallest sufficient role and do not silently supply a missing task or end date. Check your reasoning against the three source questions below.",
+        "check": "A request to publish a card leads to a different role and approver than a request to edit its draft."
+      },
+      {
+        "title": "Use Aster to find the rule",
+        "body": "Open Aster and ask: What can a Maker do? Regular Aster can retrieve relevant source material. Read the returned passage and compare it with your answer before continuing the mission.",
+        "check": "The supporting material distinguishes editing drafts from publishing cards."
+      }
+    ],
+    "success": [
+      "The game includes the uploaded fictional access handbook.",
+      "You distinguish the required permission from the required approval.",
+      "You can justify a choice using the task and source rule rather than the most powerful role."
+    ],
+    "checks": [
+      {
+        "question": "What role and approval does Maya need to edit a draft card?",
+        "answer": "Maker is the smallest sufficient role. Her complete request needs the project owner's approval."
+      },
+      {
+        "question": "Can Maya use her draft-editing approval to publish the corrected card?",
+        "answer": "No. Publishing requires Steward and a new approval from the archive owner for that task."
+      },
+      {
+        "question": "What three details must a request contain before the desk can grant access?",
+        "answer": "The person's name, a concrete description of the task, and an end date. The applicable owner's approval is also required."
+      }
+    ],
+    "caveat": "These are invented workshop rules, not security advice. AI may choose a different supported activity rather than a specific sorting board.",
+    "troubleshooting": [
+      {
+        "question": "The lesson gives everyone Steward.",
+        "answer": "Compare it with the source's smallest-useful-permission rule. Treat the generated claim as an error, not a change to the handbook. Revisit the source and review the game before sharing it."
+      },
+      {
+        "question": "Aster returns a passage instead of a rewritten explanation.",
+        "answer": "That is regular Aster's local source-search mode. Use the passage directly, or choose Connect Aster to AI and Enable AI for Aster for an optional generated explanation."
+      }
+    ],
+    "next": "systems-relay"
+  },
+  {
+    "id": "systems-relay",
+    "title": "Follow the signal",
+    "subtitle": "Turn a system description into a lesson in causes, symptoms, and verification.",
+    "category": "create",
+    "categoryLabel": "Processes & systems",
+    "age": "Adults",
+    "goal": "Follow a procedure",
+    "art": "world-observatory.webp",
+    "intro": "The Riverglass Museum displays an old message even though its archive was updated. Learn what each component does, then trace the evidence before deciding what to repair.",
+    "outcome": "Connect a sequence of operations to observable symptoms instead of guessing a repair.",
+    "focus": "Distinguish the resolver, router, cache, and archive. Use the observed name, code, destination, message, and age to identify a cause, then repeat the original request after a repair.",
+    "steps": [
+      {
+        "title": "Add the relay source",
+        "body": "Download systems-relay.txt. Choose Create a game, then Upload files. Add the file and verify that it is Ready.",
+        "check": "The material includes the normal message path and the 10:00, 10:03, and 10:05 example."
+      },
+      {
+        "title": "Choose a process goal",
+        "body": "Set Age group to Adults and Learning goal to Follow a procedure. Open the source if you want to inspect the complete component descriptions, then choose Done.",
+        "check": "You have kept both the component definitions and the worked investigation."
+      },
+      {
+        "title": "Build and enter",
+        "body": "Choose your AI connection and model, then Create game with AI. When it is ready, choose Play game and follow the lesson's reading controls.",
+        "check": "You can describe each component's job before attempting a mission."
+      },
+      {
+        "title": "Trace the stale message",
+        "body": "Use the lesson or downloaded source to trace the 10:05 result. The room resolves to B7, the router reaches B7, and the cache copy is only five minutes old. Compare those facts with the ten-minute expiry rule.",
+        "check": "You identify the unexpired cache copy as the source of the old wording."
+      },
+      {
+        "title": "Practice a justified repair",
+        "body": "Play the generated mission using observable facts. For the handbook's stale-message case, explain why changing the resolver would not fix the cause. After a proposed repair, check the original request again.",
+        "check": "Your explanation states what changed and what was already correct."
+      },
+      {
+        "title": "Check your explanation",
+        "body": "Open Aster and ask: What happens after the B7 cache entry is cleared? Read the source passage, or enable AI for Aster if you want a generated explanation. Compare the answer with the checks below.",
+        "check": "Clearing the temporary copy is not described as deleting the archive's message."
+      }
+    ],
+    "success": [
+      "You can distinguish four component roles from their symptoms.",
+      "You can explain the stale-message example using its timing and evidence.",
+      "You know why a repair should be followed by the original test."
+    ],
+    "checks": [
+      {
+        "question": "Which component converts Bird Gallery into room code B7?",
+        "answer": "The resolver. The router sends coded requests, the archive stores current official messages, and the cache stores temporary copies."
+      },
+      {
+        "question": "Why does the visitor at 10:05 still see 'closes at 4' after the archive changed at 10:03?",
+        "answer": "The B7 cache copy created at 10:00 has a 10-minute lifetime and has not expired. An archive update does not immediately update an existing cache copy."
+      },
+      {
+        "question": "What does clearing B7's cache entry change, and what stays intact?",
+        "answer": "It removes the temporary B7 copy so the next successful request reads the current archive message. It does not delete B7 from the archive."
+      }
+    ],
+    "caveat": "This is a simplified fictional system, not a live troubleshooting tool. The generated activity may teach the process without simulating a real network or presenting the newest development-only scene.",
+    "troubleshooting": [
+      {
+        "question": "My game looks different from the site's development screenshot.",
+        "answer": "The published Mac preview and current development screenshots are different versions. Use the lesson and mission available in your installed build; this walkthrough does not require the experimental Godot player."
+      },
+      {
+        "question": "The generated answer jumps straight to a repair.",
+        "answer": "Return to the source's Read the symptom carefully and worked-investigation sections. Verify the observed facts before accepting a repair suggestion."
+      }
+    ],
+    "next": "evidence-desk"
+  },
+  {
+    "id": "evidence-desk",
+    "title": "Ask, then verify",
+    "subtitle": "Explore source-aware help, optional AI explanations, and an honest unknown.",
+    "category": "learn",
+    "categoryLabel": "Aster & evidence",
+    "age": "Adults",
+    "goal": "Investigate and explain",
+    "art": "world-observatory.webp",
+    "intro": "Three exhibit signs produce three different results. Ask Aster to help distinguish counts from proportions, then ask about a detail the record never measured.",
+    "outcome": "Compare regular Aster's source retrieval with optional AI explanations while checking both against the same evidence.",
+    "focus": "Separate follower counts, follow-through proportions, and unsupported causal claims. Name the measure and its scope, and state when a requested detail is missing from the record.",
+    "steps": [
+      {
+        "title": "Add the exhibit record",
+        "body": "Download evidence-desk.txt. Choose Create a game, then Upload files, and add it. Select Adults and Investigate and explain.",
+        "check": "The source contains Blue, Green, and Amber observations plus a section on evidence limits."
+      },
+      {
+        "title": "Create and learn",
+        "body": "Connect your chosen AI and model, then choose Create game with AI. When ready, choose Play game and read the lesson before opening the quest.",
+        "check": "You can distinguish the number who followed from the proportion of stopped visitors who followed."
+      },
+      {
+        "title": "Ask regular Aster",
+        "body": "Open Aster. If she is already connected to AI, choose Use regular Aster. Ask: What does the record say about Green's follow-through proportion? Read the source passages she finds.",
+        "check": "The reference says eight of ten stopped visitors followed: 80 percent."
+      },
+      {
+        "title": "Check her current context",
+        "body": "Open Current activity & tools in Aster and choose What is next? Compare her response with the lesson or mission currently on screen.",
+        "check": "The guidance describes your current activity and available next step, rather than a new unrelated assignment."
+      },
+      {
+        "title": "Try an optional AI explanation",
+        "body": "Choose Connect Aster to AI, confirm a provider and model, then Enable AI for Aster. Ask: Why can Green have the highest follow-through proportion while Blue and Amber have more followers? Read the explanation and its cited material.",
+        "check": "The explanation distinguishes Green's 8/10 proportion from Blue's and Amber's nine followers."
+      },
+      {
+        "title": "Ask about an unknown",
+        "body": "Ask: What did it cost to print the Green sign? Check the Limits of the evidence section in the source. The record contains no printing costs, so a supported answer must not invent a price.",
+        "check": "You can identify a question that this source cannot answer."
+      },
+      {
+        "title": "Keep the evidence",
+        "body": "In Aster, open Current activity & tools and choose Download sources. Select the readable text to save a copy. Use the source checks below to evaluate any generated explanation.",
+        "check": "Your downloaded reference includes the measurements and their limitations."
+      }
+    ],
+    "success": [
+      "You find relevant passages using regular Aster without requesting a live AI explanation.",
+      "You can compare an optional AI answer with its source evidence.",
+      "You recognize that missing printing costs and unmeasured learning cannot be inferred from the observations."
+    ],
+    "checks": [
+      {
+        "question": "Which sign had the highest proportion of stopped visitors who followed the arrow?",
+        "answer": "Green: 8 of 10 stopped visitors, or 80 percent. Blue had 75 percent and Amber had 60 percent."
+      },
+      {
+        "question": "Which sign had the largest number of followers, and does that establish that its color caused more learning?",
+        "answer": "Blue and Amber tied at 9 followers. This does not establish a learning effect: learning was not measured, the signs appeared at different times, and comparable conditions were not established."
+      },
+      {
+        "question": "How much did the Green sign cost to print?",
+        "answer": "The source does not say. Printing costs are explicitly listed as missing information, so no amount can be supported from this record."
+      }
+    ],
+    "caveat": "Regular Aster retrieves passages and provides prepared or contextual help; it does not generate the same explanations as connected AI. AI answers can still be wrong. Creation AI and AI Aster are separate opt-ins, and AI chat uses the selected provider's limits or credits.",
+    "troubleshooting": [
+      {
+        "question": "I used AI to create the game, but Aster only shows passages.",
+        "answer": "Open Aster, choose Connect Aster to AI, then Enable AI for Aster. Her live AI connection is enabled separately and lasts for this app session."
+      },
+      {
+        "question": "Aster supplies a printing price or a claim about learning.",
+        "answer": "Do not accept that as source evidence. The source explicitly omits printing costs and does not measure learning. Use Download sources to verify the limitation and report the unsupported answer."
+      }
+    ],
+    "next": "supply-run"
+  },
+  {
+    "id": "supply-run",
+    "title": "Make every resource count",
+    "subtitle": "Practice a choice that must satisfy multiple constraints at once.",
+    "category": "create",
+    "categoryLabel": "Decisions & tradeoffs",
+    "age": "Adults",
+    "goal": "Investigate and explain",
+    "art": "hero-outpost-small.webp",
+    "intro": "Two explorers, twelve coins, eight turns. Meet the essentials before spending what remains on the most useful bonus.",
+    "outcome": "Use a source-defined planning problem to practice constraints, alternatives, and an explainable decision.",
+    "focus": "Meet all essential supply requirements before considering bonuses. Add coins and turns separately, then compare every affordable bonus using the stated scoring rules.",
+    "steps": [
+      {
+        "title": "Bring the supply rules",
+        "body": "Download supply-run.txt. Choose Create a game and Upload files. Add the file and check that it is Ready.",
+        "check": "The rules include 12 coins, 8 turns, three essential kits, and three bonus actions."
+      },
+      {
+        "title": "Set the investigation goal",
+        "body": "Choose Adults and Investigate and explain. Keep the worked plan in the source; it shows the reasoning behind the numbers rather than only an answer key.",
+        "check": "You can locate the essential-supplies and bonus-actions sections."
+      },
+      {
+        "title": "Build and study",
+        "body": "Connect your AI and model, then choose Create game with AI. Select Play game when ready. Work through the lesson's ideas and example before entering its mission.",
+        "check": "You know why an incomplete essential supply cannot be replaced by bonus points."
+      },
+      {
+        "title": "Account for both resources",
+        "body": "Use the generated task to practice the rules. For the source's worked plan, total the three essential kits first: water, food, and blankets. Track coins and turns as two separate limits.",
+        "check": "The essentials cost 9 coins and 5 turns, leaving 3 coins and 3 turns."
+      },
+      {
+        "title": "Explain the tradeoff",
+        "body": "Compare signal, field notes, and marker repair using their costs and bonus points. If the mission offers feedback, read it before trying another plan. Do not assume unused resources earn extra points.",
+        "check": "You can explain why the signal beats either four-point option and why two bonus actions do not fit."
+      },
+      {
+        "title": "Verify the final plan",
+        "body": "Open Source materials and download the readable text, or ask Aster to find the worked plan. Compare your calculation with the source checks below.",
+        "check": "Your final explanation includes essential coverage, total coins, total turns, and bonus points."
+      }
+    ],
+    "success": [
+      "You identify which requirements are mandatory before optimizing a bonus.",
+      "You check both coin and turn limits rather than only one.",
+      "You can justify the best supported plan using totals and rejected alternatives."
+    ],
+    "checks": [
+      {
+        "question": "What does one water kit, one food kit, and one blanket kit cost in total?",
+        "answer": "9 coins and 5 turns. Those three kits completely supply both explorers, leaving 3 coins and 3 turns."
+      },
+      {
+        "question": "Which feasible bonus earns the most points after buying the essentials?",
+        "answer": "The signal earns 5 points. Including essentials, it costs 12 coins and 7 turns, staying within the limits of 12 coins and 8 turns."
+      },
+      {
+        "question": "Why can the team not add both field notes and marker repair after the essentials?",
+        "answer": "Those two bonuses together cost 4 coins, but only 3 coins remain. Their combined time fits the remaining 3 turns, but the coin limit still rules the pair out."
+      }
+    ],
+    "caveat": "These are fictional tabletop rules, not real expedition advice. Asterloom may choose a decision or reasoning activity rather than a particular resource-management interface.",
+    "troubleshooting": [
+      {
+        "question": "The generated score differs from the source's five bonus points.",
+        "answer": "The game's practice or XP score is separate from the fictional round's bonus points. Check the supply plan against the source rules; do not treat the app's XP as an extra supply rule."
+      },
+      {
+        "question": "A plan fits the budget but feels wrong.",
+        "answer": "Check the turn total and every essential requirement too. The source requires all three conditions to hold."
+      }
+    ],
+    "next": "young-explorers"
+  },
+  {
+    "id": "young-explorers",
+    "title": "Find a home for every seed",
+    "subtitle": "Try age-aware creation with concrete rules and a patient learning pace.",
+    "category": "create",
+    "categoryLabel": "Younger learners",
+    "age": "Ages 9–11 · adult support welcome",
+    "goal": "Explore something new",
+    "art": "world-expedition.webp",
+    "intro": "Glowbuds, Splashleaves, Mooncurls, and Duskdots need different homes. Read their cards, check two properties, and discover that waiting can be the right answer.",
+    "outcome": "See how an age choice shapes a game built from concrete, child-friendly source material.",
+    "focus": "Match both the light and soil needs on each seed card. Notice when no bed fits, and explain how changing just the light changes which seed belongs there.",
+    "steps": [
+      {
+        "title": "Add the pretend garden",
+        "body": "Download young-explorers.txt. Choose Create a game, then Upload files. Add the Pocket Garden material and check that it is Ready.",
+        "check": "The source describes invented seeds and three beds, with both light and soil properties."
+      },
+      {
+        "title": "Choose a younger audience",
+        "body": "Set Age group to Ages 9–11 and Learning goal to Explore something new. An adult can help read or talk through the choices; the age setting is a starting point, not a diagnosis of reading ability.",
+        "check": "Ages 9–11 is selected before creation starts."
+      },
+      {
+        "title": "Create and review together",
+        "body": "Connect your AI and model, then choose Create game with AI. When ready, choose Play game. An adult should preview the wording and task before handing the game to a child.",
+        "check": "The learner can understand the assignment and the names used in the lesson."
+      },
+      {
+        "title": "Learn the two-property rule",
+        "body": "Follow the lesson's idea controls. For Glowbud, compare light first, then soil. Say the two reasons aloud before moving into the guided quest.",
+        "check": "The learner explains that Sunny Bed is both bright and dry."
+      },
+      {
+        "title": "Treat a mismatch as information",
+        "body": "Try the generated activity and revisit the source when a match fails. Discuss Duskdot: none of the original beds is both low-light and dry, so the waiting shelf is a valid decision.",
+        "check": "The learner can explain a no-match result without guessing a favorite bed."
+      },
+      {
+        "title": "Notice what changed",
+        "body": "Read the screen-over-Sunny-Bed example in the source. Ask which property changed and which stayed the same. Compare the answer with the checks below, using Aster's source search if helpful.",
+        "check": "The learner sees that lowering the light lets Duskdot fit but no longer suits Glowbud."
+      }
+    ],
+    "success": [
+      "The game was created with the chosen age group and the supplied garden material.",
+      "The learner can name both properties behind a match.",
+      "The learner can explain a no-match case and reconsider a choice when one rule changes."
+    ],
+    "checks": [
+      {
+        "question": "Where does Glowbud belong before any screen is added, and why?",
+        "answer": "Sunny Bed, because Glowbud needs bright light and dry soil, and Sunny Bed has both."
+      },
+      {
+        "question": "Where should Duskdot go before the screen changes Sunny Bed?",
+        "answer": "The waiting shelf. Duskdot needs low light and dry soil, and none of the three original beds has that combination."
+      },
+      {
+        "question": "Which seed fits Sunny Bed while its screen is in place?",
+        "answer": "Duskdot. The screen changes Sunny Bed to low light while the soil stays dry. Glowbud no longer fits because it needs bright light."
+      }
+    ],
+    "caveat": "The source was written for readers around ages 8–10; Ages 9–11 is the selected app setting for this guide. Age adaptation and generated wording still need adult review. The seeds are fictional, and this is not gardening advice.",
+    "troubleshooting": [
+      {
+        "question": "The text is still too difficult for the learner.",
+        "answer": "Read it together, use the source's concrete examples, and preview the task. To try another age setting, use Edit materials → Add sources & recreate so the existing game remains saved."
+      },
+      {
+        "question": "The generated game forces every seed into a bed.",
+        "answer": "Compare it with Duskdot's waiting-shelf rule. Do not accept a forced match as correct; the missing low-light, dry combination is part of the lesson."
+      }
+    ],
+    "next": "two-sources"
+  },
+  {
+    "id": "two-sources",
+    "title": "A new chapter, safely",
+    "subtitle": "Add material and build a new edition while keeping the original game intact.",
+    "category": "extend",
+    "categoryLabel": "Sources & new editions",
+    "age": "Adults",
+    "goal": "Investigate and explain",
+    "art": "world-studio.webp",
+    "intro": "Maple Library changes exactly two rules. Build from its original handbook, then add the update and investigate what changed—and what did not.",
+    "outcome": "Create a second edition from two related sources without overwriting the original game's material or progress.",
+    "focus": "Apply Version 2 only to the rules it explicitly replaces and only from its effective date. Keep unrelated Version 1 rules, and ask for a checkout date when the map-set period depends on it.",
+    "steps": [
+      {
+        "title": "Start with Version 1 only",
+        "body": "Download both source files, but initially upload only two-sources-handbook.txt through Create a game → Upload files. Choose Adults and Investigate and explain.",
+        "check": "Your first game's material list contains the Version 1 handbook and does not yet contain the update."
+      },
+      {
+        "title": "Create the original edition",
+        "body": "Connect your AI and model, then choose Create game with AI. Choose Play game when ready. Read the lesson and try a mission using Version 1's rules.",
+        "check": "You can identify the original standard-member limit of three books."
+      },
+      {
+        "title": "Save before extending",
+        "body": "From the mission choose Save & return and wait for Saved on this device. On the game home, choose Edit materials, then Add sources & recreate.",
+        "check": "A separate draft opens with a notice identifying it as a new edition. The original has not been replaced."
+      },
+      {
+        "title": "Add the scoped update",
+        "body": "In the new edition, choose Upload files and add two-sources-update.txt. Keep the original handbook too; the update depends on its unchanged rules.",
+        "check": "Both the handbook and Version 2 update appear in the new edition's source list."
+      },
+      {
+        "title": "Build fresh from both sources",
+        "body": "Choose Create game with AI. This starts a new creation run using the included material. When ready, choose Play game and read the new teaching before attempting its missions.",
+        "check": "You can locate both the replacement rules and the rules that remain unchanged."
+      },
+      {
+        "title": "Compare dates and scope",
+        "body": "Use the source checks below, or ask connected Aster to compare the two versions with citations. A map set checked out on 28 September keeps its original period; a new one checked out on 5 October uses the update.",
+        "check": "Your reasoning does not retroactively extend an existing loan or change a youth-member rule."
+      },
+      {
+        "title": "Find both editions",
+        "body": "Choose Save & return, wait for the saved confirmation, then open Your games. Open the original and the new edition in turn and inspect their source lists.",
+        "check": "The original still has its first source and saved progress; the new edition has both sources and its own learning progress."
+      }
+    ],
+    "success": [
+      "The original game remains separately available in Your games.",
+      "The new edition includes the handbook and its scoped update.",
+      "You can explain a changed rule, an unchanged rule, and the checkout-date exception."
+    ],
+    "checks": [
+      {
+        "question": "On 5 October, may a standard member who already has 3 books borrow one more?",
+        "answer": "Yes. Version 2 replaces the former 3-book limit with a 4-book limit on and after 1 October."
+      },
+      {
+        "question": "Does Version 2 change the youth member's book limit or allow youth map-set loans?",
+        "answer": "No. Youth members may still hold at most 2 books, and they still may not borrow map sets. Those Version 1 rules were not replaced."
+      },
+      {
+        "question": "What loan periods apply to map sets checked out on 28 September and 5 October?",
+        "answer": "The 28 September loan keeps its original 7-day period. The 5 October loan uses the new 10-day period. The update does not retroactively extend existing loans."
+      }
+    ],
+    "caveat": "A new edition is a fresh AI creation run, not an instant patch to the existing game. It uses provider requests again. Check that the generated teaching handles source versions correctly before relying on it.",
+    "troubleshooting": [
+      {
+        "question": "The finished game's upload controls are missing or locked.",
+        "answer": "Choose Edit materials, then Add sources & recreate. Finished-game sources are preserved; the new edition is where you add or change them."
+      },
+      {
+        "question": "The new lesson applies the update to every old rule.",
+        "answer": "Verify the update's scope against the source. It replaces only the standard book limit and the period for newly checked-out map sets. Keep the original edition as a reference and review the generated lesson."
+      }
+    ],
+    "next": "transcript-trail"
+  },
+  {
+    "id": "transcript-trail",
+    "title": "From conversation to clarity",
+    "subtitle": "Use a timestamped transcript to learn a process and distinguish decisions from suggestions.",
+    "category": "create",
+    "categoryLabel": "Transcript learning",
+    "age": "Adults",
+    "goal": "Follow a procedure",
+    "art": "world-studio.webp",
+    "intro": "A small exhibit team agrees on a handoff. Follow their conversation from draft to installation, paying attention to checks, rework, and the suggestion they never approved.",
+    "outcome": "Build from a written transcript while preserving the speaker context and timestamps used to check a claim.",
+    "focus": "Distinguish agreed decisions from suggestions. Trace draft, review, print, and install, including each completion check and the stage to revisit when a check fails.",
+    "steps": [
+      {
+        "title": "Upload the transcript text",
+        "body": "Download transcript-trail.txt. Choose Create a game → Upload files and add it. This kit is written timestamped text; no audio or video file is included.",
+        "check": "The source is Ready and includes speaker names with timestamps from 00:00 onward."
+      },
+      {
+        "title": "Keep the conversation in context",
+        "body": "Open the source and find the 02:19 suggestion and the 02:27 response. Keep both in the material. Choose Done, then set Adults and Follow a procedure.",
+        "check": "The text explicitly distinguishes the blue-paper suggestion from an agreed decision."
+      },
+      {
+        "title": "Create and read",
+        "body": "Connect your AI and model, then choose Create game with AI. When ready, choose Play game and work through the lesson's teaching before the quest.",
+        "check": "You can describe the draft, review, print, and installation stages."
+      },
+      {
+        "title": "Follow the handoff",
+        "body": "Apply the transcript's checks in the generated activity. Printing waits for approval of the complete three-card set. Installation waits for readable, unclipped printed cards.",
+        "check": "You distinguish doing an action from passing the check required to move forward."
+      },
+      {
+        "title": "Trace a failure to its stage",
+        "body": "Consider a clipped printed word, then a map card placed beside the tile. Find the transcript evidence for the stage responsible in each case, using Aster source search if helpful.",
+        "check": "A print failure returns to printing; a placement failure is corrected and checked at installation."
+      },
+      {
+        "title": "Keep the original conversation",
+        "body": "Open Source materials and choose Download original file or Download readable text. Find the same timestamps in the saved text, then answer the checks below.",
+        "check": "You can verify what was agreed without treating a generated summary as the original meeting."
+      }
+    ],
+    "success": [
+      "The game includes the supplied timestamped conversation as readable material.",
+      "You can distinguish an approved requirement from an unapproved suggestion.",
+      "You can trace dependencies and return a failed check to the right stage."
+    ],
+    "checks": [
+      {
+        "question": "What is the agreed stage order and who owns each stage?",
+        "answer": "Draft: Claire. Review: Evan. Print: Theo. Install: Evan. Each next stage waits for the preceding stage's completion checks to pass."
+      },
+      {
+        "question": "Is blue paper a requirement?",
+        "answer": "No. Claire suggests blue paper at 02:19, but Rowan explicitly says at 02:27 that paper color has not been chosen."
+      },
+      {
+        "question": "What should happen if a printed card has a clipped word?",
+        "answer": "Return to printing: Theo reprints the card and repeats the print check. The transcript says not to change the approved wording to fix this print failure."
+      }
+    ],
+    "caveat": "This kit demonstrates transcript-text import, not speech recognition, media playback, or synchronized checkpoints. Asterloom can also accept recordings and captions, but those are separate workflows requiring a matching media file.",
+    "troubleshooting": [
+      {
+        "question": "I do not see an audio player.",
+        "answer": "That is expected. This kit contains a .txt transcript only. Timestamps locate text; they do not create an audio recording."
+      },
+      {
+        "question": "The game says blue paper is required.",
+        "answer": "Check the adjacent 02:19 and 02:27 passages. The later reply explicitly rejects treating the suggestion as a decision. Review that generated claim before sharing."
+      }
+    ],
+    "next": "offline-expedition"
+  },
+  {
+    "id": "offline-expedition",
+    "title": "Leave. Return. Keep going.",
+    "subtitle": "Try saved progress, local play, and a sound mix that belongs to you.",
+    "category": "learn",
+    "categoryLabel": "Offline & continuity",
+    "age": "Adults",
+    "goal": "Understand and remember",
+    "art": "world-expedition.webp",
+    "intro": "A coastal survey has three observation stops. Build it once, make some progress, then reopen the game without a live AI connection and continue learning.",
+    "outcome": "Verify that a finished desktop game keeps its material and saved progress locally, with adjustable music and feedback.",
+    "focus": "At each stop, record the observation, the rule it supports, and the next action. Distinguish the current evidence from a remembered answer and preserve enough context to resume.",
+    "steps": [
+      {
+        "title": "Prepare a finished game",
+        "body": "For this source, download offline-expedition.txt, then choose Create a game → Upload files. Select Adults and Understand and remember, connect AI, and choose Create game with AI. You may instead reuse a finished game from an earlier guide to test the same offline workflow.",
+        "check": "The game has finished creation and offers Play game before you go offline."
+      },
+      {
+        "title": "Choose your sound mix",
+        "body": "Choose Play game, then Enable game sound if sound is off. Open Adjust game audio. Enable Background score and Game & Aster sounds if you want both, then choose Follow this game. Set Music volume and Feedback volume, and try Play reward sound.",
+        "check": "You can hear the preview at a comfortable level or deliberately keep sound off. The preview does not award points."
+      },
+      {
+        "title": "Learn and make progress",
+        "body": "Read the first lesson and enter its guided quest. Make a move or finish an activity. For the coastal source, use the observed signs and tie-breaking rules rather than assuming the same answer always applies.",
+        "check": "You have actual saved learning progress, not just a source waiting to be created."
+      },
+      {
+        "title": "Save before closing",
+        "body": "Choose Save & return and wait for Saved on this device. If a save error appears, resolve it before quitting. Note the game's title and the progress shown, then quit Asterloom normally.",
+        "check": "The app confirms the save before you close it."
+      },
+      {
+        "title": "Reopen without the network",
+        "body": "Temporarily disconnect your computer from the network, then reopen the same installed copy of Asterloom. Go to Your games, open the saved game, and choose Continue game when offered.",
+        "check": "The game and its sources are present without another creation request."
+      },
+      {
+        "title": "Continue with regular Aster",
+        "body": "Continue the available lesson or mission. Open Aster and use regular Aster for What is next? or source lookup. Live online AI chat is not part of this offline check.",
+        "check": "Local guidance and the material remain available while you play."
+      },
+      {
+        "title": "Finish the continuity check",
+        "body": "Use Save & return again and confirm the save. Restore your network whenever you are ready. If you used the coastal source, compare your reasoning with the source checks below.",
+        "check": "The new progress stays in the same local game; you did not need to regenerate it."
+      }
+    ],
+    "success": [
+      "A completed desktop game reopens with its material and saved progress.",
+      "You can continue ordinary local play without a live online AI connection.",
+      "You can independently adjust music and feedback or choose silent play."
+    ],
+    "checks": [
+      {
+        "question": "Which original channel should the cart use at Pebble Gate?",
+        "answer": "Channel 1. Channels 1 and 3 are open, and the rule chooses the lowest-numbered open channel."
+      },
+      {
+        "question": "What should happen if Mirror Pool shows amber and then amber again?",
+        "answer": "Report that the result remains uncertain. Do not continue or keep taking readings until a favorable one appears."
+      },
+      {
+        "question": "Which flag wins at Wind Post and why?",
+        "answer": "East. East and West tie for the greatest count at 7, and East comes first alphabetically among the tied flags."
+      }
+    ],
+    "caveat": "Creation must finish and saves must succeed before this test. Online AI answers, new model or runtime downloads, and remote services still need connectivity. Progress is local to this installation; it is not automatic cross-device sync. Source checks below apply only to the coastal kit.",
+    "troubleshooting": [
+      {
+        "question": "My music repeats one track.",
+        "answer": "Open Adjust game audio and select Follow this game instead of Keep this track. A changing soundtrack still depends on the game's selected audio direction and available pieces."
+      },
+      {
+        "question": "I reopened the app but cannot find my game.",
+        "answer": "Check that you reopened the same Asterloom installation and local workspace, rather than a separate exported game. Your game library and progress are not automatically synchronized between copies."
+      },
+      {
+        "question": "Aster's online AI request fails while offline.",
+        "answer": "Use regular Aster for local source lookup and contextual guidance. Restore connectivity before requesting another answer from an online provider."
+      }
+    ],
+    "next": "pass-it-on"
+  },
+  {
+    "id": "pass-it-on",
+    "title": "Pass the adventure on",
+    "subtitle": "Share one editable notebook, keep its evidence, and give the next learner a fresh start.",
+    "category": "extend",
+    "categoryLabel": "Export & remix",
+    "age": "Adults",
+    "goal": "Investigate and explain",
+    "art": "hero-outpost-small.webp",
+    "intro": "Choose a design for the Paper Bridge lab, then hand the whole lesson to another learner. They can play, inspect the source, and make a separate remix.",
+    "outcome": "Export exactly one game as an editable notebook, import it into another copy of Asterloom, and inspect the source material that travels with it.",
+    "focus": "Compare each bridge against span, counter capacity, and budget. Keep catalog facts separate from a changed brief so another learner can explain why a different design becomes valid.",
+    "steps": [
+      {
+        "title": "Create a game to share",
+        "body": "Download pass-it-on.txt. Use Create a game → Upload files, select Adults and Investigate and explain, then connect AI and choose Create game with AI. Alternatively, reuse a completed game from an earlier guide for the export workflow.",
+        "check": "Your selected game is finished and contains only material you are comfortable sharing."
+      },
+      {
+        "title": "Review before handing it over",
+        "body": "Choose Play game, read its teaching, and try a mission. For Paper Bridge, compare the lesson with the source's original and revised briefs. Choose Save & return and wait for Saved on this device.",
+        "check": "You have checked the generated content, rather than assuming an export makes it correct."
+      },
+      {
+        "title": "Export one notebook",
+        "body": "On the game home, choose Export this notebook, then Editable notebook. Save the .learnpack file. This option contains the selected notebook; it is not your entire game library.",
+        "check": "A .learnpack file is saved. Your original game remains in Your games."
+      },
+      {
+        "title": "Import in another workspace",
+        "body": "Share the file with another personal learner who has Asterloom, or use a separate installation of your own. In the receiving app choose Your games → Import a notebook and select the .learnpack. Open the imported game.",
+        "check": "The recipient sees the imported notebook without needing your AI credentials."
+      },
+      {
+        "title": "Play and inspect the source",
+        "body": "Choose Play game in the receiving app. Open Source materials and choose Download readable text; Download original file is also available when the source was uploaded. No live AI is needed for ordinary play.",
+        "check": "The learning material is present inside the imported game and can be saved separately."
+      },
+      {
+        "title": "Make a separate remix",
+        "body": "Return to the game home, open More options, and choose Make a remix. If you want to change its sources or learning preferences, choose Add sources & recreate in the editor, then build the new edition with your own AI connection.",
+        "check": "The original imported game stays available. Editing source-based content requires a separate edition and a new creation run."
+      },
+      {
+        "title": "Compare the two briefs",
+        "body": "For the Paper Bridge kit, use the checks below to compare the original 12-centimeter gap with the revised 18-centimeter gap. For another reused game, compare its own source rules instead.",
+        "check": "Your explanation preserves fixed catalog facts and identifies which requirements changed."
+      }
+    ],
+    "success": [
+      "A .learnpack transfers one selected notebook, not the sender's whole library.",
+      "The recipient can play and inspect bundled material without receiving provider credentials or the sender's personal progress.",
+      "A remix or new edition remains separate from the original game."
+    ],
+    "checks": [
+      {
+        "question": "Which design fits the original 12-centimeter gap, 3-counter load, and 5-credit budget?",
+        "answer": "Folded Deck. Its 15-centimeter span and 4-counter capacity meet the requirements, and its cost of 4 credits is within budget."
+      },
+      {
+        "question": "What changes if the gap becomes 18 centimeters and the budget becomes 6 credits?",
+        "answer": "Arch Deck becomes the valid choice. Folded Deck is too short, while Arch Deck spans 20 centimeters, supports 5 counters, and costs 6 credits."
+      },
+      {
+        "question": "What if the gap is 18 centimeters but the budget stays at 5 credits?",
+        "answer": "No listed design fits. Flat Deck and Folded Deck are too short, and Arch Deck costs more than the budget."
+      }
+    ],
+    "caveat": "A .learnpack needs Asterloom to open; it is not a standalone app. The separate Mac app · Universal export requires an available Mac runtime. Windows export requires its Windows runtime. Exported files include their bundled sources and retain applicable licenses; personal progress and provider credentials are excluded.",
+    "troubleshooting": [
+      {
+        "question": "Can someone double-click the .learnpack without Asterloom?",
+        "answer": "No. Use Import a notebook in Asterloom for this guide. For a standalone desktop bundle, use an available platform option in Export this notebook and keep the complete exported application together."
+      },
+      {
+        "question": "My game contains large recordings and Editable notebook is unavailable.",
+        "answer": "Use Notebook with all recordings to save a .learnzip archive. The receiving desktop app uses Import recording archive. This small text-only kit does not need that option."
+      },
+      {
+        "question": "Why is the recipient's progress different from mine?",
+        "answer": "Exports exclude your personal learning progress. Each learner starts and saves their own progress; your original results stay in your local game."
+      }
+    ],
+    "next": "first-adventure"
+  }
+]

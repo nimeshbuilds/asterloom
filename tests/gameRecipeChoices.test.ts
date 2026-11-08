@@ -3,7 +3,10 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {AGE_GROUPS,SCAFFOLDS} from '../src/data/scaffolds';
 import {GAME_FAMILY_RECIPES,GAME_WRITER_CAPABILITIES,gameRecipeChoices,gameRecipeCoverage,validatePreparedGameDraft} from '../src/lib/gameDraftAdapters';
 import {evaluateActivityForAuthoring} from '../src/lib/structuredEngine';
-import {getScaffoldRuntimeDefinition,scaffoldRequiredCapabilities} from '../src/lib/scaffoldRuntime';
+import {SCENARIO_EXAMPLES} from '../src/lib/scenarioEngine';
+import {PLANT_EXPLANATION} from '../src/lib/compositionExamples';
+import {COMPLETION_EXAMPLES} from '../src/lib/extendedExamples';
+import {getScaffoldRuntimeDefinition,scaffoldRequiredCapabilities,fitsSpecificContract} from '../src/lib/scaffoldRuntime';
 import {emptyGameDesign,validateGameBatchPlan} from '../src/lib/gameDesign';
 import {buildDirectorSourceInventory} from '../src/lib/gameDirectorSources';
 import {gamePlanningPrompt,gameWritingPrompt} from '../src/lib/gameDirector';
@@ -18,9 +21,9 @@ const config={provider:'compatible' as const,model:'design-model',apiKey:'sessio
 const source=createSource('Procedure for a prepared change:\n1. Save a backup.\n2. Apply the change.\n3. Verify the documented result.','Procedure');
 
 describe('runtime-derived AI recipe choices',()=>{
- it('accounts for all75 recipes and only exposes the50 contracts these ten writer families can construct',()=>{
-  const audit=gameRecipeCoverage();expect(audit).toHaveLength(75);expect(new Set(audit.map(r=>r.scaffoldId)).size).toBe(75);expect(audit.filter(r=>r.supported)).toHaveLength(50);
-  expect(audit.filter(r=>!r.supported&&r.missingCapabilities.length)).toHaveLength(12);expect(audit.filter(r=>!r.supported&&!r.missingCapabilities.length)).toHaveLength(13);
+ it('accounts for all75 recipes with explicit bounded family and specialized authoring contracts',()=>{
+  const audit=gameRecipeCoverage();expect(audit).toHaveLength(75);expect(new Set(audit.map(r=>r.scaffoldId)).size).toBe(75);expect(audit.filter(r=>r.supported)).toHaveLength(75);
+  expect(audit.filter(r=>!r.supported)).toHaveLength(0);
   for(const [kind,ids] of Object.entries(GAME_FAMILY_RECIPES))for(const id of ids){const runtime=getScaffoldRuntimeDefinition(id);expect(runtime.engineReady).toBe(true);expect(runtime.mode).toBe('structured');expect(runtime.activityKinds).toContain(kind);expect(scaffoldRequiredCapabilities(id).every(capability=>GAME_WRITER_CAPABILITIES[kind as keyof typeof GAME_WRITER_CAPABILITIES]?.includes(capability))).toBe(true);}
   expect(GAME_FAMILY_RECIPES.construction).toContain('cloud-architecture-builder');expect(GAME_FAMILY_RECIPES.scenario).toContain('incident-response-command');expect(GAME_FAMILY_RECIPES.dependency).toContain('threat-model-canvas');expect(GAME_FAMILY_RECIPES.sequence).toContain('packet-path-inspector');expect(GAME_FAMILY_RECIPES.classification).toContain('test-design-studio');
  });
@@ -39,12 +42,13 @@ describe('runtime-derived AI recipe choices',()=>{
    expect(()=>validateGameBatchPlan({missions:[{id:'wrong-age',unitId:units[0].id,kind,scaffoldId:other.id,title:'Wrong audience',objective:'Use the source.',visualDirection:{scene:other.visual.scene,sourceAssetIds:[]}}],study:[]},design.batches[0],units,notebook)).toThrow(/audience/);
   }
  });
- it('does not relabel a base scenario or explanation as a specialized mode the writer cannot supply',()=>{
-  const excluded=gameRecipeCoverage().filter(r=>!r.supported&&r.missingCapabilities.length).map(r=>r.scaffoldId);
-  expect(excluded).toEqual(expect.arrayContaining(['prompt-experiment-bench','prediction-and-experiment','language-dialogue-trail','strategy-campaign','secure-code-review','partner-helper','pattern-parade']));
-  for(const choice of gameRecipeChoices('adult'))expect(excluded).not.toContain(choice.scaffoldId);
-  const notebook=createNotebook({sources:[source]}),design=emptyGameDesign(notebook,provider),units=buildDirectorSourceInventory(notebook).units;
-  expect(()=>validateGameBatchPlan({missions:[{id:'unsupported',unitId:units[0].id,kind:'scenario',scaffoldId:'prompt-experiment-bench',title:'Pretend prompt comparison',objective:'An ordinary scenario is insufficient.',visualDirection:{scene:'islands',sourceAssetIds:[]}}],study:[]},design.batches[0],units,notebook)).toThrow(/contract/);
+ it('requires genuine specialized fields even though their AI contracts are now available',()=>{
+  for(const recipe of ['prompt-experiment-bench','prediction-and-experiment','language-dialogue-trail','strategy-campaign']){
+   expect(gameRecipeCoverage().find(row=>row.scaffoldId===recipe)?.supported).toBe(true);
+   expect(fitsSpecificContract(recipe,SCENARIO_EXAMPLES[0])).toBe(false);
+  }
+  for(const recipe of ['secure-code-review','partner-helper'])expect(fitsSpecificContract(recipe,PLANT_EXPLANATION)).toBe(false);
+  expect(fitsSpecificContract('pattern-parade',COMPLETION_EXAMPLES[0])).toBe(false);
  });
  it('supplies concise domain, real mechanic and exact recipe prerequisites to planning and writing',()=>{
   const notebook=createNotebook({sources:[source]}),design=emptyGameDesign(notebook,provider),units=buildDirectorSourceInventory(notebook).units,prompt=gamePlanningPrompt(notebook,design.batches[0],units),data=JSON.parse(prompt.split('REFERENCE DATA (JSON):\n')[1]);
@@ -80,10 +84,10 @@ describe('source-specific expanded director choices',()=>{
     if(kind==='dependency')mission.activity={version:1,id:'draft',kind,title:'Map the declared threat boundary',instruction:'Connect the source relationships.',explanation:description,hint:'Use the two named relations.',reviewStatus:'needs-review',sourceRefs:[ref],nodes:[{id:'request',label:'Request'},{id:'gateway',label:'Gateway'},{id:'authentication',label:'Authentication'}],edges:[{from:'request',to:'gateway',relation:'crosses'},{from:'gateway',to:'authentication',relation:'is protected by'}],acyclic:true};
     if(kind==='budget'){mission.activity={version:1,id:'draft',kind,title:'Allocate the stored workload budget',instruction:'Meet the stated capacity within six credits.',explanation:description,hint:'Compare the quoted cost and capacity of each unit.',reviewStatus:'needs-review',sourceRefs:[ref],budget:6,currency:'credits',items:[{id:'small',label:'Small unit',cost:2,unit:'unit',maxQuantity:4},{id:'large',label:'Large unit',cost:3,unit:'unit',maxQuantity:4}],requirements:[{id:'capacity',label:'Required workload capacity',minimum:3,contributions:{small:1,large:2}}]};mission.solution={quantities:{small:1,large:1}};}
     mission.teaching={title:'Understand the bounded source model',objective:description,conceptExplanation:{text:description,citations:[ref]},chunks:[{id:'scope',title:'Read the model',text:description,citations:[ref]},{id:'limit',title:'Keep its limits',text:kind==='budget'?'These prices are a stored training fixture, not a current purchase quote.':kind==='dependency'?'Omitted threats are outside this training model, not proof of security.':'The documented expectation is used to verify the service response.',citations:[ref]}],guidedApplication:{prompt:kind==='budget'?'Adjust the displayed quantities and check the model.':kind==='dependency'?'Connect the named nodes using the source relations.':'Move the steps into the documented order.',steps:['Compare your choices with the supplied source model.','Use the check control to inspect the prepared constraints.']}};
-   }else if(stage==='overview'){response=directorFixtureResponse(stage,data);}else{expect(data.missions[0].recipe.domain).toBe(domain);expect(data.missions[0].recipe.requires.length).toBeGreaterThan(0);response=directorFixtureResponse(stage,data);}
+   }else if(stage==='overview'||stage==='direction'){response=directorFixtureResponse(stage,data);}else{expect(data.missions[0].recipe.domain).toBe(domain);expect(data.missions[0].recipe.requires.length).toBeGreaterThan(0);response=directorFixtureResponse(stage,data);}
    return{ok:true,json:async()=>({text:JSON.stringify(response),usage:directorFixtureUsage})};
   }));
-  const result=await prepareGameExperience(createNotebook({sources:[material]}),{}, {aiPolicy:'required',ai:{config,consent:'create-game'}});expect(result.creationStatus,result.ai.message).toBe('ready');expect(stages).toEqual(['plan','write','check','overview']);
-  const activity=result.notebook.activities!.find(a=>a.id===result.ai.activityId)!;expect(activity).toMatchObject({kind,scaffoldIds:[recipe],reviewStatus:'needs-review'});expect(activity.sourceRefs.every(ref=>ref.sourceId===material.id&&text.includes(ref.evidence))).toBe(true);expect(parsePackage(serializePackage(result.notebook)).gameDesign?.receipts).toHaveLength(4);
+  const result=await prepareGameExperience(createNotebook({sources:[material]}),{}, {aiPolicy:'required',ai:{config,consent:'create-game'}});expect(result.creationStatus,result.ai.message).toBe('ready');expect(stages).toEqual(['plan','direction','write','check','overview']);
+  const activity=result.notebook.activities!.find(a=>a.id===result.ai.activityId)!;expect(activity).toMatchObject({kind,scaffoldIds:[recipe],reviewStatus:'needs-review'});expect(activity.sourceRefs.every(ref=>ref.sourceId===material.id&&text.includes(ref.evidence))).toBe(true);expect(parsePackage(serializePackage(result.notebook)).gameDesign?.receipts).toHaveLength(5);
  });
 });

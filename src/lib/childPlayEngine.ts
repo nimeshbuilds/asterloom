@@ -136,13 +136,25 @@ export function validateChildPlaySources(activity: ChildPlayActivity, sources: P
   for (const scene of activity.scenes) if (scene.narrationSourceId && !isPictureNarration(sources.find(s => s.id === scene.narrationSourceId)?.dataUrl)) errors.push(`child-play.${scene.id}: attach the cited recorded narration for offline playback`);
   return errors;
 }
-export function childPlayFingerprint(activity: ChildPlayActivity): string { let hash = 2166136261; const data = JSON.stringify(activity); for (let i = 0; i < data.length; i++) hash = Math.imul(hash ^ data.charCodeAt(i), 16777619); return (hash >>> 0).toString(16).padStart(8, '0'); }
+function fingerprintText(data: string): string { let hash = 2166136261; for (let i = 0; i < data.length; i++) hash = Math.imul(hash ^ data.charCodeAt(i), 16777619); return (hash >>> 0).toString(16).padStart(8, '0'); }
+/** JSON objects have no key order. Native and browser serializers must identify
+ * the same complete model, including nested source evidence and action data.
+ * Arrays retain their authored order; JSON's optional undefined fields vanish. */
+function canonicalModel(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalModel);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, entry]) => [key, canonicalModel(entry)]));
+  return value;
+}
+export function childPlayFingerprint(activity: ChildPlayActivity): string { return `v2-${fingerprintText(JSON.stringify(canonicalModel(activity)))}`; }
+function matchesChildPlayFingerprint(activity: ChildPlayActivity, fingerprint: unknown): boolean {
+  return fingerprint === childPlayFingerprint(activity) || typeof fingerprint === 'string' && /^[0-9a-f]{8}$/.test(fingerprint) && fingerprint === fingerprintText(JSON.stringify(activity));
+}
 export function replayChildPlay(activity: ChildPlayActivity, response: Pick<ChildPlayResponse, 'actionIds' | 'fingerprint'>): ChildPlaySnapshot {
   let scene = activity.scenes.find(scene => scene.id === activity.startSceneId)!;
   const history: ChildPlaySnapshot['history'] = [];
   const invalid = (error: string): ChildPlaySnapshot => ({ phase: 'invalid', scene, history: [], completedObjectiveIds: [], error });
   if (validateChildPlayFields(activity as unknown as Record<string, unknown>).length || !scene) return invalid('This story needs an author’s review.');
-  if (response.fingerprint !== childPlayFingerprint(activity) || !Array.isArray(response.actionIds) || response.actionIds.length > activity.maxTurns) return invalid('Saved choices do not match this prepared story.');
+  if (!matchesChildPlayFingerprint(activity, response.fingerprint) || !Array.isArray(response.actionIds) || response.actionIds.length > activity.maxTurns) return invalid('Saved choices do not match this prepared story.');
   for (const actionId of response.actionIds) {
     const action = activity.actions.find(action => action.id === actionId && action.fromSceneId === scene.id);
     if (scene.ending || !action) return invalid('The saved action sequence is not a valid path through the story.');
@@ -154,7 +166,9 @@ export function initialChildPlayResponse(activity: ChildPlayActivity, saved?: un
   const value = plain(saved) ? saved : {}, fingerprint = childPlayFingerprint(activity);
   const savedActions = Array.isArray(value.actionIds) && value.actionIds.length <= activity.maxTurns && value.actionIds.every((v): v is string => typeof v === 'string') ? value.actionIds : [];
   const response: ChildPlayResponse = { kind: 'child-play-response', fingerprint, actionIds: savedActions, selectedActorId: activity.characters.some(c => c.id === value.selectedActorId) ? value.selectedActorId as string : activity.characters[0].id, selectedPropId: activity.props.some(p => p.id === value.selectedPropId) ? value.selectedPropId as string : '', listenedSceneIds: Array.isArray(value.listenedSceneIds) ? [...new Set(value.listenedSceneIds.filter((v): v is string => typeof v === 'string' && activity.scenes.some(s => s.id === v && !!s.narrationSourceId)))] : [], caregiverSupport: value.caregiverSupport === true };
-  if (value.fingerprint !== fingerprint || replayChildPlay(activity, response).phase === 'invalid') { response.actionIds = []; response.listenedSceneIds = []; if (value.fingerprint) response.notice = 'A fresh story is ready. Your earlier choices could not be restored.'; }
+  // Legacy hashes can be migrated only when the exact earlier serialization
+  // still matches. Never guess which reordered or edited model a save described.
+  if (!matchesChildPlayFingerprint(activity, value.fingerprint) || replayChildPlay(activity, response).phase === 'invalid') { response.actionIds = []; response.listenedSceneIds = []; if (value.fingerprint) response.notice = 'A fresh story is ready. Your earlier choices could not be restored.'; }
   return response;
 }
 export function advanceChildPlay(activity: ChildPlayActivity, response: ChildPlayResponse, actionId: string): { success: true; response: ChildPlayResponse } | { success: false; error: string } {

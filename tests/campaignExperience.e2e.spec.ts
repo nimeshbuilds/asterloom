@@ -18,11 +18,11 @@ test('an existing generated game presents its teaching and excludes the reported
  await page.getByRole('button',{name:'Source library',exact:true}).click();
  await expect(page.locator('.campaign-library-note')).toContainText('not additional required lessons');
  await page.getByRole('button',{name:'Lessons & quests 1',exact:true}).click();
- await expect(page.locator('.campaign-invitation')).toContainText('Understand tasks before choosing a tool');
+ await expect(page.getByRole('region',{name:'Your adventure',exact:true})).toContainText('Understand tasks before choosing a tool');
  await expect(page.locator('.campaign-chapters')).not.toContainText(coverMetadata);
- await page.locator('.campaign-invitation').getByRole('button',{name:'Learn & play this mission',exact:true}).click();
+ await page.getByRole('button',{name:'Play game',exact:true}).click();
  await expect(page.getByRole('region',{name:'Learning briefing',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Learn the ideas',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Learn the ideas',exact:true})).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Start with the task',exact:true})).toBeVisible();
  await expect(page.locator('.lesson-teaching-card')).toContainText('Read the supplied task before comparing');
  await expect(page.locator('.lesson-teaching-card')).not.toContainText(coverMetadata);
@@ -52,7 +52,15 @@ test('a chapter keeps its recall topics together and lets a learner repair a mis
  await page.locator('.campaign-chapter').filter({has:page.getByRole('heading',{name:'Names',exact:true})}).getByRole('button',{name:'Retrieve the key ideas',exact:false}).click();await learnBeforeQuest(page);await expect(page.locator('.answer-option')).toHaveCount(2);await expect(page.locator('.player-sidebar h2')).toHaveText('Names');
  await page.locator('.answer-option').filter({hasText:'Cache'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.retry')).toBeVisible();await page.getByRole('button',{name:'Try again with the source',exact:true}).click();await expect(page.locator('.hint-box')).toContainText('DNS: Resolves');
  await page.locator('.answer-option').filter({hasText:'DNS'}).click();await page.getByRole('button',{name:'Check my answer',exact:true}).click();await expect(page.locator('.answer-feedback.success')).toBeVisible();const p=await progress(page,n.id);expect(p.attempts).toHaveLength(2);expect(p.completedCardIds).toEqual([]);expect(p.xp).toBe(0);expect(p.activeSession.cardIds).toEqual(['dns','cache']);expect(p.activeSession.state.answeredCount).toBe(1);expect(p.activeSession.state.correctCount).toBe(1);
- await page.getByRole('button',{name:'Save & exit',exact:true}).click();await page.reload();await page.getByRole('button',{name:'Continue game',exact:false}).click();await expect(page.locator('.player-sidebar h2')).toHaveText('Names');await expect(page.locator('.answer-feedback.success')).toBeVisible();
+ const savedSession=structuredClone(p.activeSession);
+ await page.getByRole('button',{name:'Save & exit',exact:true}).click();await page.reload();
+ await expect(page.getByRole('region',{name:'Your adventure',exact:true})).toContainText('Names');
+ await page.getByRole('button',{name:'Continue game',exact:true}).click();
+ await expect(page.locator('.player-sidebar h2')).toHaveText('Names');await expect(page.locator('.answer-feedback.success')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Original passages',exact:true})).toHaveCount(0);
+ expect((await progress(page,n.id)).activeSession).toEqual(savedSession);
+ await page.getByRole('button',{name:'Save & exit',exact:true}).click();
+ expect((await progress(page,n.id)).activeSession).toEqual(savedSession);
 });
 
 

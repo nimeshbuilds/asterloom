@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeAIUsage,generationResult,unavailableAIUsage} from './ai-usage.mjs';
 import {parseClaudeResult} from './claude-engine.mjs';
+test('Claude explicitly reported thinking tokens remain a subset and missing or inconsistent counts remain unknown',()=>{
+ const base={input_tokens:4,output_tokens:10,cache_read_input_tokens:2,cache_creation_input_tokens:3};
+ for(const provider of ['anthropic','claude-code']){
+  assert.equal(normalizeAIUsage(provider,{...base,output_tokens_details:{thinking_tokens:7}}).reasoningTokens,7);
+  assert.equal(normalizeAIUsage(provider,{...base,output_tokens_details:{thinking_tokens:7}}).totalTokens,19);
+  assert.equal(normalizeAIUsage(provider,{...base,output_tokens_details:{thinking_tokens:0}}).reasoningTokens,0);
+  for(const detail of [undefined,{}, {thinking_tokens:11},{thinking_tokens:-1},{thinking_tokens:'7'}])assert.equal(normalizeAIUsage(provider,{...base,output_tokens_details:detail}).reasoningTokens,null);
+ }
+});
 test('OpenAI/xAI and compatible input already includes cache; reasoning is output subset',()=>{for(const provider of ['openai','xai','compatible']){const u=normalizeAIUsage(provider,{prompt_tokens:100,completion_tokens:30,total_tokens:130,prompt_tokens_details:{cached_tokens:80},completion_tokens_details:{reasoning_tokens:10},private:'secret'});assert.deepEqual(u,{status:'reported',inputTokens:100,outputTokens:30,cachedInputTokens:80,cacheWriteTokens:null,reasoningTokens:10,totalTokens:130});}});
 test('Anthropic total input includes uncached, cache reads and cache writes exactly once',()=>{for(const provider of ['anthropic','claude-code']){const u=normalizeAIUsage(provider,{input_tokens:12,output_tokens:20,cache_read_input_tokens:100,cache_creation_input_tokens:40});assert.equal(u.inputTokens,152);assert.equal(u.totalTokens,172);assert.equal(u.cachedInputTokens,100);assert.equal(u.cacheWriteTokens,40);}});
 test('partial or absent provider telemetry is never guessed',()=>{assert.deepEqual(normalizeAIUsage('openai',null),unavailableAIUsage());assert.equal(normalizeAIUsage('compatible',{total_tokens:30}).status,'partial');assert.equal(normalizeAIUsage('claude-code',{input_tokens:12,output_tokens:20}).inputTokens,null);assert.equal(normalizeAIUsage('compatible',{prompt_tokens:-2,completion_tokens:1.5}).status,'unavailable');});

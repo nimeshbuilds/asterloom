@@ -33,6 +33,10 @@ jobs:
         run: npm run test:server
       - name: Verify desktop bundle isolation rules
         run: npm run test:desktop
+      - name: Prepare verified native Godot editor
+        run: node scripts/godot-factory/prepare-tools.mjs --editor-only
+      - name: Benchmark all 75 native templates and actual controls
+        run: node scripts/godot-factory/verify.mjs
       - name: Generate included visual and music assets
         run: npm run assets
       - name: Build the desktop renderer
@@ -59,6 +63,8 @@ jobs:
             .qa/playwright-results/
             !.qa/playwright-results/**/*.html
             .qa/mobile-player.png
+            .qa/native-factory-benchmark/*.json
+            .qa/native-factory-benchmark/*.log
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: ${{ github.event_name == 'workflow_dispatch' && 7 || 3 }}
@@ -110,9 +116,17 @@ jobs:
       - run: npm run build
       - name: Download verified Tor runtime
         run: node desktop/download-tor.mjs --host
+      - name: Build all-template native Godot runtime
+        run: |
+          node scripts/godot-factory/prepare-tools.mjs
+          node scripts/godot-factory/build-installed.mjs --platform=windows
       - name: Package the Windows development application
         id: native_package
         run: npm run package:desktop -- --platform=windows
+      - name: Benchmark all 75 templates in the packaged Windows runtime
+        run: node scripts/godot-factory/verify-packaged.mjs
+        env:
+          ASTERLOOM_SMOKE_APP: ${{ github.workspace }}/release/desktop/Asterloom-win32-x64/Asterloom.exe
       - name: Test actual Windows creation, restart, game export, play, and remix
         id: native_smoke
         run: node --test desktop/native-smoke.test.mjs
@@ -145,6 +159,7 @@ jobs:
           path: |
             .qa/native-*.png
             .qa/native-features-*.json
+            .qa/native-packaged-all75-win32-*/
             .qa/media-build/REAL-ASR-RESULTS.json
           include-hidden-files: true
           if-no-files-found: ignore
@@ -152,7 +167,7 @@ jobs:
 
   macos:
     name: macOS native export and replay
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -175,6 +190,10 @@ jobs:
       - run: npm run build
       - name: Download verified Tor runtime
         run: node desktop/download-tor.mjs --platform=mac
+      - name: Build all-template native Godot runtime
+        run: |
+          node scripts/godot-factory/prepare-tools.mjs
+          node scripts/godot-factory/build-installed.mjs --platform=mac
       - name: Package one Universal Mac application
         id: native_package
         shell: bash
@@ -182,6 +201,8 @@ jobs:
           npm run package:desktop -- --platform=mac
           echo "ASTERLOOM_SMOKE_APP=$PWD/release/desktop/Asterloom-darwin-universal/Asterloom.app/Contents/MacOS/Asterloom" >> "$GITHUB_ENV"
           echo "ASTERLOOM_SMOKE_ARCH=$(node -p 'process.arch')" >> "$GITHUB_ENV"
+      - name: Benchmark all 75 templates in the packaged Mac runtime
+        run: node scripts/godot-factory/verify-packaged.mjs
       - name: Test actual macOS creation, restart, game export, play, and remix
         id: native_smoke
         run: node --test desktop/native-smoke.test.mjs
@@ -213,6 +234,7 @@ jobs:
           path: |
             .qa/native-*.png
             .qa/native-features-*.json
+            .qa/native-packaged-all75-darwin-*/
             .qa/media-build/REAL-ASR-RESULTS.json
           include-hidden-files: true
           if-no-files-found: ignore

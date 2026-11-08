@@ -1,0 +1,416 @@
+{
+  "format": "learnpack",
+  "version": 1,
+  "exportedAt": "2026-10-10T15:24:00.027Z",
+  "notebook": {
+    "creation": {
+      "mode": "ai",
+      "status": "ready"
+    },
+    "id": "public-godot-bridge-fixture",
+    "title": "Traceable work and recorded order",
+    "description": "Original synthetic public teaching fixture. No real user content or AI calls.",
+    "createdAt": "2026-10-10T12:00:00.000Z",
+    "updatedAt": "2026-10-10T12:00:00.000Z",
+    "ageGroup": "adult",
+    "goal": "Practice the stated procedure and relationships.",
+    "theme": "workshop",
+    "scaffoldIds": [
+      "process-reconstruction",
+      "concept-map-repair"
+    ],
+    "sources": [
+      {
+        "id": "public-procedure",
+        "title": "A traceable observation — public synthetic fixture",
+        "kind": "text",
+        "text": "[Page 1]\nField notebook 🧭 — café\n\nThis practice procedure keeps an observation connected to a stated rule and recorded evidence. It does not establish real-world safety.\n\nProcedure for a traceable observation:\n1. Read the supplied observation.\n2. Compare the observation with the supplied rule.\n3. Record the decision and its evidence.",
+        "status": "ready",
+        "addedAt": "2026-10-10T12:00:00.000Z"
+      },
+      {
+        "id": "public-trace",
+        "title": "A recorded message trace — public synthetic fixture",
+        "kind": "text",
+        "text": "[Page 2]\n\nIn this recorded trace, Build request precedes Send request. Send request precedes Receive response. No other relationship is recorded. The trace describes order only; it does not establish timing or delivery guarantees.",
+        "status": "ready",
+        "addedAt": "2026-10-10T12:00:00.000Z"
+      }
+    ],
+    "cards": [],
+    "activities": [
+      {
+        "version": 1,
+        "id": "public-sequence",
+        "kind": "sequence",
+        "reviewStatus": "needs-review",
+        "title": "Prepare a traceable observation",
+        "instruction": "Arrange the three source steps into the documented order.",
+        "explanation": "Read the observation before comparing it. Record the decision and evidence after comparing.",
+        "hint": "Look for the three numbered steps.",
+        "sourceRefs": [
+          {
+            "sourceId": "public-procedure",
+            "evidence": "Procedure for a traceable observation:\n1. Read the supplied observation.\n2. Compare the observation with the supplied rule.\n3. Record the decision and its evidence."
+          }
+        ],
+        "scaffoldIds": [
+          "process-reconstruction"
+        ],
+        "items": [
+          {
+            "id": "read",
+            "label": "Read the supplied observation."
+          },
+          {
+            "id": "compare",
+            "label": "Compare the observation with the supplied rule."
+          },
+          {
+            "id": "record",
+            "label": "Record the decision and its evidence."
+          }
+        ],
+        "constraints": [
+          {
+            "before": "read",
+            "after": "compare"
+          },
+          {
+            "before": "compare",
+            "after": "record"
+          }
+        ]
+      },
+      {
+        "version": 1,
+        "id": "public-dependency",
+        "kind": "dependency",
+        "reviewStatus": "needs-review",
+        "title": "Reconstruct the recorded trace",
+        "instruction": "Connect the recorded events using the documented relation and direction.",
+        "explanation": "This trace records two precedence relationships, without timing or delivery guarantees.",
+        "hint": "Use the relation “precedes” and keep its direction.",
+        "sourceRefs": [
+          {
+            "sourceId": "public-trace",
+            "evidence": "In this recorded trace, Build request precedes Send request. Send request precedes Receive response. No other relationship is recorded. The trace describes order only; it does not establish timing or delivery guarantees."
+          }
+        ],
+        "scaffoldIds": [
+          "concept-map-repair"
+        ],
+        "nodes": [
+          {
+            "id": "build",
+            "label": "Build request"
+          },
+          {
+            "id": "send",
+            "label": "Send request"
+          },
+          {
+            "id": "receive",
+            "label": "Receive response"
+          }
+        ],
+        "edges": [
+          {
+            "from": "build",
+            "to": "send",
+            "relation": "precedes"
+          },
+          {
+            "from": "send",
+            "to": "receive",
+            "relation": "precedes"
+          }
+        ],
+        "acyclic": true
+      }
+    ],
+    "revision": 1,
+    "aiLearningPlan": {
+      "version": 1,
+      "missions": [
+        {
+          "title": "Keep a decision traceable",
+          "objective": "Reconstruct the supplied observation procedure.",
+          "conceptExplanation": {
+            "text": "The practice links an observation to a supplied rule and evidence. Its scope is this training procedure.",
+            "citations": [
+              {
+                "sourceId": "public-procedure",
+                "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                "start": 35,
+                "end": 170,
+                "quote": "This practice procedure keeps an observation connected to a stated rule and recorded evidence. It does not establish real-world safety.",
+                "locator": {
+                  "kind": "page",
+                  "label": "Page 1 · lines 4–4",
+                  "lineStart": 4,
+                  "lineEnd": 4
+                }
+              }
+            ]
+          },
+          "chunks": [
+            {
+              "id": "read",
+              "title": "Read before comparing",
+              "text": "Begin with the supplied observation. Then compare it with the rule supplied by the procedure.",
+              "citations": [
+                {
+                  "sourceId": "public-procedure",
+                  "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                  "start": 214,
+                  "end": 244,
+                  "quote": "Read the supplied observation.",
+                  "locator": {
+                    "kind": "page",
+                    "label": "Page 1 · lines 7–7",
+                    "lineStart": 7,
+                    "lineEnd": 7
+                  }
+                },
+                {
+                  "sourceId": "public-procedure",
+                  "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                  "start": 248,
+                  "end": 295,
+                  "quote": "Compare the observation with the supplied rule.",
+                  "locator": {
+                    "kind": "page",
+                    "label": "Page 1 · lines 8–8",
+                    "lineStart": 8,
+                    "lineEnd": 8
+                  }
+                }
+              ]
+            },
+            {
+              "id": "record",
+              "title": "Keep the evidence",
+              "text": "After comparing, record both the decision and the evidence supporting it.",
+              "citations": [
+                {
+                  "sourceId": "public-procedure",
+                  "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                  "start": 299,
+                  "end": 336,
+                  "quote": "Record the decision and its evidence.",
+                  "locator": {
+                    "kind": "page",
+                    "label": "Page 1 · lines 9–9",
+                    "lineStart": 9,
+                    "lineEnd": 9
+                  }
+                }
+              ]
+            }
+          ],
+          "guidedApplication": {
+            "prompt": "Reconstruct the documented route using its three steps.",
+            "steps": [
+              "Select a step and use Move earlier or Move later.",
+              "Choose Check my work when the order is ready."
+            ],
+            "activityId": "public-sequence"
+          },
+          "workedExample": {
+            "title": "Walk through the source procedure",
+            "sourceEvidence": {
+              "sourceId": "public-procedure",
+              "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+              "start": 172,
+              "end": 336,
+              "quote": "Procedure for a traceable observation:\n1. Read the supplied observation.\n2. Compare the observation with the supplied rule.\n3. Record the decision and its evidence.",
+              "locator": {
+                "kind": "page",
+                "label": "Page 1 · lines 6–9",
+                "lineStart": 6,
+                "lineEnd": 9
+              }
+            },
+            "steps": [
+              {
+                "title": "Read",
+                "text": "The first step is to read the supplied observation.",
+                "citations": [
+                  {
+                    "sourceId": "public-procedure",
+                    "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                    "start": 214,
+                    "end": 244,
+                    "quote": "Read the supplied observation.",
+                    "locator": {
+                      "kind": "page",
+                      "label": "Page 1 · lines 7–7",
+                      "lineStart": 7,
+                      "lineEnd": 7
+                    }
+                  }
+                ]
+              },
+              {
+                "title": "Compare",
+                "text": "The second step compares that observation with the supplied rule.",
+                "citations": [
+                  {
+                    "sourceId": "public-procedure",
+                    "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                    "start": 248,
+                    "end": 295,
+                    "quote": "Compare the observation with the supplied rule.",
+                    "locator": {
+                      "kind": "page",
+                      "label": "Page 1 · lines 8–8",
+                      "lineStart": 8,
+                      "lineEnd": 8
+                    }
+                  }
+                ]
+              },
+              {
+                "title": "Record",
+                "text": "The final step records the decision and its evidence.",
+                "citations": [
+                  {
+                    "sourceId": "public-procedure",
+                    "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+                    "start": 299,
+                    "end": 336,
+                    "quote": "Record the decision and its evidence.",
+                    "locator": {
+                      "kind": "page",
+                      "label": "Page 1 · lines 9–9",
+                      "lineStart": 9,
+                      "lineEnd": 9
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "storyFrame": {
+            "fictional": true,
+            "setting": "A fictional field-notebook studio",
+            "role": "field-notebook maker",
+            "mission": "Prepare a route another learner can inspect.",
+            "success": "Your source-backed route can be inspected."
+          },
+          "activityId": "public-sequence",
+          "activityFingerprint": "c2410202303b4e3f2770eb8f42e03ce0ad57acf6b686c18e1038387212aab34a",
+          "ageGroup": "adult",
+          "sourceWindows": [
+            {
+              "sourceId": "public-procedure",
+              "sourceRevision": "97f9a0212fc4eee8283c2361008a052160e43e28bcb8171215d6c504e6a85898",
+              "start": 0,
+              "end": 336,
+              "quote": "[Page 1]\nField notebook 🧭 — café\n\nThis practice procedure keeps an observation connected to a stated rule and recorded evidence. It does not establish real-world safety.\n\nProcedure for a traceable observation:\n1. Read the supplied observation.\n2. Compare the observation with the supplied rule.\n3. Record the decision and its evidence.",
+              "locator": {
+                "kind": "text",
+                "label": "Lines 1–9",
+                "lineStart": 1,
+                "lineEnd": 9
+              }
+            }
+          ],
+          "reviewStatus": "needs-review"
+        },
+        {
+          "title": "Read the recorded order",
+          "objective": "Reconstruct the two precedence links in the trace.",
+          "conceptExplanation": {
+            "text": "The trace records an order of events. It supplies neither timing nor delivery guarantees.",
+            "citations": [
+              {
+                "sourceId": "public-trace",
+                "sourceRevision": "738c97a74b85024f28de0ac86cacf58218141bc00c85369990aae1c56120118d",
+                "start": 146,
+                "end": 230,
+                "quote": "The trace describes order only; it does not establish timing or delivery guarantees.",
+                "locator": {
+                  "kind": "page",
+                  "label": "Page 2 · lines 3–3",
+                  "lineStart": 3,
+                  "lineEnd": 3
+                }
+              }
+            ]
+          },
+          "chunks": [
+            {
+              "id": "build",
+              "title": "Build comes before send",
+              "text": "The first relationship places building the request before sending it.",
+              "citations": [
+                {
+                  "sourceId": "public-trace",
+                  "sourceRevision": "738c97a74b85024f28de0ac86cacf58218141bc00c85369990aae1c56120118d",
+                  "start": 10,
+                  "end": 70,
+                  "quote": "In this recorded trace, Build request precedes Send request.",
+                  "locator": {
+                    "kind": "page",
+                    "label": "Page 2 · lines 3–3",
+                    "lineStart": 3,
+                    "lineEnd": 3
+                  }
+                }
+              ]
+            },
+            {
+              "id": "receive",
+              "title": "Receive follows send",
+              "text": "The second relationship places sending before receiving. Keep this direction when drawing the connection.",
+              "citations": [
+                {
+                  "sourceId": "public-trace",
+                  "sourceRevision": "738c97a74b85024f28de0ac86cacf58218141bc00c85369990aae1c56120118d",
+                  "start": 71,
+                  "end": 110,
+                  "quote": "Send request precedes Receive response.",
+                  "locator": {
+                    "kind": "page",
+                    "label": "Page 2 · lines 3–3",
+                    "lineStart": 3,
+                    "lineEnd": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "guidedApplication": {
+            "prompt": "Connect the three named events with the source’s two directed links.",
+            "steps": [
+              "Select the starting event, relation and destination.",
+              "Check the two supplied relationships."
+            ],
+            "activityId": "public-dependency"
+          },
+          "activityId": "public-dependency",
+          "activityFingerprint": "b69f47062c844360417e34dc2dec0c2575adae051c554bb0883fbaa110cb307a",
+          "ageGroup": "adult",
+          "sourceWindows": [
+            {
+              "sourceId": "public-trace",
+              "sourceRevision": "738c97a74b85024f28de0ac86cacf58218141bc00c85369990aae1c56120118d",
+              "start": 0,
+              "end": 230,
+              "quote": "[Page 2]\n\nIn this recorded trace, Build request precedes Send request. Send request precedes Receive response. No other relationship is recorded. The trace describes order only; it does not establish timing or delivery guarantees.",
+              "locator": {
+                "kind": "text",
+                "label": "Lines 1–3",
+                "lineStart": 1,
+                "lineEnd": 3
+              }
+            }
+          ],
+          "reviewStatus": "needs-review"
+        }
+      ]
+    }
+  }
+}

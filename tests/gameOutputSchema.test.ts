@@ -51,7 +51,10 @@ describe('lossless local schema factoring',()=>{
    const original=structuredClone(schema),compact=compactGameOutputSchema(schema);expect(expand(compact),name).toEqual(schema);expect(schema).toEqual(original);expect(size(compact),name).toBeLessThanOrEqual(size(schema));bounds(compact);beforeBytes+=size(schema);afterBytes+=size(compact);
    expect(compactGameOutputSchema(schema),name).toEqual(compact);expect(compactGameOutputSchema(compact),name).toEqual(compact);
   }
-  expect(afterBytes).toBeLessThan(beforeBytes*0.8);
+  // Source-ineligible optional structures are now removed before factoring.
+  // The remaining redundancy varies by schema; factoring must still save bytes
+  // while every individual schema above remains lossless and never grows.
+  expect(afterBytes).toBeLessThan(beforeBytes);
  });
  it('retains distinct enum values and constraints, and never rewrites objects inside literal enum data',()=>{
   const text={type:'string',enum:['one','two'],minLength:1,maxLength:200},schema={type:'object',properties:{a:text,b:text,c:{...text,enum:['one','three']},d:{...text,maxLength:100},literal:{enum:[{type:'string',minLength:1,maxLength:200},{type:'string',minLength:1,maxLength:200}]},special:{type:'object',properties:{type:text,items:text},required:['type','items'],additionalProperties:false}},required:['a','b','c','d','literal','special'],additionalProperties:false};

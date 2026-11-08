@@ -1,6 +1,6 @@
 {
   "name": "asterloom",
-  "version": "0.7.12",
+  "version": "0.7.14",
   "description": "A local-first studio for turning your materials into portable learning adventures.",
   "main": "desktop/main.mjs",
   "directories": {
@@ -9,18 +9,19 @@
   },
   "scripts": {
     "dev": "concurrently -k \"node server/index.mjs\" \"vite\"",
-    "build": "node scripts/prepare-retrieval-assets.mjs && node scripts/prepare-ocr-assets.mjs && tsc -b && vite build && node scripts/postbuild.mjs",
+    "build": "npm run template-skills -- --check && node scripts/prepare-retrieval-assets.mjs && node scripts/prepare-ocr-assets.mjs && tsc -b && vite build && node scripts/postbuild.mjs",
     "start": "node server/index.mjs",
     "test": "vitest run",
-    "test:server": "node --test server/server.test.mjs server/provider-connections.test.mjs server/web-extraction.test.mjs server/media.test.mjs server/media.integration.test.mjs server/media-runtime.test.mjs server/codex-engine.test.mjs server/codex-install.test.mjs server/engine-routes.test.mjs server/grok-engine.test.mjs server/claude-engine.test.mjs server/notebook-cleanup.test.mjs server/ai-usage.test.mjs server/generation-control.test.mjs",
+    "test:server": "node --test server/server.test.mjs server/provider-connections.test.mjs server/web-extraction.test.mjs server/media.test.mjs server/media.integration.test.mjs server/media-runtime.test.mjs server/codex-engine.test.mjs server/codex-install.test.mjs server/engine-routes.test.mjs server/grok-engine.test.mjs server/claude-engine.test.mjs server/notebook-cleanup.test.mjs server/ai-usage.test.mjs server/generation-control.test.mjs server/local-install.test.mjs server/local-engine.test.mjs server/local-routes.test.mjs server/model-qualification.test.mjs",
     "test:e2e": "playwright test",
     "preview": "vite preview --host 127.0.0.1",
     "desktop": "electron .",
     "package:desktop": "node scripts/package-desktop.mjs",
     "export:desktop": "node scripts/export-desktop.mjs",
     "assets": "tsx scripts/build-assets.tsx",
-    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && node --test desktop/bundles.test.mjs desktop/media-archive.test.mjs desktop/verified-download.test.mjs desktop/tor-verification-keys.test.mjs desktop/media-build-config.test.mjs desktop/copy-native-tree.test.mjs desktop/native-dependencies.test.mjs desktop/transcription-poll.test.mjs desktop/export-registry.test.mjs desktop/source-downloads.test.mjs",
-    "prepare:media": "node scripts/prepare-media-runtime.mjs"
+    "test:desktop": "esbuild src/lib/package.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/package-validation.mjs && esbuild scripts/godot-factory/bridge/engine.ts --bundle --platform=node --format=esm --target=es2022 --outfile=desktop/generated/godot-factory-validation.mjs && node --test desktop/godot-factory.test.mjs desktop/godot-factory-storage.test.mjs desktop/bundles.test.mjs desktop/media-archive.test.mjs desktop/verified-download.test.mjs desktop/tor-verification-keys.test.mjs desktop/media-build-config.test.mjs desktop/copy-native-tree.test.mjs desktop/native-dependencies.test.mjs desktop/transcription-poll.test.mjs desktop/export-registry.test.mjs desktop/source-downloads.test.mjs",
+    "prepare:media": "node scripts/prepare-media-runtime.mjs",
+    "template-skills": "tsx scripts/build-template-skills.ts"
   },
   "keywords": [],
   "author": "Nimesh Pandeya (NimeshBuilds)",
@@ -56,7 +57,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
-    "electron": "^44.5.1",
+    "electron": "44.9.1",
     "esbuild": "^0.28.2",
     "fast-check": "4.10.2",
     "openpgp": "^6.3.2",
@@ -75,6 +76,9 @@
   "overrides": {
     "exceljs": {
       "uuid": "11.1.1"
+    },
+    "concurrently": {
+      "shell-quote": "1.11.0"
     }
   }
 }

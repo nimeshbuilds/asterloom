@@ -1,0 +1,676 @@
+{
+  "version": 1,
+  "runtimeId": "asterloom-godot-pilot",
+  "status": "experimental-adult-two-mechanic-presentation",
+  "shared": {
+    "runtimeOwner": "Shipped Godot code; skills describe the existing implementation and do not execute or install anything.",
+    "audiences": [
+      "adult"
+    ],
+    "compatibleKinds": [
+      "sequence",
+      "dependency"
+    ],
+    "bounds": {
+      "minItems": 2,
+      "maxItems": 8,
+      "minRules": 1,
+      "maxRules": 12,
+      "maxLabelUtf16Units": 200,
+      "maxPackBytes": 4194304,
+      "maxSequenceActivities": 1,
+      "maxDependencyActivities": 1
+    },
+    "sourceContract": [
+      "A sequence needs explicit supported ordering constraints; a dependency needs explicit labeled directed relationships.",
+      "Retain complete current prepared teaching, source text, exact UTF-16 citations and activity evidence.",
+      "Do not remove conditions, shorten source labels silently, invent scored relationships or execute source code.",
+      "The converter does not generate lessons. It projects already validated production content and rejects stale or oversized models."
+    ],
+    "safeAIWork": {
+      "upstreamFields": [
+        "mission title and objective",
+        "short source-grounded concept explanation and chunks",
+        "source-provided worked example with exact citations",
+        "activity title, instruction, explanation and hint",
+        "sequence items and stated ordering constraints",
+        "dependency nodes and stated labeled edges",
+        "exact source references"
+      ],
+      "nativeSelectorFields": [
+        "nativeTemplateId"
+      ],
+      "nativeSelectorShape": {
+        "version": 1,
+        "templateId": "one shipped ID"
+      },
+      "note": "All upstream fields still pass production validators. The converter projects the complete accepted content unchanged; nativeTemplateId selects only an authored presentation."
+    },
+    "engineOwned": [
+      "Scene and resource loading",
+      "Character identity, roles, portraits and pose transitions",
+      "World geometry, lighting, palette and camera",
+      "Phase order, control wording and source dialogs",
+      "Music playlist, crossfade, gain and cue synthesis",
+      "Action-to-animation and action-to-sound mapping",
+      "Evaluator, assistance state, awards, progress and atomic persistence"
+    ],
+    "phases": [
+      "briefing",
+      "learning",
+      "building",
+      "challenge",
+      "debrief"
+    ],
+    "phaseContracts": [
+      {
+        "phase": "briefing",
+        "guide": "aster",
+        "gate": "Accept the saved briefing before teaching begins. Objectives use the selected activity titles.",
+        "portrait": "aster-warm-smile",
+        "entryCue": "mission_start only after acceptance saves"
+      },
+      {
+        "phase": "learning",
+        "guide": "aster",
+        "gate": "Read every prepared lesson before entering guided construction. Each lesson retains its exact source citations.",
+        "portrait": "aster-planning",
+        "entryCue": "aster when moving through ideas; phase_complete when all ideas are saved"
+      },
+      {
+        "phase": "building",
+        "guide": "builder",
+        "gate": "Complete the indicated guided placement/connection before Begin my own build. Rehearsal is cleared atomically for the challenge.",
+        "portrait": "owen",
+        "entryCue": "phase_complete after beginning the independent build saves"
+      },
+      {
+        "phase": "challenge",
+        "guide": "analyst",
+        "gate": "Commit a construction before comparing its stated rules. A failed save exposes no success or celebration.",
+        "portrait": "owen for sequence, claire for dependency; Aster mood changes only where Aster is rendered",
+        "entryCue": "correct for first completed nonfinal build; complete for first final build; retry after a saved incorrect attempt"
+      },
+      {
+        "phase": "debrief",
+        "guide": "analyst",
+        "gate": "All available constructions are complete. The interface shows saved source explanations and an optional ungraded reflection.",
+        "portrait": "aster-quiet-celebration",
+        "entryCue": "No automatic replay on restore; phase_complete only after saving a new field note"
+      }
+    ],
+    "controls": {
+      "sequence": "Choose a module, then a numbered bay; direct seated controls remain available.",
+      "dependency": "Choose a starting node, target and supplied relation, then connect; direction and labels matter.",
+      "review": "Exact source text and prepared hints remain available. Revealing scored help persists supported practice first.",
+      "navigation": "Desktop pointer/keyboard/controller routes and station camera transitions are authored by the engine; skills must not invent controls."
+    },
+    "animation": {
+      "poses": [
+        "idle",
+        "attention",
+        "speaking",
+        "celebrate",
+        "support"
+      ],
+      "events": [
+        "placed",
+        "connected",
+        "success",
+        "retry",
+        "mission_complete",
+        "completion"
+      ],
+      "phaseGuide": {
+        "briefing": "aster",
+        "learning": "aster",
+        "building": "builder",
+        "challenge": "analyst",
+        "debrief": "analyst"
+      },
+      "poseTweenSeconds": 0.25,
+      "stationCameraTweenSeconds": 0.5,
+      "actionEffectSeconds": 0.42,
+      "resultEffectSeconds": 0.75,
+      "maxTransientGroups": 6,
+      "ambientMotes": 12,
+      "note": "Stylized articulated geometry and procedural tweens; no imported photorealistic rig, video or GIF playback is promised."
+    },
+    "lighting": {
+      "activeGuideEnergy": 0.58,
+      "inactiveGuideEnergy": 0.18,
+      "guideLightRange": 3.3,
+      "guideShadows": false,
+      "keyShadows": true,
+      "toneMapper": "filmic"
+    },
+    "audio": {
+      "recordings": [
+        {
+          "id": "wisdom",
+          "name": "A Brand New Wisdom",
+          "file": "a-brand-new-wisdom.ogg",
+          "license": "CC0-1.0",
+          "creator": "hernandack"
+        },
+        {
+          "id": "saying",
+          "name": "Just Saying Tho",
+          "file": "just-saying-tho.ogg",
+          "license": "CC0-1.0",
+          "creator": "hernandack"
+        },
+        {
+          "id": "winter",
+          "name": "Winter Dust",
+          "file": "winter-dust.ogg",
+          "license": "CC0-1.0",
+          "creator": "hernandack"
+        }
+      ],
+      "cueIds": [
+        "pickup",
+        "connect",
+        "correct",
+        "retry",
+        "aster",
+        "complete",
+        "character",
+        "mission_start",
+        "phase_complete"
+      ],
+      "phaseGainDb": {
+        "briefing": -29,
+        "learning": -34,
+        "building": -25,
+        "challenge": -23,
+        "debrief": -29
+      },
+      "crossfadeSeconds": 0.85,
+      "musicVoices": 2,
+      "cueVoices": 6,
+      "cueSampleRate": 24000,
+      "phasePlaylistRule": "Phase track first, followed by the remaining full recordings in the setting playlist; three recordings are reused, not five distinct compositions.",
+      "policy": "Sound starts muted unless a saved enabled preference exists. Mute, focus loss and narration suppress cues; suppressed cues are dropped. No AI instruction can enable sound or change gain.",
+      "nativeOnly": "Production track/effect IDs are not native asset IDs. AI selects the native profile; its audio behavior is authored."
+    },
+    "eventContract": [
+      {
+        "action": "select module/node or remove a connection",
+        "cue": "pickup",
+        "visual": "Selection UI; removal does not grant a reward."
+      },
+      {
+        "action": "saved module placement",
+        "cue": "connect",
+        "visual": "placed: brief piece emphasis, nearest guide attention and rising ring"
+      },
+      {
+        "action": "saved directed connection",
+        "cue": "connect",
+        "visual": "connected: moving link marker, guide attention and paired rising rings"
+      },
+      {
+        "action": "first saved correct nonfinal construction",
+        "cue": "correct",
+        "visual": "success: nearest guide celebrates and setting-specific shards rise"
+      },
+      {
+        "action": "first saved final construction",
+        "cue": "complete",
+        "visual": "mission_complete: all guides celebrate, debrief opens and progress scenery restores"
+      },
+      {
+        "action": "saved incorrect construction",
+        "cue": "retry",
+        "visual": "Support pose and secondary-color ring; no loss of earned progress"
+      },
+      {
+        "action": "Aster help",
+        "cue": "aster",
+        "visual": "Prepared source guidance; persist assistance before exposing scored help"
+      },
+      {
+        "action": "Owen or Claire guidance",
+        "cue": "character",
+        "visual": "Speaking pose and prepared contextual source hint after assistance saves"
+      },
+      {
+        "action": "restore/reopen completed work",
+        "cue": null,
+        "visual": "Restore saved world progress directly; never replay transient rewards"
+      }
+    ],
+    "assets": {
+      "portraitIds": [
+        "aster-warm-smile",
+        "aster-planning",
+        "aster-gentle-hint",
+        "aster-quiet-celebration",
+        "owen",
+        "claire"
+      ],
+      "asterIdentity": "Preserve established Aster appearance. Owen and Claire are the authored supporting characters; no new identities are invented by generation."
+    },
+    "accessibility": {
+      "reducedMotion": true,
+      "flashing": false,
+      "timers": false,
+      "maxActiveCharacters": 3,
+      "minimumTextBudget": 18,
+      "seatedControls": true,
+      "minWindow": [
+        980,
+        680
+      ],
+      "note": "Reduced motion stops ambient motes/transient effects and makes poses/camera changes immediate. This does not certify complete assistive-technology support."
+    },
+    "qualityGates": [
+      "Explain each source idea before asking the learner to manipulate it.",
+      "Use one clear teaching idea per chunk; retain qualifications and exact supporting citations.",
+      "Describe only the controls and actors supplied by this runtime.",
+      "Never imply decorative scenery establishes a subject fact or real-world consequence.",
+      "Keep the distinction between independent and supported practice visible.",
+      "Generated pilot models award no official XP or mastery; exported pilot progress is local experimental practice.",
+      "Do not require AI while playing, infer general chatbot ability from prepared crew hints, or promise multiplayer in this runtime."
+    ]
+  },
+  "templates": [
+    {
+      "id": "signalwright-workshop",
+      "version": 1,
+      "skillFile": "scripts/godot-pilot/templates/signalwright-workshop/SKILL.md",
+      "compact": {
+        "id": "signalwright-workshop",
+        "name": "Signalwright Operations Workshop",
+        "description": "Welcome to a fictional operations workshop. Aster will help you study the supplied material. Rebuild its stated order and connections so the crew can inspect the model. The workshop does not run the system described by your sources.",
+        "compatibleKinds": [
+          "sequence",
+          "dependency"
+        ],
+        "audioProfile": "network",
+        "cast": [
+          "Aster",
+          "Owen",
+          "Claire"
+        ],
+        "phases": [
+          "briefing",
+          "learning",
+          "building",
+          "challenge",
+          "debrief"
+        ],
+        "skill": {
+          "version": 1,
+          "role": "Model inspection crew member",
+          "sourceFit": "Procedures, request traces and explicit prerequisites that can be reconstructed for inspection. Technical prose alone is insufficient without stated order or directed relations.",
+          "visualIdentity": "Teal service-wall indicators, copper cable trays, modular inspection benches and a restrained blue lighting key.",
+          "learningLoop": "briefing → cited teaching → guided construction → source-rule challenge → saved debrief",
+          "audioIdentity": "glass action cues; authored phase entrances across three shipped recordings; quiet reading; learner-controlled sound.",
+          "engineOwns": "Cast, scene, lighting, controls, animation, audio cues, scoring and saves. AI fills validated source learning content and selects this profile only.",
+          "limits": "Adults; sequence/dependency only; 2–8 pieces/nodes and 1–12 rules; no new simulation, arbitrary scene/code, live AI host or mastery claim."
+        }
+      },
+      "design": {
+        "setting": "network",
+        "role": "Model inspection crew member",
+        "bestFit": "Procedures, request traces and explicit prerequisites that can be reconstructed for inspection. Technical prose alone is insufficient without stated order or directed relations.",
+        "metaphorBoundary": "Inspect a model of the documented sequence or relationships. Never describe executing commands, deploying cloud infrastructure, fixing a live network or measuring throughput.",
+        "cast": [
+          {
+            "id": "aster",
+            "name": "Aster",
+            "role": "Learning guide",
+            "color": "#c7b4ff"
+          },
+          {
+            "id": "builder",
+            "name": "Owen",
+            "role": "Workshop coordinator",
+            "color": "#62ddda"
+          },
+          {
+            "id": "analyst",
+            "name": "Claire",
+            "role": "Model investigator",
+            "color": "#ffc878"
+          }
+        ],
+        "briefing": {
+          "title": "Bring a working model to the review table",
+          "text": "Welcome to a fictional operations workshop. Aster will help you study the supplied material. Rebuild its stated order and connections so the crew can inspect the model. The workshop does not run the system described by your sources."
+        },
+        "phases": [
+          {
+            "phase": "briefing",
+            "title": "The incoming brief",
+            "purpose": "Accept the incoming brief and identify the supplied procedure or relationship model."
+          },
+          {
+            "phase": "learning",
+            "title": "Read the working notes",
+            "purpose": "Use the working notes to explain each step or connection before operating the bench."
+          },
+          {
+            "phase": "building",
+            "title": "A guided handoff",
+            "purpose": "Rehearse a handoff with Owen using the shown ordering or first connection."
+          },
+          {
+            "phase": "challenge",
+            "title": "Build the inspection model",
+            "purpose": "Construct the inspection model from the source without the guided arrangement."
+          },
+          {
+            "phase": "debrief",
+            "title": "The review table",
+            "purpose": "Review what each stated dependency or ordering rule required; the indicators record completed practice."
+          }
+        ],
+        "palette": {
+          "background": "#091525",
+          "floor": "#173043",
+          "structure": "#2a5267",
+          "accent": "#69ead2",
+          "secondary": "#ffc57b",
+          "text": "#f2f8ff"
+        },
+        "lighting": {
+          "ambientEnergy": 0.6,
+          "keyEnergy": 1.5,
+          "keyColor": "#c8e6ff"
+        },
+        "scenery": [
+          "Four service cabinets with four indicator strips each",
+          "Copper cable-tray frame and three wall panels",
+          "Inspection console along the perimeter"
+        ],
+        "savedProgressVisual": "Sixteen service-wall indicators brighten as saved constructions are completed; they are progress markers, not running network services.",
+        "successShape": "Three slender signal-bar shards around a rising ring",
+        "audio": {
+          "profileId": "network",
+          "rootHz": 220.0,
+          "material": "glass",
+          "materialIndex": 1,
+          "playlist": [
+            "winter",
+            "wisdom",
+            "saying"
+          ],
+          "phaseTracks": {
+            "briefing": "winter",
+            "learning": "wisdom",
+            "building": "saying",
+            "challenge": "wisdom",
+            "debrief": "winter"
+          }
+        }
+      }
+    },
+    {
+      "id": "restoration-field-station",
+      "version": 1,
+      "skillFile": "scripts/godot-pilot/templates/restoration-field-station/SKILL.md",
+      "compact": {
+        "id": "restoration-field-station",
+        "name": "Restoration Field Station",
+        "description": "Meet the crew at a fictional restoration field station. Study the supplied observations with Aster, then arrange the documented steps and trace their stated relationships. Growing scenery is a story reward, not evidence that an ecosystem has changed.",
+        "compatibleKinds": [
+          "sequence",
+          "dependency"
+        ],
+        "audioProfile": "garden",
+        "cast": [
+          "Aster",
+          "Owen",
+          "Claire"
+        ],
+        "phases": [
+          "briefing",
+          "learning",
+          "building",
+          "challenge",
+          "debrief"
+        ],
+        "skill": {
+          "version": 1,
+          "role": "Field-model apprentice",
+          "sourceFit": "Explicit observation procedures, fieldwork order and documented relationships. Ecological topics do not authorize invented growth, weather, cause-and-effect or resource simulation.",
+          "visualIdentity": "Green planted perimeter, rain-collection forms, open trellis, warm daylight and leaf-shaped celebration pieces.",
+          "learningLoop": "briefing → cited teaching → guided construction → source-rule challenge → saved debrief",
+          "audioIdentity": "felt action cues; authored phase entrances across three shipped recordings; quiet reading; learner-controlled sound.",
+          "engineOwns": "Cast, scene, lighting, controls, animation, audio cues, scoring and saves. AI fills validated source learning content and selects this profile only.",
+          "limits": "Adults; sequence/dependency only; 2–8 pieces/nodes and 1–12 rules; no new simulation, arbitrary scene/code, live AI host or mastery claim."
+        }
+      },
+      "design": {
+        "setting": "garden",
+        "role": "Field-model apprentice",
+        "bestFit": "Explicit observation procedures, fieldwork order and documented relationships. Ecological topics do not authorize invented growth, weather, cause-and-effect or resource simulation.",
+        "metaphorBoundary": "Prepare and inspect the source-defined field model. Visible foliage is a completion metaphor, never evidence that planting, soil or an ecosystem changed.",
+        "cast": [
+          {
+            "id": "aster",
+            "name": "Aster",
+            "role": "Learning guide",
+            "color": "#d2bdff"
+          },
+          {
+            "id": "builder",
+            "name": "Owen",
+            "role": "Field-station steward",
+            "color": "#8ae0ae"
+          },
+          {
+            "id": "analyst",
+            "name": "Claire",
+            "role": "Observation keeper",
+            "color": "#f8ce86"
+          }
+        ],
+        "briefing": {
+          "title": "Prepare a plan the field team can inspect",
+          "text": "Meet the crew at a fictional restoration field station. Study the supplied observations with Aster, then arrange the documented steps and trace their stated relationships. Growing scenery is a story reward, not evidence that an ecosystem has changed."
+        },
+        "phases": [
+          {
+            "phase": "briefing",
+            "title": "The field-station invitation",
+            "purpose": "Join the field station and identify the observations or procedure supplied by the learner."
+          },
+          {
+            "phase": "learning",
+            "title": "Read the observation notebook",
+            "purpose": "Read the observation notebook with Aster; separate recorded relations from guessed causes."
+          },
+          {
+            "phase": "building",
+            "title": "A guided planting bench",
+            "purpose": "Rehearse the arrangement at the guided planting bench without claiming a planting simulator."
+          },
+          {
+            "phase": "challenge",
+            "title": "Construct the field model",
+            "purpose": "Build the field model by placing documented steps and connecting only stated relationships."
+          },
+          {
+            "phase": "debrief",
+            "title": "The stewardship review",
+            "purpose": "Review the model with the stewardship crew; explain an ordering rule using the source."
+          }
+        ],
+        "palette": {
+          "background": "#0d211e",
+          "floor": "#23443b",
+          "structure": "#526849",
+          "accent": "#9be4a6",
+          "secondary": "#ffd08a",
+          "text": "#f4fff1"
+        },
+        "lighting": {
+          "ambientEnergy": 0.7,
+          "keyEnergy": 1.4,
+          "keyColor": "#ffe8bb"
+        },
+        "scenery": [
+          "Four raised planters with three plants each",
+          "Three side planters and a rain-collection barrel",
+          "Open trellis and a shallow decorative channel"
+        ],
+        "savedProgressVisual": "Forty-five authored leaf meshes brighten and grow from 0.68 to full scale as saved constructions are completed; no ecosystem is simulated.",
+        "successShape": "Three flat leaf-like shards around a rising ring",
+        "audio": {
+          "profileId": "garden",
+          "rootHz": 261.6256,
+          "material": "felt",
+          "materialIndex": 0,
+          "playlist": [
+            "saying",
+            "winter",
+            "wisdom"
+          ],
+          "phaseTracks": {
+            "briefing": "saying",
+            "learning": "winter",
+            "building": "wisdom",
+            "challenge": "saying",
+            "debrief": "wisdom"
+          }
+        }
+      }
+    },
+    {
+      "id": "archive-investigation",
+      "version": 1,
+      "skillFile": "scripts/godot-pilot/templates/archive-investigation/SKILL.md",
+      "compact": {
+        "id": "archive-investigation",
+        "name": "The Lantern Archive",
+        "description": "Enter a fictional archive with a record to reconstruct. Read the supplied material with Aster, arrange its stated order and connect only the relationships it supports. A restored display does not prove that the source is true or that an earlier event caused a later one.",
+        "compatibleKinds": [
+          "sequence",
+          "dependency"
+        ],
+        "audioProfile": "archive",
+        "cast": [
+          "Aster",
+          "Owen",
+          "Claire"
+        ],
+        "phases": [
+          "briefing",
+          "learning",
+          "building",
+          "challenge",
+          "debrief"
+        ],
+        "skill": {
+          "version": 1,
+          "role": "Record reconstruction apprentice",
+          "sourceFit": "Recorded chronology, documented procedures and explicit evidence relationships. Historical language alone does not establish causal links or an investigative mystery.",
+          "visualIdentity": "Warm brass-and-paper archive with shelves, book blocks, stacked papers, a circular frame and paper-like celebration pieces.",
+          "learningLoop": "briefing → cited teaching → guided construction → source-rule challenge → saved debrief",
+          "audioIdentity": "warm plucked wood action cues; authored phase entrances across three shipped recordings; quiet reading; learner-controlled sound.",
+          "engineOwns": "Cast, scene, lighting, controls, animation, audio cues, scoring and saves. AI fills validated source learning content and selects this profile only.",
+          "limits": "Adults; sequence/dependency only; 2–8 pieces/nodes and 1–12 rules; no new simulation, arbitrary scene/code, live AI host or mastery claim."
+        }
+      },
+      "design": {
+        "setting": "archive",
+        "role": "Record reconstruction apprentice",
+        "bestFit": "Recorded chronology, documented procedures and explicit evidence relationships. Historical language alone does not establish causal links or an investigative mystery.",
+        "metaphorBoundary": "Reconstruct a record others can inspect. Never equate precedence with causality, invent missing records, claim a mystery is solved, or treat decorative books as evidence.",
+        "cast": [
+          {
+            "id": "aster",
+            "name": "Aster",
+            "role": "Learning guide",
+            "color": "#dbc7ff"
+          },
+          {
+            "id": "builder",
+            "name": "Owen",
+            "role": "Collection steward",
+            "color": "#e7bd8e"
+          },
+          {
+            "id": "analyst",
+            "name": "Claire",
+            "role": "Evidence cataloger",
+            "color": "#91cef0"
+          }
+        ],
+        "briefing": {
+          "title": "Reconstruct a record others can follow",
+          "text": "Enter a fictional archive with a record to reconstruct. Read the supplied material with Aster, arrange its stated order and connect only the relationships it supports. A restored display does not prove that the source is true or that an earlier event caused a later one."
+        },
+        "phases": [
+          {
+            "phase": "briefing",
+            "title": "The sealed collection",
+            "purpose": "Open the sealed collection and state which source record the learner will reconstruct."
+          },
+          {
+            "phase": "learning",
+            "title": "Read the case notes",
+            "purpose": "Read the case notes with Aster; make the documented entities, order and qualifications clear."
+          },
+          {
+            "phase": "building",
+            "title": "A guided catalog entry",
+            "purpose": "Rehearse a catalog entry with Owen using a partial supported construction."
+          },
+          {
+            "phase": "challenge",
+            "title": "Reconstruct the evidence display",
+            "purpose": "Reconstruct the evidence display from the supplied order and labeled directed relations."
+          },
+          {
+            "phase": "debrief",
+            "title": "Open the collection",
+            "purpose": "Review the completed record with Claire and check a reflection against the actual source."
+          }
+        ],
+        "palette": {
+          "background": "#211725",
+          "floor": "#403044",
+          "structure": "#67505f",
+          "accent": "#e6b98b",
+          "secondary": "#a8c8f0",
+          "text": "#fff7e9"
+        },
+        "lighting": {
+          "ambientEnergy": 0.65,
+          "keyEnergy": 1.3,
+          "keyColor": "#ffd4a5"
+        },
+        "scenery": [
+          "Four three-level shelving units with five book blocks per level",
+          "Paper stacks on a perimeter cabinet",
+          "Circular brass display frame"
+        ],
+        "savedProgressVisual": "Four shelf-top markers brighten as saved constructions are completed; opening the display is a fictional progress reward, not proof of source truth.",
+        "successShape": "Three upright paper-like shards around a rising ring",
+        "audio": {
+          "profileId": "archive",
+          "rootHz": 174.6141,
+          "material": "warm plucked wood",
+          "materialIndex": 4,
+          "playlist": [
+            "winter",
+            "saying",
+            "wisdom"
+          ],
+          "phaseTracks": {
+            "briefing": "winter",
+            "learning": "wisdom",
+            "building": "winter",
+            "challenge": "saying",
+            "debrief": "wisdom"
+          }
+        }
+      }
+    }
+  ]
+}

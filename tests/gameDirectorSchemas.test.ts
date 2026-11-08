@@ -5,7 +5,7 @@ import {gamePlanningPrompt,gameWritingPrompt,gameCheckingPrompt} from '../src/li
 import {buildDirectorSourceInventory,teachingContextWindow} from '../src/lib/gameDirectorSources';
 import {emptyGameDesign,validateGameBatchChecks,validateNewGameBatchPlan,validateGameMissionProse,type GameDesignBatch} from '../src/lib/gameDesign';
 import {validatePreparedGameDraft} from '../src/lib/gameDraftAdapters';
-import {validateAILearningMissionDraft} from '../src/lib/aiLearningPlan';
+import {validateAILearningMissionDraft,workedExampleSourceCapability} from '../src/lib/aiLearningPlan';
 import {createOverviewWork,overviewRequestData,validateOverviewDraft} from '../src/lib/gameOverview';
 import {createNotebook,createSource} from '../src/lib/utils';
 import {directorFixtureResponse} from './gameDirector.fixture';
@@ -44,6 +44,38 @@ function fixture(ageGroup='adult'){
 }
 
 describe('bounded director structured response schemas',()=>{
+ it('allows one grounded teaching chunk without allowing an empty lesson or dropping its explanation and guided application',()=>{
+  const f=fixture(),schema=getGameDirectorOutputSchema('write',f.writeData)!,single=structuredClone(f.written);single.missions[0].teaching.chunks=single.missions[0].teaching.chunks.slice(0,1);
+  expect(accepts(schema,single)).toBe(true);
+  const prompt=gameWritingPrompt(f.notebook,f.planned,f.units,f.planned.missions![0].id);expect(prompt).toContain('Provide 1–5 short');expect(prompt).toContain('Use the fewest chunks needed');expect(prompt).toContain('Never pad a lesson');
+  for(const mutate of [(v:any)=>v.missions[0].teaching.chunks=[],(v:any)=>delete v.missions[0].teaching.conceptExplanation,(v:any)=>delete v.missions[0].teaching.guidedApplication]){const invalid=structuredClone(single);mutate(invalid);expect(accepts(schema,invalid)).toBe(false);}
+ });
+ it('instructs both author and checker to preserve relationship strength, uncertainty and scope',()=>{
+  const f=fixture();
+  for(const prompt of [gameWritingPrompt(f.notebook,f.planned,f.units,f.planned.missions![0].id),gameCheckingPrompt({...f.planned,drafts:[]})]){
+   expect(prompt).toContain('Before/after or precedes describes order');expect(prompt).toContain('causes, triggers, must finish before, or is required');
+   expect(prompt).toContain('Correlation does not establish causation');expect(prompt).toContain('one supplied case does not establish a universal rule');
+   expect(prompt).toContain('Retain source uncertainty and scope');expect(prompt).toContain('reject such strengthened claims even when their citation is exact');
+  }
+ });
+ it('constrains whole-game story and sound selection to its disclosed catalog',()=>{
+  const input={choices:[{scaffoldId:'procedure-forge',audioChoices:{playTrackIds:['copper-workshop'],studyTrackIds:['quiet-workshop'],effectProfileIds:['workshop']},nativeTemplateIds:['signalwright-workshop']},{scaffoldId:'evidence-trail',audioChoices:{playTrackIds:['archive-night'],studyTrackIds:['reading-room'],effectProfileIds:['archive']},nativeTemplateIds:['archive-investigation']}]};
+  const reply={primaryScaffoldId:'procedure-forge',title:'Restore the workshop',premise:'A fictional workshop awaits your careful repairs.',throughline:'Learn each procedure, practice a repair, then explain your completed work.',fitReason:'The supplied procedures support an ordered repair journey.',audioDirection:{version:1,playTrackId:'copper-workshop',studyTrackId:'quiet-workshop',effectProfileId:'workshop',effects:'standard'},nativeTemplateId:'signalwright-workshop'};
+  const schema=getGameDirectorOutputSchema('direction',input)!;assertStrictSubset(schema);expect(accepts(schema,reply)).toBe(true);expect(new TextEncoder().encode(JSON.stringify(schema)).byteLength).toBeLessThan(65536);
+  for(const mutate of [(v:any)=>v.primaryScaffoldId='unprovided-scaffold',(v:any)=>v.audioDirection.playTrackId='unprovided-track',(v:any)=>v.audioDirection.studyTrackId='copper-workshop',(v:any)=>v.audioDirection.effectProfileId='unprovided-effects',(v:any)=>v.audioDirection.effects='loud',(v:any)=>v.audioDirection.version=2,(v:any)=>v.nativeTemplateId='restoration-field-station',(v:any)=>v.nativeTemplateId='unimplemented-world',(v:any)=>v.title='x'.repeat(121),(v:any)=>v.premise='x'.repeat(601),(v:any)=>v.throughline='x'.repeat(601),(v:any)=>v.fitReason='x'.repeat(501),(v:any)=>v.script='execute me',(v:any)=>v.audioDirection.file='https://example.com/music.ogg',(v:any)=>delete v.throughline]){
+   const invalid=structuredClone(reply);mutate(invalid);expect(accepts(schema,invalid)).toBe(false);
+  }
+  const absent={...reply,nativeTemplateId:null};expect(accepts(schema,absent)).toBe(true);expect(normalizeGameDirectorStructuredReply('direction',absent)).toEqual(replyWithoutNative());expect(absent).toHaveProperty('nativeTemplateId',null);
+  function replyWithoutNative(){const {nativeTemplateId:_native,...value}=reply;return value;}
+ });
+ it('keeps direction catalogs closed when native play is unsupported and only omits documented null absence',()=>{
+  const input={choices:[{scaffoldId:'picture-garden',audioChoices:{playTrackIds:['garden-play'],studyTrackIds:['garden-study'],effectProfileIds:['garden']},nativeTemplateIds:[]}]};
+  const reply={primaryScaffoldId:'picture-garden',title:'Explore the garden',premise:'A fictional garden for finding the supplied pictures.',throughline:'Explore the pictures and practice supported connections.',fitReason:'The available pictures support gentle discovery.',audioDirection:{version:1,playTrackId:'garden-play',studyTrackId:'garden-study',effectProfileId:'garden',effects:'quiet'},nativeTemplateId:null};
+  const schema=getGameDirectorOutputSchema('direction',input)!;assertStrictSubset(schema);expect(accepts(schema,reply)).toBe(true);expect(accepts(schema,{...reply,nativeTemplateId:'restoration-field-station'})).toBe(false);
+  const normalized=normalizeGameDirectorStructuredReply('direction',{...reply,unsupported:null,audioDirection:{...reply.audioDirection,unsupported:null}}),{nativeTemplateId:_native,...withoutNative}=reply;
+  expect(normalized).toStrictEqual({...withoutNative,unsupported:null,audioDirection:{...reply.audioDirection,unsupported:null}});expect(normalized).not.toHaveProperty('nativeTemplateId');
+  for(const invalid of [{choices:[]},{choices:[{scaffoldId:'picture-garden',audioChoices:{},nativeTemplateIds:[]}]}])expect(()=>getGameDirectorOutputSchema('direction',invalid)).toThrow(/nonempty disclosed catalog/);
+ });
  it('accepts the real source-bound plan contract, with nullable presentation optional fields only',()=>{
   const f=fixture(),schema=getGameDirectorOutputSchema('plan',f.planData)!;expect(accepts(schema,f.wirePlan)).toBe(true);
   const original=structuredClone(f.wirePlan),normalized=normalizeGameDirectorStructuredReply('plan',f.wirePlan);
@@ -70,7 +102,23 @@ describe('bounded director structured response schemas',()=>{
  });
  it('constrains each supported writer to its actual family without open dictionary substitutes',()=>{
   const f=fixture();for(const kind of ['sequence','classification','dependency','completion','explanation']){const input=structuredClone(f.writeData);input.missions[0].plan.kind=kind;const schema=getGameDirectorOutputSchema('write',input)!;expect(schema).toBeDefined();assertStrictSubset(schema);if(kind!=='sequence')expect(accepts(schema,f.written)).toBe(false);}
-  for(const kind of ['budget','construction','scenario','child-play','rule-switch']){const input=structuredClone(f.writeData);input.missions[0].plan.kind=kind;expect(getGameDirectorOutputSchema('write',input)).toBeUndefined();}
+  for(const kind of ['budget','construction','scenario','child-play','rule-switch']){const input=structuredClone(f.writeData);input.missions[0].plan.kind=kind;expect(getGameDirectorOutputSchema('write',input,{provider:'claude-code'})).toBeDefined();if(kind!=='scenario')expect(getGameDirectorOutputSchema('write',input,{provider:'chatgpt'})).toBeUndefined();else expect(getGameDirectorOutputSchema('write',input,{provider:'chatgpt'})).toBeDefined();}
+ });
+ it('requires null workedExample only for a disclosed definite-absence capability, preserving optional legacy requests',()=>{
+  const f=fixture(),input=structuredClone(f.writeData),text='A measurement records a value. A theory proposes a cause.';
+  expect(f.writeData.missions[0].teachingCapabilities).toEqual(workedExampleSourceCapability(f.notebook.sources[0],teachingContextWindow(f.units[0],f.units,f.notebook)));
+  input.missions[0].teachingCapabilities=workedExampleSourceCapability({id:'source',text},{sourceId:'source',start:0,end:text.length});
+  const schema=getGameDirectorOutputSchema('write',input)!;
+  expect(accepts(schema,f.written)).toBe(true);assertStrictSubset(schema);
+  const example=structuredClone(f.written),citation=example.missions[0].teaching.chunks[0].citations[0];
+  example.missions[0].teaching.workedExample={title:'An invented example',sourceEvidence:citation,steps:[{title:'First',text:'The generated example goes beyond the supplied source.',citations:[citation]}]};
+  expect(accepts(schema,example)).toBe(false);
+  expect((schema as any).properties.missions.anyOf[0].items.properties.teaching.properties.workedExample).toEqual({type:'null'});
+  expect((normalizeGameDirectorStructuredReply('write',f.written) as any).missions[0].teaching).not.toHaveProperty('workedExample');
+  input.missions[0].teachingCapabilities={workedExample:'optional-source-only'};
+  expect(accepts(getGameDirectorOutputSchema('write',input)!,example)).toBe(true);
+  delete input.missions[0].teachingCapabilities;
+  expect(accepts(getGameDirectorOutputSchema('write',input)!,example)).toBe(true);
  });
  it('accepts representative classification, dependency, completion and explanation models without changing their format',()=>{
   const f=fixture(),{items:_items,constraints:_constraints,...base}=f.written.missions[0].activity;

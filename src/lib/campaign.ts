@@ -1,15 +1,17 @@
 import type { LearningCard, Notebook, Progress, SourceStudyState } from '../types';
 import { sourceLearningUnits, type SourceLearningUnit } from './sourceUnits';
 import { canScoreRecallCard } from './utils';
-import { hasCurrentActivityEvidence, isReadyLearningSource } from './scaffoldRuntime';
+import { hasCurrentActivityEvidence, isReadyLearningSource, resolveScaffoldRuntime } from './scaffoldRuntime';
 import {currentAILearningMission} from './aiLearningPlan';
+import {evaluateActivityForAuthoring,type StructuredActivity} from './structuredEngine';
+import {modelPracticeResponse} from './modelPractice';
 
 export interface CampaignChapter {
   id: string; title: string; sourceTitle: string; unit: SourceLearningUnit;
   cardIds: string[]; activityIds: string[];
   teaching?: {activityId:string;title:string;objective:string;introduction:string};
 }
-export interface LearningCampaign { chapters: CampaignChapter[]; unboundActivityIds: string[]; unboundCardIds: string[] }
+export interface LearningCampaign { chapters: CampaignChapter[]; unboundActivityIds: string[]; unboundCardIds: string[]; activities?:readonly StructuredActivity[] }
 
 /** A chapter is the source's own topic/context, not an arbitrary batch of eight questions. */
 export function buildCampaign(notebook: Notebook): LearningCampaign {
@@ -61,7 +63,7 @@ export function buildCampaign(notebook: Notebook): LearningCampaign {
       if(teaching){chapter.teaching={activityId:id,title:teaching.title,objective:teaching.objective,introduction:teaching.conceptExplanation.text};break;}
     }
   }
-  return {chapters,unboundActivityIds:activities.filter(a=>!boundActivities.has(a.id)).map(a=>a.id),unboundCardIds:cards.filter(c=>!boundCards.has(c.id)).map(c=>c.id)};
+  return {chapters,activities,unboundActivityIds:activities.filter(a=>!boundActivities.has(a.id)).map(a=>a.id),unboundCardIds:cards.filter(c=>!boundCards.has(c.id)).map(c=>c.id)};
 }
 
 export function chapterProgress(chapter: CampaignChapter, progress: Progress) {
@@ -72,12 +74,18 @@ export function chapterProgress(chapter: CampaignChapter, progress: Progress) {
   return {study,practiced,completedActivities,independent,explored:study.completed,hasPractice:chapter.cardIds.length+chapter.activityIds.length>0};
 }
 
-/** An explored draft is participation, not a completed/independently assessed model. */
-export function activityExplored(progress:Progress,id:string):boolean {
+/** Campaign participation is finished only after a successful checked response
+ * or a valid reflection. A check alone is an attempt, not success. Recompute
+ * against the current model rather than trusting stored scores; this never
+ * awards independent completion, mastery, review credit or XP. */
+export function activityExplored(progress:Progress,id:string,activity?:StructuredActivity):boolean {
+  if(!activity||activity.id!==id)return false;
   const response=progress.structured?.[id]?.response;
   if(!response||typeof response!=='object'||Array.isArray(response))return false;
   const draft=(response as Record<string,unknown>)._draft;
-  return !!draft&&typeof draft==='object'&&!Array.isArray(draft)&&(draft as Record<string,unknown>).checked===true;
+  if(!draft||typeof draft!=='object'||Array.isArray(draft)||(draft as Record<string,unknown>).checked!==true)return false;
+  const result=evaluateActivityForAuthoring(activity,modelPracticeResponse(response));
+  return result.valid&&(result.correct===true||result.outcome==='self-reviewed');
 }
 
 export function restoreSourceStudy(chapter: CampaignChapter, saved?: SourceStudyState): SourceStudyState {
@@ -98,7 +106,8 @@ export function saveSourceStudy(progress:Progress,chapter:CampaignChapter,state:
 export function nextCampaignActivity(campaign:LearningCampaign,progress:Progress,currentId?:string):string|undefined {
   const ids=[...campaign.chapters.flatMap(c=>c.activityIds),...campaign.unboundActivityIds];
   const after=currentId?ids.indexOf(currentId)+1:0;
-  return [...ids.slice(after),...ids.slice(0,after)].find(id=>id!==currentId&&!progress.structured?.[id]?.completed&&!activityExplored(progress,id));
+  const activities=new Map(campaign.activities?.map(activity=>[activity.id,activity]));
+  return [...ids.slice(after),...ids.slice(0,after)].find(id=>id!==currentId&&!progress.structured?.[id]?.completed&&!activityExplored(progress,id,activities.get(id)));
 }
 
 /** First-day supported success must not trap the learner in the same first eight cards. */
@@ -116,24 +125,43 @@ export function selectExpeditionCards(cards:LearningCard[],progress:Progress,lim
   return cards.map((card,index)=>({card,index})).sort((a,b)=>priority(a.card)-priority(b.card)||a.index-b.index).slice(0,Math.max(0,limit)).map(x=>x.card);
 }
 
-export type ExpeditionInvitation={kind:'activity';activityId:string;fresh?:boolean;title:string;reason:string;label:string}|{kind:'recall';chapter?:CampaignChapter;title:string;reason:string;label:string}|{kind:'study';chapter:CampaignChapter;title:string;reason:string;label:string};
+/** Resume only a still-playable saved quest. Do not redirect an old card session
+ * into a newly bound structured model or quietly drop changed/deleted cards. */
+export function resumableRecallSession(notebook:Notebook,campaign:LearningCampaign,progress:Progress):Progress['activeSession'] {
+ const session=progress.activeSession;
+ if(!session||!Number.isInteger(session.index)||session.index<0||session.index>=session.cardIds.length||new Set(session.cardIds).size!==session.cardIds.length)return;
+ const runtime=resolveScaffoldRuntime(session.scaffoldId,notebook);
+ if(!runtime.available||runtime.mode!=='source-practice')return;
+ const chapter=session.chapterId?campaign.chapters.find(chapter=>chapter.id===session.chapterId):undefined;
+ if(session.chapterId&&!chapter)return;
+ const sources=notebook.sources.filter(source=>isReadyLearningSource(source,notebook.sources));
+ const eligible=new Set(notebook.cards.filter(card=>canScoreRecallCard(card,sources)&&(!chapter||chapter.cardIds.includes(card.id))).map(card=>card.id));
+ return session.cardIds.every(id=>eligible.has(id))?session:undefined;
+}
+
+export type ExpeditionInvitation={kind:'activity';activityId:string;fresh?:boolean;title:string;reason:string;label:string}|{kind:'recall';chapter?:CampaignChapter;resume?:true;title:string;reason:string;label:string}|{kind:'study';chapter:CampaignChapter;title:string;reason:string;label:string};
 /** A useful return invitation follows saved work and spaced review, without streak pressure or invented rewards. */
 export function expeditionInvitation(notebook:Notebook,campaign:LearningCampaign,progress:Progress,now=Date.now()):ExpeditionInvitation|undefined{
+ const saved=resumableRecallSession(notebook,campaign,progress);
+ if(saved){const chapter=campaign.chapters.find(chapter=>chapter.id===saved.chapterId);return{kind:'recall',resume:true,chapter,title:chapter?.title??'Your saved recall quest',reason:'Continue the same questions and saved response where you paused.',label:'Continue this recall quest'};}
  const sources=notebook.sources.filter(source=>isReadyLearningSource(source,notebook.sources)),activities=(notebook.activities??[]).filter(activity=>hasCurrentActivityEvidence(activity,notebook.sources)),dueActivity=activities.find(a=>a.reviewStatus==='reviewed'&&progress.structured?.[a.id]?.review?.independentSuccesses&&Date.parse(progress.structured[a.id].review!.dueAt)<=now);
  if(dueActivity){const prior=progress.structured![dueActivity.id],fresh=!prior.reviewStartedAt||Date.parse(prior.reviewStartedAt)<=Date.parse(prior.review!.lastReviewedAt??'1970-01-01');return{kind:'activity',activityId:dueActivity.id,fresh,title:dueActivity.title,reason:fresh?'Some time has passed since your independent attempt. Rebuild this model and see what stayed with you.':'Your review attempt is in progress. Continue from your saved model.',label:fresh?'Rebuild from a fresh attempt':'Continue this review'};}
  const dueCard=notebook.cards.find(c=>canScoreRecallCard(c,sources)&&progress.cards[c.id]?.successfulReviews>0&&Date.parse(progress.cards[c.id].dueAt)<=now);
  if(dueCard)return{kind:'recall',chapter:campaign.chapters.find(c=>c.cardIds.includes(dueCard.id)),title:'Bring an idea back into focus',reason:'A previously learned idea is ready for another retrieval attempt. You can open the source whenever you need it.',label:'Start a review expedition'};
- const started=activities.filter(a=>!progress.structured?.[a.id]?.completed&&!activityExplored(progress,a.id)&&progress.structured?.[a.id]?.response).sort((a,b)=>Date.parse(progress.structured![b.id].updatedAt)-Date.parse(progress.structured![a.id].updatedAt))[0];
+ const started=activities.filter(a=>!progress.structured?.[a.id]?.completed&&!activityExplored(progress,a.id,a)&&progress.structured?.[a.id]?.response).sort((a,b)=>Date.parse(progress.structured![b.id].updatedAt)-Date.parse(progress.structured![a.id].updatedAt))[0];
  if(started)return{kind:'activity',activityId:started.id,title:started.title,reason:'Your unfinished model and lesson are saved. Pick up the next decision where you left off.',label:'Continue this mission'};
  // Generated teaching is the main journey. Source notes remain an optional
  // reference, rather than an extra compulsory reading task before that lesson.
- const taught=activities.find(a=>!progress.structured?.[a.id]?.completed&&!activityExplored(progress,a.id)&&currentAILearningMission(notebook,a));
+ const taught=activities.find(a=>!progress.structured?.[a.id]?.completed&&!activityExplored(progress,a.id,a)&&currentAILearningMission(notebook,a));
  if(taught){const teaching=currentAILearningMission(notebook,taught)!;return{kind:'activity',activityId:taught.id,title:teaching.title,reason:teaching.objective,label:'Learn & play this mission'};}
- const chapter=campaign.chapters.find(c=>!chapterProgress(c,progress).explored);
- if(chapter)return{kind:'study',chapter,title:chapter.title,reason:'Explore a new part of your own material, collect an observation, and put it to work.',label:'Explore the next chapter'};
  const nextId=nextCampaignActivity(campaign,progress),next=activities.find(a=>a.id===nextId);
  if(next)return{kind:'activity',activityId:next.id,title:next.title,reason:'Put the source material to work in your next hands-on mission.',label:'Start the next mission'};
+ const finished=activities.find(a=>progress.structured?.[a.id]?.completed||activityExplored(progress,a.id,a));
+ if(finished)return{kind:'activity',activityId:finished.id,fresh:false,title:finished.title,reason:'Return to your saved work. Your response and earned progress stay in place.',label:'Revisit this mission'};
  const unpracticed=notebook.cards.find(c=>canScoreRecallCard(c,sources)&&!progress.attempts.some(a=>a.cardId===c.id));
- if(unpracticed)return{kind:'recall',chapter:campaign.chapters.find(c=>c.cardIds.includes(unpracticed.id)),title:'Try the ideas you explored',reason:'These source-backed ideas have not appeared in a retrieval quest yet.',label:'Start a recall expedition'};
+ const recall=unpracticed??notebook.cards.find(c=>canScoreRecallCard(c,sources));
+ if(recall)return{kind:'recall',chapter:campaign.chapters.find(c=>c.cardIds.includes(recall.id)),title:unpracticed?'Learn & recall the key ideas':'Revisit the key ideas',reason:unpracticed?'Learn the supplied material, then practise its prepared questions.':'Return to the prepared questions and explore the source whenever you need it.',label:unpracticed?'Start a recall expedition':'Revisit a recall expedition'};
+ const chapter=campaign.chapters.find(c=>!chapterProgress(c,progress).explored);
+ if(chapter)return{kind:'study',chapter,title:chapter.title,reason:'Explore a new part of your own material, collect an observation, and put it to work.',label:'Explore the next chapter'};
  return undefined;
 }
